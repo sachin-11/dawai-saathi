@@ -56,7 +56,7 @@ Payloads we send: `taken:<reminderId>`, `snooze:<reminderId>`, `skip:<reminderId
 | **Buttons** (quick reply) | मैं सहमत हूँ · अभी नहीं | I agree · Not now |
 | **Samples** | none (no variables) | none |
 
-Payloads we send: `consent_yes`, `consent_no`.
+Payloads we send: `consent:yes`, `consent:no` (the same ids as the consent buttons, so the conversation router handles a tap on this template exactly like a tap on the consent message).
 
 ## 4. `generic_reengage` (UTILITY, may be reclassified)
 

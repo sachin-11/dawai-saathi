@@ -30,6 +30,7 @@ describe('validateEnv', () => {
       MAX_MEDIA_MB: 10,
       OUTBOUND_RATE_PER_SEC: 20,
       DEV_ECHO_BOT: false,
+      PRIVACY_POLICY_URL: 'https://dawaisaathi.example/privacy',
       S3_SSE: 'AES256',
     });
   });

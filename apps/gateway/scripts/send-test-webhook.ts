@@ -7,8 +7,16 @@
  *   make webhook FIXTURE=text BAD_SIGNATURE=1      # expect 401
  *   make webhook FIXTURE=text FRESH=1              # new sender + new message ids every time
  *
- * Fixtures live in test/fixtures/whatsapp/*.json (fake numbers only). Without FRESH the message ids
- * are fixed, so running the same fixture twice shows idempotency: no new row, no new job.
+ * To act as ONE user through a whole conversation (onboarding, consent, commands, DELETE) keep the
+ * sender and only change the message ids:
+ *
+ *   make webhook FIXTURE=text      PHONE=919888800001 NEW_IDS=1    # first message -> language buttons
+ *   make webhook FIXTURE=lang-en   PHONE=919888800001 NEW_IDS=1    # tap "English"  -> consent message
+ *   make webhook FIXTURE=consent-yes PHONE=919888800001 NEW_IDS=1  # tap "I agree"  -> welcome
+ *   make webhook FIXTURE=help      PHONE=919888800001 NEW_IDS=1
+ *
+ * Fixtures live in test/fixtures/whatsapp/*.json (fake numbers only). By default the message ids are
+ * fixed, so running the same fixture twice shows idempotency: no new row, no new job.
  */
 import { randomInt, randomUUID } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -40,10 +48,16 @@ async function main(): Promise<void> {
   }
 
   let body = readFileSync(file, 'utf8');
-  if (process.env['FRESH']) {
+  const fresh = Boolean(process.env['FRESH']);
+  const phone =
+    process.env['PHONE'] ??
+    (fresh ? `919${String(randomInt(0, 1_000_000_000)).padStart(9, '0')}` : undefined);
+  if (phone) {
+    body = body.replaceAll(FIXTURE_PHONE, phone);
+  }
+  if (fresh || process.env['NEW_IDS']) {
     const tag = randomUUID().replaceAll('-', '').slice(0, 10);
-    const phone = `919${String(randomInt(0, 1_000_000_000)).padStart(9, '0')}`;
-    body = body.replaceAll(FIXTURE_PHONE, phone).replaceAll('wamid.', `wamid.${tag}.`);
+    body = body.replaceAll('wamid.', `wamid.${tag}.`);
   }
   const raw = Buffer.from(body);
 

@@ -47,7 +47,9 @@ describe('i18n dictionaries', () => {
 
   it('Hindi strings are written in Devanagari', () => {
     for (const [key, value] of Object.entries(hi)) {
-      if (!key.startsWith('dev.')) {
+      // Dev messages and the English language button ("English") are deliberately not Devanagari.
+      // Skip dev messages and language-neutral strings ("English", "• {{name}} — {{timings}}").
+      if (!key.startsWith('dev.') && value !== (en as Record<string, string>)[key]) {
         expect(value).toMatch(/[ऀ-ॿ]/);
       }
     }

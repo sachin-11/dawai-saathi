@@ -33,6 +33,7 @@ import { WhatsAppClient } from './whatsapp.client';
     I18nService,
     MediaService,
     OutboundService,
+    OutboundQueue,
     StatusUpdater,
   ],
 })

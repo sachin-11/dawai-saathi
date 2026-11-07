@@ -14,9 +14,10 @@ import type { InboundJobData } from '../queues/queue.constants';
  * DEV ONLY echo bot: proves the whole loop (webhook -> queue -> worker -> outbound) with a real
  * Meta test number. Enabled with DEV_ECHO_BOT=true; the env schema refuses that in production.
  *
- * WARNING: it answers ANYONE who writes to the number, so it BYPASSES THE CONSENT FLOW
- * (CLAUDE.md §2.7). It must be switched off (and this file deleted) before the M4 consent flow goes
- * live. It only ever sees the REDACTED text stored in `messages.body_redacted`.
+ * Since M4 the InboundRouter calls it only for users who finished onboarding (language + consent),
+ * after the emergency check and the commands, so it can no longer be used to bypass consent
+ * (CLAUDE.md §2.7). It only ever sees the REDACTED text stored in `messages.body_redacted`.
+ * It is still a dev tool: keep DEV_ECHO_BOT=false outside local debugging (production refuses it).
  */
 @Injectable()
 export class EchoBotService implements OnModuleInit {

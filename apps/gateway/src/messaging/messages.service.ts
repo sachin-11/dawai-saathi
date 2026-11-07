@@ -35,11 +35,18 @@ export class MessagesService {
    * insert is `ON CONFLICT DO NOTHING` and a redelivery returns the existing row with
    * `duplicate: true` (the caller still enqueues, which BullMQ's jobId turns into a no-op).
    *
-   * Only redacted text is stored (`body_redacted`); the media is not downloaded yet (M3), so
+   * Only redacted text is stored (`body_redacted`); the media is not downloaded here, so
    * `media_s3_key` stays null and the media id travels in the queue job instead.
+   *
+   * `storeBody: false` is the pre-consent mode (CLAUDE.md §2.7): only metadata (type, time) is
+   * saved, `body_redacted` stays null. Default is to store the redacted body.
    */
-  async saveInbound(userId: string, message: InboundMessage): Promise<SavedMessage> {
-    const bodyRedacted = this.bodyFor(message);
+  async saveInbound(
+    userId: string,
+    message: InboundMessage,
+    options: { storeBody?: boolean } = {},
+  ): Promise<SavedMessage> {
+    const bodyRedacted = options.storeBody === false ? null : this.bodyFor(message);
 
     const inserted = await this.prisma.$queryRaw<{ id: string }[]>`
       INSERT INTO messages (user_id, direction, wa_message_id, type, body_redacted)

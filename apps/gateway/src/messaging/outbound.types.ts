@@ -35,6 +35,8 @@ export interface OutboundRequest {
   /** Position of this reply among the replies to `sourceMessageId`. Part of the idempotency key. */
   replyIndex: number;
   requestId?: string;
+  /** BullMQ priority (1 = highest). Emergency replies use 1 so they never wait behind other sends. */
+  priority?: number;
 }
 
 /**

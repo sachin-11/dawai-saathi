@@ -78,6 +78,11 @@ export const envSchema = z
     OUTBOUND_RATE_PER_SEC: z.coerce.number().int().min(1).max(80).default(20),
     /** DEV ONLY: echo inbound messages back. Bypasses consent, refused when NODE_ENV=production. */
     DEV_ECHO_BOT: z.stringbool().default(false),
+    // --- M4: consent text
+    /** Link shown in the consent message. The real privacy-policy page arrives with M16 (web app). */
+    PRIVACY_POLICY_URL: z
+      .url({ protocol: /^https?$/ })
+      .default('https://dawaisaathi.example/privacy'),
     /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
     S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })

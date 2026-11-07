@@ -7,6 +7,7 @@ import { MessagesService } from '../messaging/messages.service';
 import { StatusUpdater } from '../messaging/status-updater.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import { InboundQueue } from '../queues/inbound.queue';
+import { classifyInbound } from '../conversation/signals';
 import { UsersService } from '../users/users.service';
 import type { InboundMessage } from './inbound-message';
 import { parseWebhook } from './whatsapp.parser';
@@ -75,7 +76,11 @@ export class WebhookService {
   private async processMessage(message: InboundMessage, requestId: string): Promise<boolean> {
     const user = await this.users.findOrCreateByPhone(message.from);
     await this.users.touchLastInbound(user.id, message.timestamp);
-    const saved = await this.messages.saveInbound(user.id, message);
+    // Data minimisation (§2.7): before the user has consented we keep metadata only, no text.
+    const saved = await this.messages.saveInbound(user.id, message, {
+      storeBody: user.onboardingStep === 'done',
+    });
+    const signals = classifyInbound(message);
 
     // Enqueue even for a duplicate: the jobId makes it a no-op if the job exists, and it repairs the
     // case "row saved, enqueue failed, Meta retried" which would otherwise lose the message.
@@ -86,6 +91,7 @@ export class WebhookService {
       type: message.type,
       ...(message.media ? { media: message.media } : {}),
       ...(message.button ? { button: message.button } : {}),
+      ...(Object.keys(signals).length > 0 ? { signals } : {}),
       receivedAt: message.timestamp.toISOString(),
       requestId,
     };

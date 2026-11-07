@@ -39,12 +39,13 @@ export class OutboundQueue implements OnModuleDestroy {
     this.logger.setContext(OutboundQueue.name);
   }
 
-  async add(data: OutboundJobData): Promise<void> {
+  async add(data: OutboundJobData, options: { priority?: number } = {}): Promise<void> {
     const queue = this.getQueue();
     await withTimeout(
       () =>
         queue.add('send', data, {
           ...OUTBOUND_JOB_OPTIONS,
+          ...(options.priority !== undefined ? { priority: options.priority } : {}),
           jobId: outboundJobId(data.sourceMessageId, data.replyIndex),
         }),
       OUTBOUND_ENQUEUE_TIMEOUT_MS,

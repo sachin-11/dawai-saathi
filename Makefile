@@ -85,7 +85,7 @@ db-studio: ## Open Prisma Studio (http://localhost:5555)
 
 # ---- WhatsApp webhook dev tool (M2) ----
 FIXTURE ?= text
-webhook: ## Send a signed sample webhook to the local gateway: make webhook FIXTURE=text|image|document|audio|button|batch|status|... (BAD_SIGNATURE=1, FRESH=1, WEBHOOK_URL=...)
+webhook: ## Send a signed sample webhook to the local gateway: make webhook FIXTURE=text|image|document|audio|button|batch|status|... (BAD_SIGNATURE=1, FRESH=1, PHONE=<n> NEW_IDS=1, WEBHOOK_URL=...)
 	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec ts-node scripts/send-test-webhook.ts $(FIXTURE)
 
 # ---- integration tests (need Docker; use docker-compose.test.yml on separate ports) ----

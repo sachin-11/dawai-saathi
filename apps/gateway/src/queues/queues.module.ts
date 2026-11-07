@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 
-import { DevModule } from '../dev/dev.module';
+import { ConversationModule } from '../conversation/conversation.module';
 import { InboundQueue } from './inbound.queue';
 import { InboundWorker } from './inbound.worker';
 
 @Module({
-  imports: [DevModule],
+  imports: [ConversationModule],
   providers: [InboundQueue, InboundWorker],
   exports: [InboundQueue],
 })
