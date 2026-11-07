@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule as PinoLoggerModule } from 'nestjs-pino';
+import type { Writable } from 'node:stream';
 
 import { APP_CONFIG } from '../../config/config.constants';
 import type { Env } from '../../config/env.schema';
+import { LOG_STREAM, LogStreamModule } from './log-stream';
 import { resolveRequestId } from './request-id';
 
 /**
@@ -12,10 +14,11 @@ import { resolveRequestId } from './request-id';
  */
 @Module({
   imports: [
+    LogStreamModule,
     PinoLoggerModule.forRootAsync({
-      inject: [APP_CONFIG],
-      useFactory: (env: Env) => ({
-        pinoHttp: {
+      inject: [APP_CONFIG, LOG_STREAM],
+      useFactory: (env: Env, stream: Writable | undefined) => {
+        const options = {
           level: env.LOG_LEVEL,
           base: { service: 'gateway' },
           genReqId: resolveRequestId,
@@ -37,8 +40,9 @@ import { resolveRequestId } from './request-id';
             }),
             res: (res: { statusCode?: number }) => ({ statusCode: res.statusCode }),
           },
-        },
-      }),
+        };
+        return { pinoHttp: stream ? ([options, stream] as [typeof options, Writable]) : options };
+      },
     }),
   ],
 })

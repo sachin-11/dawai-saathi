@@ -7,28 +7,16 @@
  * Connection settings come from the environment and fall back to the test stack. As a safety net the
  * suite refuses to run unless the database name ends with "_test", so it can never touch dev data.
  */
-import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { dirname, join } from 'node:path';
 
 import { validateEnv, type Env } from '../../src/config/env.schema';
 import { PrismaService } from '../../src/common/prisma/prisma.service';
 import { RedisService } from '../../src/common/redis/redis.service';
 import { StorageService } from '../../src/common/storage/storage.service';
 import { ReadinessService } from '../../src/health/readiness.service';
+import { INTEGRATION_ENV, prepareTestDatabase } from '../support/integration-env';
 
-const raw = {
-  NODE_ENV: 'test',
-  SERVICE_TOKEN: 'integration-test-token',
-  AI_SERVICE_URL: 'http://localhost:8000',
-  DATABASE_URL:
-    process.env['INTEGRATION_DATABASE_URL'] ?? 'postgresql://dawai:dawai@localhost:5543/dawai_test',
-  REDIS_URL: process.env['INTEGRATION_REDIS_URL'] ?? 'redis://localhost:6479',
-  S3_BUCKET: process.env['INTEGRATION_S3_BUCKET'] ?? 'dawai-media-test',
-  S3_ENDPOINT: process.env['INTEGRATION_S3_ENDPOINT'] ?? 'http://localhost:9100',
-  S3_ACCESS_KEY_ID: process.env['INTEGRATION_S3_ACCESS_KEY_ID'] ?? 'dawai-minio',
-  S3_SECRET_ACCESS_KEY: process.env['INTEGRATION_S3_SECRET_ACCESS_KEY'] ?? 'dawai-minio-secret',
-};
+const raw = { ...INTEGRATION_ENV };
 
 describe('infrastructure (integration)', () => {
   let env: Env;
@@ -38,19 +26,7 @@ describe('infrastructure (integration)', () => {
 
   beforeAll(() => {
     env = validateEnv(raw);
-    const dbName = new URL(env.DATABASE_URL).pathname.slice(1);
-    if (!dbName.endsWith('_test')) {
-      throw new Error(
-        `Refusing to run integration tests against database "${dbName}" (must end with _test)`,
-      );
-    }
-
-    // Apply the real migrations to the test DB, exactly like `make migrate` does.
-    const prismaCli = join(dirname(require.resolve('prisma/package.json')), 'build', 'index.js');
-    execFileSync(process.execPath, [prismaCli, 'migrate', 'deploy'], {
-      env: { ...process.env, DATABASE_URL: env.DATABASE_URL },
-      stdio: 'pipe',
-    });
+    prepareTestDatabase(env.DATABASE_URL);
 
     prisma = new PrismaService(env);
     redis = new RedisService(env);

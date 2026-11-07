@@ -83,6 +83,11 @@ migrate-dev: ## Create/apply a new migration during development: make migrate-de
 db-studio: ## Open Prisma Studio (http://localhost:5555)
 	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec prisma studio
 
+# ---- WhatsApp webhook dev tool (M2) ----
+FIXTURE ?= text
+webhook: ## Send a signed sample webhook to the local gateway: make webhook FIXTURE=text|image|document|audio|button|batch|status|... (BAD_SIGNATURE=1, FRESH=1, WEBHOOK_URL=...)
+	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec ts-node scripts/send-test-webhook.ts $(FIXTURE)
+
 # ---- integration tests (need Docker; use docker-compose.test.yml on separate ports) ----
 test-infra-up: ## Start the throwaway test stack (postgres :5543, redis :6479, minio :9100)
 	docker compose -f docker-compose.test.yml up -d --wait postgres redis minio

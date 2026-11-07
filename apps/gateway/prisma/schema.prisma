@@ -44,6 +44,9 @@ enum MessageType {
   audio
   button
   template
+  /// Inbound types we do not process (sticker, location, video, reaction, ...). Saved so the
+  /// worker can send a polite "I can't read this" reply (M4+). Added in M2; not in CLAUDE.md §6.
+  unsupported
 
   @@map("message_type")
 }
