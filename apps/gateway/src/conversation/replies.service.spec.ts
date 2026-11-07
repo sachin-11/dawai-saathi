@@ -87,6 +87,15 @@ describe('ReplySession', () => {
     expect(session.currentLanguage).toBe('en');
   });
 
+  describe('rawEmergencyText (the AI service emergency reply)', () => {
+    it('is plain text with the highest queue priority', async () => {
+      const { session, sent } = setup('hi');
+      await session.rawEmergencyText('अभी 112 पर कॉल करें');
+      expect(sent[0]?.content).toEqual({ kind: 'text', body: 'अभी 112 पर कॉल करें' });
+      expect(sent[0]?.priority).toBe(EMERGENCY_PRIORITY);
+    });
+  });
+
   describe('emergency', () => {
     it('is sent with the highest queue priority', async () => {
       const { session, sent } = setup('en');

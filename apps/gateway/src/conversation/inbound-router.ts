@@ -34,6 +34,7 @@ export type RouteOutcome =
   | 'meds'
   | 'echo_bot'
   | 'ai_reply'
+  | 'ai_emergency'
   | 'media_rejected'
   | 'unsupported';
 

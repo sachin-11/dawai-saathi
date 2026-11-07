@@ -30,6 +30,8 @@ from tests.test_tracing import FakeLangfuse
 URL = "/v1/process"
 HEADERS = {"X-Service-Token": SERVICE_TOKEN}
 PROVIDER_BODY = "SECRET-PROVIDER-BODY-9876543210"
+# The emergency classifier answers first on ordinary text; scripts for the intent call follow it.
+NOT_EMERGENCY: dict[str, Any] = {"is_emergency": False, "category": None, "confidence": 0.9}
 
 
 def payload(**overrides: Any) -> dict[str, Any]:
@@ -100,7 +102,7 @@ class TestSuccess:
         assert body["reply"]["buttons"] == []
         meta = body["meta"]
         assert meta["model"] == "fake-model" and meta["provider"] == "fake"
-        assert meta["prompt_version"] == "reply_templates_v1,intent_text_v1"
+        assert meta["prompt_version"] == "reply_templates_v2,emergency_classify_v1,intent_text_v2"
         assert meta["fallback_used"] is False
         assert meta["latency_ms"] >= 0 and meta["cost_usd"] == 0
         assert meta["trace_id"] is None  # no Langfuse configured
@@ -111,11 +113,17 @@ class TestSuccess:
         assert res.json()["reply"]["language"] == "en"
         assert "I'm Dawai Saathi" in res.json()["reply"]["text"]
 
-    async def test_other_text_gets_coming_soon(self, client: AsyncClient):
-        body = payload(input={"type": "text", "text": "hello there"})
+    async def test_off_topic_text_gets_the_static_out_of_scope_reply(self, client: AsyncClient):
+        body = payload(input={"type": "text", "text": "cricket score batao"})
         res = await client.post(URL, json=body, headers=HEADERS)
-        assert res.json()["intent"] == "other"
-        assert "जल्द" in res.json()["reply"]["text"]
+        assert res.json()["intent"] == "out_of_scope"
+        assert "सिर्फ़ दवाइयों" in res.json()["reply"]["text"]
+
+    async def test_a_greeting_gets_the_welcome(self, client: AsyncClient):
+        body = payload(input={"type": "text", "text": "hello"})
+        res = await client.post(URL, json=body, headers=HEADERS)
+        assert res.json()["intent"] == "greeting"
+        assert "नमस्ते" in res.json()["reply"]["text"]
 
     async def test_an_image_is_acknowledged_without_any_llm_call(self):
         provider = FakeProvider()
@@ -134,14 +142,44 @@ class TestSuccess:
         assert res.json()["meta"]["model"] is None
         assert provider.calls == []
 
-    async def test_a_scripted_emergency_sets_the_flag_and_the_112_text(self):
-        provider = FakeProvider([{"intent": "emergency", "confidence": 0.99}])
+    async def test_a_classifier_emergency_sets_the_flag_category_and_the_112_text(self):
+        provider = FakeProvider([{"is_emergency": True, "category": "stroke", "confidence": 0.9}])
         app, _ = app_with(provider)
         async with client_for(app) as client:
             res = await client.post(URL, json=payload(), headers=HEADERS)
         body = res.json()
         assert body["emergency"] is True and body["intent"] == "emergency"
+        assert body["emergency_category"] == "stroke"
         assert "112" in body["reply"]["text"]
+        assert len(provider.calls) == 1  # no intent call, no other LLM work
+
+    @pytest.mark.parametrize(
+        ("text", "category", "needs_14416"),
+        [
+            ("seene me bahut dard ho raha hai", "cardiac", False),
+            ("mujhe jeena nahi hai", "self_harm", True),
+        ],
+    )
+    async def test_a_keyword_emergency_is_answered_without_any_llm_call(
+        self, text, category, needs_14416
+    ):
+        provider = FakeProvider()
+        app, _ = app_with(provider)
+        async with client_for(app) as client:
+            res = await client.post(
+                URL, json=payload(input={"type": "text", "text": text}), headers=HEADERS
+            )
+        body = res.json()
+        assert body["emergency"] is True and body["intent"] == "emergency"
+        assert body["emergency_category"] == category
+        assert ("14416" in body["reply"]["text"]) is needs_14416
+        assert "112" in body["reply"]["text"]
+        assert provider.calls == []  # not a single model call
+        assert body["meta"]["cost_usd"] == 0
+
+    async def test_a_non_emergency_has_no_category(self, client: AsyncClient):
+        res = await client.post(URL, json=payload(), headers=HEADERS)
+        assert res.json()["emergency_category"] is None
 
     async def test_the_response_validates_against_the_contract(self, client: AsyncClient):
         res = await client.post(URL, json=payload(), headers=HEADERS)
@@ -274,7 +312,7 @@ class TestErrorMapping:
     async def test_llm_failures_map_to_clear_responses_without_leaking_details(
         self, errors, status, code
     ):
-        res = await self.post(FakeProvider(errors))
+        res = await self.post(FakeProvider([NOT_EMERGENCY, *errors]))
         assert res.status_code == status
         error = res.json()["error"]
         assert error["code"] == code and error["status"] == status
@@ -347,18 +385,18 @@ class TestLoggingAndTracing:
         assert body["meta"]["trace_id"] == trace_id_for(payload()["request_id"])
 
         names = [o.kwargs["name"] for o in langfuse.observations]
-        assert names == ["process", "classify_intent"]
+        assert names == ["process", "emergency_classify", "classify_intent"]
         sent = langfuse.everything_sent()
-        assert "9876543210" not in sent and "[REDACTED_PHONE]" in sent
+        assert "9876543210" not in sent and "[PHONE]" in sent
         assert langfuse.flushed >= 1
-        generation = langfuse.observations[1].kwargs
-        assert generation["version"] == "intent_text_v1"
+        generation = langfuse.observations[2].kwargs
+        assert generation["version"] == "intent_text_v2"
         assert generation["usage_details"]["input"] > 0
 
     async def test_a_failed_request_still_finishes_its_trace(self):
         langfuse = FakeLangfuse()
         config = make_settings()
-        provider = FakeProvider([LLMServerError()] * 2)
+        provider = FakeProvider([NOT_EMERGENCY, LLMServerError(), LLMServerError()])
         router = build_llm_router(config, observer=observe_llm_call, fake_provider=provider)
         app = create_app(config, llm_router=router, tracer=LangfuseTracer(langfuse))
         async with client_for(app) as client:
@@ -386,3 +424,52 @@ class TestLoggingAndTracing:
         assert schemas["Reply"]["properties"]["buttons"]["maxItems"] == 3
         assert schemas["ReplyButton"]["properties"]["title"]["maxLength"] == 20
         assert schemas["Reply"]["properties"]["text"]["maxLength"] == 4096
+
+
+class TestSafetyLayerEndToEnd:
+    async def test_the_lifespan_warms_the_redaction_engine(self):
+        config = make_settings()
+        app = create_app(config)
+        async with app.router.lifespan_context(app):
+            assert app.state.redactor.enabled is True
+            assert app.state.guard is not None
+
+    async def test_no_phone_number_reaches_a_log_line_or_the_model(self, capsys):
+        provider = FakeProvider()
+        app, _ = app_with(provider)
+        text = "mera number 9876543210 hai, aadhaar 2345 6789 0124, dawai ke baare me poochna hai"
+        async with client_for(app) as client:
+            res = await client.post(
+                URL, json=payload(input={"type": "text", "text": text}), headers=HEADERS
+            )
+        assert res.status_code == 200
+        everything = capsys.readouterr().out + json.dumps(
+            [[m.content for m in call["messages"]] for call in provider.calls]
+        )
+        assert "9876543210" not in everything and "2345 6789 0124" not in everything
+
+    async def test_an_emergency_in_an_image_request_cannot_exist(self):
+        provider = FakeProvider()
+        app, _ = app_with(provider)
+        body = payload(
+            input={
+                "type": "image",
+                "media_url": "http://localhost:9000/b/k?s=1",
+                "mime": "image/jpeg",
+            }
+        )
+        async with client_for(app) as client:
+            res = await client.post(URL, json=body, headers=HEADERS)
+        assert res.json()["emergency"] is False and provider.calls == []
+
+    async def test_emergency_makes_no_llm_calls_and_costs_nothing(self):
+        provider = FakeProvider()
+        app, _ = app_with(provider)
+        async with client_for(app) as client:
+            res = await client.post(
+                URL,
+                json=payload(input={"type": "text", "text": "he is unconscious and not breathing"}),
+                headers=HEADERS,
+            )
+        assert res.json()["emergency"] is True
+        assert provider.calls == []

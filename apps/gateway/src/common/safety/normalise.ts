@@ -4,6 +4,11 @@ const NUKTA = String.fromCodePoint(0x093c);
 const CANDRABINDU = String.fromCodePoint(0x0901);
 const ANUSVARA = String.fromCodePoint(0x0902);
 
+/** "dardddd" -> "dard", "seeene" stays 2 vowels: repeated Latin consonants collapse to one letter... */
+const LATIN_CONSONANT_RUN = /([b-df-hj-np-tv-z])\1+/g;
+/** ...and runs of 3+ identical Latin vowels collapse to two ("saaaans" -> "saans"). */
+const LATIN_VOWEL_RUN = /([aeiou])\1{2,}/g;
+
 /**
  * Normalise free text so that keyword and command matching survives the ways people actually type
  * on a phone: capitals, punctuation, emoji, repeated spaces and the many spellings of Devanagari.
@@ -28,4 +33,15 @@ export function normaliseForMatching(text: string): string {
     .replace(/[^\p{L}\p{N}\p{M}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Normalisation for the EMERGENCY matcher: everything `normaliseForMatching` does, plus squeezing of
+ * repeated Latin letters ("dardddd" -> "dard"). Commands do not use this ("helpp" is not HELP).
+ * The AI service implements the identical function; shared vectors keep the two in sync.
+ */
+export function normaliseForEmergency(text: string): string {
+  return normaliseForMatching(text)
+    .replace(LATIN_CONSONANT_RUN, '$1')
+    .replace(LATIN_VOWEL_RUN, '$1$1');
 }

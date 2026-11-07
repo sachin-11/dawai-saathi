@@ -125,16 +125,36 @@ class TestPromptRegistry:
 class TestTemplateStore:
     def test_has_the_same_keys_and_version_in_both_languages(self):
         store = TemplateStore()
-        assert store.version == "reply_templates_v1"
-        for key in ("help", "coming_soon", "received_media", "emergency"):
+        assert store.version == "reply_templates_v2"
+        for key in (
+            "help",
+            "coming_soon",
+            "received_media",
+            "emergency.general",
+            "emergency.self_harm",
+            "out_of_scope",
+            "greeting",
+        ):
             assert store.get(Language.hi, key)
             assert store.get(Language.en, key)
 
     def test_emergency_texts_name_112_and_108(self):
         store = TemplateStore()
         for language in Language:
-            text = store.get(language, "emergency")
-            assert "112" in text and "108" in text
+            for key in ("emergency.general", "emergency.self_harm"):
+                text = store.get(language, key)
+                assert "112" in text and "108" in text
+
+    def test_only_the_self_harm_text_names_tele_manas_14416(self):
+        store = TemplateStore()
+        for language in Language:
+            assert "14416" in store.get(language, "emergency.self_harm")
+            assert "14416" not in store.get(language, "emergency.general")
+
+    def test_out_of_scope_text_points_to_help_and_never_answers(self):
+        store = TemplateStore()
+        for language in Language:
+            assert "HELP" in store.get(language, "out_of_scope")
 
     def test_help_text_says_not_a_doctor_and_fits_whatsapp(self):
         store = TemplateStore()

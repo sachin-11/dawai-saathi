@@ -11,7 +11,9 @@ from app.config import Settings
 from app.llm.router import Deadline, LLMRouter
 from app.llm.types import LLMResult
 from app.prompts.registry import PromptRegistry, TemplateStore
-from app.schemas.process import Intent, ProcessRequest, Reply, Warning
+from app.safety.emergency_guard import EmergencyGuard
+from app.safety.redaction import Redactor, get_redactor
+from app.schemas.process import EmergencyCategory, Intent, ProcessRequest, Reply, Warning
 
 
 @dataclass(slots=True)
@@ -47,6 +49,8 @@ class PipelineContext:
     templates: TemplateStore
     deadline: Deadline
     usage: RequestUsage
+    guard: EmergencyGuard = field(default_factory=EmergencyGuard)
+    redactor: Redactor = field(default_factory=get_redactor)
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +59,7 @@ class PipelineOutput:
     emergency: bool
     reply: Reply
     warnings: list[Warning] = field(default_factory=list)
+    emergency_category: EmergencyCategory | None = None
 
 
 class Pipeline(Protocol):

@@ -12,6 +12,7 @@ export type AuditAction =
   | 'reminders_disabled'
   | 'reminders_enabled'
   | 'delete_requested'
+  | 'emergency_detected'
   | 'user_deleted';
 
 export type AuditValue =

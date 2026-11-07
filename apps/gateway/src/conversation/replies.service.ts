@@ -70,6 +70,11 @@ export class ReplySession {
     return this.sendText(body);
   }
 
+  /** The AI service's emergency reply: plain text, highest outbound priority, never buttons. */
+  rawEmergencyText(body: string): Promise<void> {
+    return this.sendText(body, EMERGENCY_PRIORITY);
+  }
+
   /** A reply with buttons from the AI service (the contract limits them to 3, title <= 20). */
   rawButtons(body: string, buttons: readonly { id: string; title: string }[]): Promise<void> {
     return this.outbound.enqueue(this.ctx.userId, {

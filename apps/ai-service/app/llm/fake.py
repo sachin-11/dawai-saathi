@@ -17,12 +17,9 @@ from app.llm.types import ImageInput, LLMError, Message, RawResult
 
 FAKE_MODEL = "fake-model"
 
-# Lower-case keywords per intent for the default heuristic. Order matters: first match wins.
+# Lower-case keywords per intent (prompt `intent_text_v2`) for the default heuristic. First match wins;
+# anything else is out_of_scope, exactly like the real prompt.
 _INTENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "emergency",
-        ("chest pain", "can't breathe", "cant breathe", "unconscious", "suicide", "seene me dard"),
-    ),
     (
         "help",
         (
@@ -37,10 +34,49 @@ _INTENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "how does this work",
         ),
     ),
-    ("prescription", ("prescription", "parcha", "parche", "पर्ची")),
-    ("lab_report", ("lab report", "blood test", "report", "रिपोर्ट")),
+    ("lab_question", ("lab report", "blood test", "report", "रिपोर्ट", "hba1c", "tsh")),
     ("interaction_query", ("interaction", "saath me le sakta", "together safe")),
     ("generic_query", ("generic", "sasta", "cheaper", "alternative")),
+    (
+        "prescription_question",
+        (
+            "prescription",
+            "parcha",
+            "parche",
+            "पर्ची",
+            "dawai",
+            "dawa ",
+            "medicine",
+            "tablet",
+            "goli",
+        ),
+    ),
+)
+_GREETING_WORDS = frozenset(
+    {
+        "hi",
+        "hii",
+        "hello",
+        "hey",
+        "namaste",
+        "namaskar",
+        "thanks",
+        "thank",
+        "you",
+        "dhanyavad",
+        "नमस्ते",
+    }
+)
+# Phrases a real model would flag even though the keyword rules do not list them. They let the fake
+# classifier exercise stage 2 of the emergency guard in tests and in the CI eval.
+_EMERGENCY_HINTS: tuple[str, ...] = (
+    "ambulance",
+    "ghabrahat",
+    "ukhad",
+    "pasina pasina",
+    "jaan ko khatra",
+    "urgent help",
+    "bachao",
 )
 
 
@@ -61,12 +97,24 @@ def default_fake_response(
     """The answer given when no script step or fixture rule applies."""
     if response_model is None:
         return "This is a fake LLM response."
+    last_user = next((m.content for m in reversed(messages) if m.role == "user"), "").lower()
+    if "is_emergency" in response_model.model_fields:
+        hit = any(hint in last_user for hint in _EMERGENCY_HINTS)
+        return json.dumps(
+            {
+                "is_emergency": hit,
+                "category": "cardiac" if hit else None,
+                "confidence": 0.8 if hit else 0.9,
+            }
+        )
     if "intent" in response_model.model_fields:
-        last_user = next((m.content for m in reversed(messages) if m.role == "user"), "").lower()
         for intent, keywords in _INTENT_KEYWORDS:
             if any(keyword in last_user for keyword in keywords):
                 return json.dumps({"intent": intent, "confidence": 0.9})
-        return json.dumps({"intent": "other", "confidence": 0.9})
+        words = set(last_user.replace("<message>", " ").replace("</message>", " ").split())
+        if words and words <= _GREETING_WORDS:
+            return json.dumps({"intent": "greeting", "confidence": 0.9})
+        return json.dumps({"intent": "out_of_scope", "confidence": 0.9})
     raise NotImplementedError(f"no fake answer for {response_model.__name__}")
 
 

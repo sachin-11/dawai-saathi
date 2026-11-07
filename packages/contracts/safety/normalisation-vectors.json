@@ -1,0 +1,53 @@
+{
+  "description": "Shared test vectors: the gateway (TypeScript) and the AI service (Python) must normalise text to exactly these strings, otherwise the two keyword matchers could drift apart. Rule: Latin consonant runs collapse to one letter, Latin vowel runs of 3+ collapse to two (applied to user text AND to the phrase lists, so both sides stay comparable).",
+  "vectors": [
+    {
+      "input": "Chest PAIN!!!",
+      "expected": "chest pain"
+    },
+    {
+      "input": "can't breathe",
+      "expected": "can t breathe"
+    },
+    {
+      "input": "seene   me\tdard",
+      "expected": "seene me dard"
+    },
+    {
+      "input": "dardddd hai",
+      "expected": "dard hai"
+    },
+    {
+      "input": "saaaaans nahi aa rahi",
+      "expected": "saans nahi aa rahi"
+    },
+    {
+      "input": "seene me dard",
+      "expected": "seene me dard"
+    },
+    {
+      "input": "ज़हर",
+      "expected": "जहर"
+    },
+    {
+      "input": "साँस नहीं आ रही",
+      "expected": "सांस नहीं आ रही"
+    },
+    {
+      "input": "सीने में दर्द!!",
+      "expected": "सीने में दर्द"
+    },
+    {
+      "input": "  Hello,​ world  ",
+      "expected": "helo world"
+    },
+    {
+      "input": "Dolo 650 mg 1-0-1",
+      "expected": "dolo 650 mg 1 0 1"
+    },
+    {
+      "input": "",
+      "expected": ""
+    }
+  ]
+}

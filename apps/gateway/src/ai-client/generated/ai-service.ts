@@ -75,6 +75,21 @@ export interface components {
       /** Strength */
       strength: string;
     };
+    /**
+     * EmergencyCategory
+     * @description Why a message was treated as an emergency (shared with the keyword file's categories).
+     * @enum {string}
+     */
+    EmergencyCategory:
+      | 'cardiac'
+      | 'breathing'
+      | 'unconscious'
+      | 'bleeding'
+      | 'poisoning_overdose'
+      | 'seizure'
+      | 'stroke'
+      | 'severe_allergy'
+      | 'self_harm';
     /** InputPayload */
     InputPayload: {
       /** Media Url */
@@ -101,6 +116,8 @@ export interface components {
       | 'interaction_query'
       | 'help'
       | 'emergency'
+      | 'greeting'
+      | 'out_of_scope'
       | 'other';
     /**
      * Language
@@ -165,6 +182,7 @@ export interface components {
        * @default false
        */
       emergency: boolean;
+      emergency_category?: components['schemas']['EmergencyCategory'] | null;
       extraction?: components['schemas']['PlaceholderExtraction'] | null;
       intent: components['schemas']['Intent'];
       meta: components['schemas']['Meta'];

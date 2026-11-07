@@ -1,0 +1,28 @@
+{
+  "description": "Shared redaction fixture: BOTH the gateway's lightweight regex redaction (messages.body_redacted) and the AI service's Presidio redaction must remove every `secrets` entry from `must_redact` inputs and leave every `must_keep` input untouched. Placeholders differ between the two apps on purpose; only the absence of the secret is shared.",
+  "must_redact": [
+    { "input": "call me on 9876543210 please", "secrets": ["9876543210"] },
+    { "input": "my number is +91 98765 43210", "secrets": ["98765 43210", "9876543210"] },
+    { "input": "whatsapp 919876543210 anytime", "secrets": ["919876543210", "9876543210"] },
+    { "input": "mobile 098765-43210 hai", "secrets": ["98765-43210", "9876543210"] },
+    { "input": "aadhaar 2345 6789 0124", "secrets": ["2345 6789 0124", "234567890124"] },
+    { "input": "aadhaar number 234567890124", "secrets": ["234567890124"] },
+    {
+      "input": "mail me at ramesh.kumar@example.co.in",
+      "secrets": ["ramesh.kumar@example.co.in"]
+    },
+    { "input": "pincode 400001 Andheri", "secrets": ["400001"] },
+    {
+      "input": "sasta dawai ka naam batao, call 9123456780 or a_b@x.com",
+      "secrets": ["9123456780", "a_b@x.com"]
+    }
+  ],
+  "must_keep": [
+    { "input": "Dolo 650 twice a day" },
+    { "input": "Metformin 500 mg 1-0-1 after food" },
+    { "input": "Amlodipine 5 mg once daily at night" },
+    { "input": "TSH 4.5 and HbA1c 7.2 aaye hain" },
+    { "input": "kya yeh dawai khali pet leni hai" },
+    { "input": "दवाई कब लेनी है" }
+  ]
+}

@@ -27,11 +27,16 @@ from app.observability.tracing import Tracer, build_tracer, observe_llm_call
 from app.pipeline.base import Pipeline
 from app.pipeline.minimal import MinimalPipeline
 from app.prompts.registry import PromptRegistry, TemplateStore
+from app.safety.emergency_guard import EmergencyGuard
+from app.safety.redaction import Redactor, configure_redactor
 from app.schemas.errors import error_body
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Build Presidio + the spaCy model ONCE, before the first request. A missing model aborts boot.
+    redactor: Redactor = app.state.redactor
+    redactor.warm_up()
     yield
     # Graceful shutdown: send pending traces, close pooled DB connections.
     tracer: Tracer = app.state.tracer
@@ -61,6 +66,10 @@ def create_app(
     )
     app.state.settings = settings
     app.state.db = Database(settings)  # lazy: no connection until first query
+    # Logs, traces and classifier input are redacted by this one process-wide instance.
+    app.state.redactor = Redactor(enabled=settings.redaction_enabled)
+    configure_redactor(app.state.redactor)
+    app.state.guard = EmergencyGuard()  # loads the shared keyword file: fails fast if missing
     app.state.tracer = tracer or build_tracer(settings)
     app.state.prompts = PromptRegistry()
     app.state.templates = TemplateStore()

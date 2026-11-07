@@ -31,6 +31,9 @@ _ENV_KEYS = (
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
     "LANGFUSE_HOST",
+    "EMERGENCY_MIN_CONFIDENCE",
+    "EMERGENCY_CLASSIFIER_TIMEOUT_S",
+    "REDACTION_ENABLED",
 )
 
 # Nothing listens here: unit tests must never need (or accidentally reach) a real database.

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 
+import { AuditService } from '../audit/audit.service';
 import { AiClient, toRequestId } from '../ai-client/ai-client';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import { StorageService } from '../common/storage/storage.service';
@@ -21,7 +22,7 @@ export const PRESIGNED_URL_TTL_SECONDS = 300;
  */
 export const AI_ERROR_REPLY_INDEX = 99;
 
-export type AiOutcome = 'ai_reply' | 'media_rejected' | 'unsupported';
+export type AiOutcome = 'ai_reply' | 'ai_emergency' | 'media_rejected' | 'unsupported';
 
 /**
  * The branch of the router for a consented user's ordinary message (CLAUDE.md §7.2):
@@ -41,6 +42,7 @@ export class AiProcessor {
     private readonly storage: StorageService,
     private readonly users: UsersService,
     private readonly whatsapp: WhatsAppClient,
+    private readonly audit: AuditService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(AiProcessor.name);
@@ -69,6 +71,13 @@ export class AiProcessor {
 
       const request = await this.buildRequest(user, job, input);
       const response = await this.ai.process(request);
+      if (response.emergency) {
+        // Highest queue priority, plain text (never buttons), and nothing else happens for this message.
+        await session.rawEmergencyText(response.reply.text);
+        await this.auditEmergency(user, response);
+        this.logResponse(job, response);
+        return 'ai_emergency';
+      }
       await this.sendReply(response, session);
       this.logResponse(job, response);
       return 'ai_reply';
@@ -145,6 +154,20 @@ export class AiProcessor {
     }
     // WhatsApp button messages carry at most 1024 characters of body: longer replies go as text.
     await session.rawText(text);
+  }
+
+  /** The category only: never the text. A failing audit write must not hide the help message. */
+  private async auditEmergency(user: UserState, response: ProcessResponse): Promise<void> {
+    try {
+      await this.audit.log({
+        actor: 'system',
+        userId: user.id,
+        action: 'emergency_detected',
+        metadata: { category: response.emergency_category ?? 'unknown' },
+      });
+    } catch {
+      this.logger.error({ user_id: user.id }, 'could not write the emergency audit entry');
+    }
   }
 
   private async markAsReadQuietly(job: InboundJobData): Promise<void> {

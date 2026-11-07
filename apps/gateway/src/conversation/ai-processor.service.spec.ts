@@ -1,6 +1,7 @@
 import type { PinoLogger } from 'nestjs-pino';
 
 import type { AiClient } from '../ai-client/ai-client';
+import type { AuditService } from '../audit/audit.service';
 import { AiServiceError } from '../ai-client/ai-client.errors';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import type { StorageService } from '../common/storage/storage.service';
@@ -61,9 +62,10 @@ function setup(): {
   storage: { getPresignedUrl: jest.Mock };
   users: { activeMedicationSalts: jest.Mock };
   whatsapp: { markAsRead: jest.Mock };
-  logger: Record<'setContext' | 'info' | 'warn', jest.Mock>;
+  logger: Record<'setContext' | 'info' | 'warn' | 'error', jest.Mock>;
   calls: string[];
-  session: Record<'text' | 'textAt' | 'rawText' | 'rawButtons', jest.Mock>;
+  audit: { log: jest.Mock };
+  session: Record<'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawEmergencyText', jest.Mock>;
 } {
   const calls: string[] = [];
   const track = (name: string, value?: unknown): jest.Mock =>
@@ -91,13 +93,15 @@ function setup(): {
       .mockResolvedValue([{ salt: 'paracetamol', strength: '500 mg' }]),
   };
   const whatsapp = { markAsRead: track('whatsapp.markAsRead') };
-  const logger = { setContext: jest.fn(), info: jest.fn(), warn: jest.fn() };
+  const logger = { setContext: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
   const session = {
     text: track('session.text'),
     textAt: track('session.textAt'),
     rawText: track('session.rawText'),
     rawButtons: track('session.rawButtons'),
+    rawEmergencyText: track('session.rawEmergencyText'),
   };
+  const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
     messages as unknown as MessagesService,
@@ -105,9 +109,22 @@ function setup(): {
     storage as unknown as StorageService,
     users as unknown as UsersService,
     whatsapp as unknown as WhatsAppClient,
+    audit as unknown as AuditService,
     logger as unknown as PinoLogger,
   );
-  return { processor, ai, messages, media, storage, users, whatsapp, logger, calls, session };
+  return {
+    processor,
+    ai,
+    messages,
+    media,
+    storage,
+    users,
+    whatsapp,
+    audit,
+    logger,
+    calls,
+    session,
+  };
 }
 const asSession = (s: ReturnType<typeof setup>): ReplySession =>
   s.session as unknown as ReplySession;
@@ -280,6 +297,70 @@ describe('AiProcessor: media', () => {
       'unsupported',
     );
     expect(s.ai.process).not.toHaveBeenCalled();
+  });
+});
+
+describe('AiProcessor: emergency responses', () => {
+  const emergencyResponse = (): ProcessResponse => ({
+    ...aiReply({ text: 'अभी 112 पर कॉल करें', buttons: [{ id: 'x', title: 'X' }] }),
+    intent: 'emergency',
+    emergency: true,
+    emergency_category: 'cardiac',
+  });
+
+  it('sends the AI reply at emergency priority, as plain text even if buttons came with it', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(emergencyResponse());
+    await expect(s.processor.handle(user, job(), asSession(s))).resolves.toBe('ai_emergency');
+    expect(s.session.rawEmergencyText).toHaveBeenCalledTimes(1);
+    expect(s.session.rawEmergencyText).toHaveBeenCalledWith('अभी 112 पर कॉल करें');
+    expect(s.session.rawText).not.toHaveBeenCalled();
+    expect(s.session.rawButtons).not.toHaveBeenCalled();
+  });
+
+  it('audits emergency_detected with the category ONLY (no text, no phone)', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(emergencyResponse());
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.audit.log).toHaveBeenCalledTimes(1);
+    expect(s.audit.log).toHaveBeenCalledWith({
+      actor: 'system',
+      userId: 'user-1',
+      action: 'emergency_detected',
+      metadata: { category: 'cardiac' },
+    });
+    expect(JSON.stringify(s.audit.log.mock.calls)).not.toContain('112');
+    expect(JSON.stringify(s.audit.log.mock.calls)).not.toContain('kya kar sakte');
+  });
+
+  it('a missing category is audited as "unknown"', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue({ ...emergencyResponse(), emergency_category: null });
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { category: 'unknown' } }),
+    );
+  });
+
+  it('a failing audit write never hides the help message and never triggers a retry', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(emergencyResponse());
+    s.audit.log.mockRejectedValue(new Error('db down'));
+    await expect(s.processor.handle(user, job(), asSession(s))).resolves.toBe('ai_emergency');
+    expect(s.session.rawEmergencyText).toHaveBeenCalledTimes(1);
+    expect(s.session.textAt).not.toHaveBeenCalled();
+  });
+
+  it('nothing else is sent for the message and an ordinary reply is not audited', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(emergencyResponse());
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.session.text).not.toHaveBeenCalled();
+
+    const ordinary = setup();
+    await ordinary.processor.handle(user, job(), asSession(ordinary));
+    expect(ordinary.audit.log).not.toHaveBeenCalled();
+    expect(ordinary.session.rawEmergencyText).not.toHaveBeenCalled();
   });
 });
 

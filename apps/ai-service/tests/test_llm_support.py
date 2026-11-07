@@ -1,4 +1,4 @@
-"""Breaker, pricing, fake provider, redaction and disclaimers: the small building blocks."""
+"""Breaker, pricing, fake provider and disclaimers: the small building blocks."""
 
 import json
 from pathlib import Path
@@ -12,7 +12,6 @@ from app.llm.pricing import DEFAULT_PRICING_PATH, ModelPrice, PricingTable
 from app.llm.types import ImageInput, LLMServerError, Message
 from app.pipeline.minimal import IntentResult
 from app.safety.disclaimers import DISCLAIMERS, add_disclaimer
-from app.safety.redaction import redact_text, redact_value
 from app.schemas.process import MAX_REPLY_CHARS, Language
 
 
@@ -127,11 +126,11 @@ class TestFakeProvider:
         [
             ("kya kar sakte ho", "help"),
             ("मदद चाहिए", "help"),
-            ("please read my prescription", "prescription"),
-            ("explain my blood test", "lab_report"),
+            ("please read my prescription", "prescription_question"),
+            ("explain my blood test", "lab_question"),
             ("sasta generic dawai?", "generic_query"),
-            ("I have chest pain", "emergency"),
-            ("hello", "other"),
+            ("hello", "greeting"),
+            ("cricket score batao", "out_of_scope"),
         ],
     )
     def test_heuristic_intents(self, text, intent):
@@ -171,42 +170,6 @@ class TestFakeProvider:
     def test_rules_can_return_raw_strings(self):
         provider = FakeProvider(rules=[FakeRule("x", "raw text")])
         assert provider._answer_from_rules([Message("user", "has x in it")]) == "raw text"
-
-
-class TestRedaction:
-    @pytest.mark.parametrize(
-        ("text", "expected"),
-        [
-            ("call 9876543210 now", "call [REDACTED_PHONE] now"),
-            ("+91 98765 43210", "[REDACTED_PHONE]"),
-            ("919876543210", "[REDACTED_PHONE]"),
-            ("mail ramesh.k@example.co.in", "mail [REDACTED_EMAIL]"),
-            ("aadhaar 2345 6789 0123", "aadhaar [REDACTED_AADHAAR]"),
-            ("pin 411001", "pin [REDACTED_PIN]"),
-            ("Dolo 650 twice a day", "Dolo 650 twice a day"),
-            ("दवाई कब लेनी है", "दवाई कब लेनी है"),
-        ],
-    )
-    def test_redact_text(self, text, expected):
-        assert redact_text(text) == expected
-
-    def test_redaction_is_idempotent(self):
-        once = redact_text("9876543210 and 411001")
-        assert redact_text(once) == once
-
-    def test_redact_value_walks_nested_structures(self):
-        data = {"a": ["call 9876543210", {"b": "x@y.com"}], "n": 5, "t": ("411001",)}
-        assert redact_value(data) == {
-            "a": ["call [REDACTED_PHONE]", {"b": "[REDACTED_EMAIL]"}],
-            "n": 5,
-            "t": ["[REDACTED_PIN]"],
-        }
-
-    def test_redact_value_stops_at_absurd_depth(self):
-        nested: object = "9876543210"
-        for _ in range(20):
-            nested = [nested]
-        assert "9876543210" not in json.dumps(redact_value(nested))
 
 
 class TestDisclaimers:

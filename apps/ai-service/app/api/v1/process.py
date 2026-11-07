@@ -71,6 +71,8 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         templates=templates,
         deadline=Deadline(settings.process_timeout_s),
         usage=usage,
+        guard=state.guard,
+        redactor=state.redactor,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):
@@ -117,6 +119,7 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         request_id=body.request_id,
         intent=output.intent,
         emergency=output.emergency,
+        emergency_category=output.emergency_category,
         extraction=None,
         warnings=output.warnings,
         reply=output.reply,

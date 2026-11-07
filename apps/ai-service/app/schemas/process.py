@@ -40,7 +40,23 @@ class Intent(StrEnum):
     interaction_query = "interaction_query"
     help = "help"
     emergency = "emergency"
+    greeting = "greeting"
+    out_of_scope = "out_of_scope"
     other = "other"
+
+
+class EmergencyCategory(StrEnum):
+    """Why a message was treated as an emergency (shared with the keyword file's categories)."""
+
+    cardiac = "cardiac"
+    breathing = "breathing"
+    unconscious = "unconscious"
+    bleeding = "bleeding"
+    poisoning_overdose = "poisoning_overdose"
+    seizure = "seizure"
+    stroke = "stroke"
+    severe_allergy = "severe_allergy"
+    self_harm = "self_harm"
 
 
 class WarningType(StrEnum):
@@ -146,6 +162,8 @@ class ProcessResponse(BaseModel):
     request_id: RequestId
     intent: Intent
     emergency: bool = False
+    # Set only when `emergency` is true. The gateway audits it (category only, never the text).
+    emergency_category: EmergencyCategory | None = None
     extraction: Extraction | None = None
     warnings: list[Warning] = Field(default_factory=list)
     reply: Reply

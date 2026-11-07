@@ -75,6 +75,20 @@ jobs:
       - name: Pytest
         run: uv run pytest
 
+      # Safety gate (M6): recall on the emergency set must be 100% (rules stage on keyword rows,
+      # rules + fake classifier on all positives). The report is kept as a build artifact.
+      - name: Emergency eval (rules, then rules + fake classifier)
+        run: |
+          uv run python ../../evals/run_emergency_eval.py --mode rules
+          uv run python ../../evals/run_emergency_eval.py --mode fake
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emergency-eval-reports
+          path: evals/reports/*emergency*.md
+          if-no-files-found: ignore
+
   integration:
     name: integration (postgres · redis · minio)
     runs-on: ubuntu-latest
@@ -171,13 +185,20 @@ jobs:
       - name: Contracts are up to date
         run: |
           make contracts
-          git diff --exit-code -- packages/contracts apps/gateway/src/ai-client/generated
+          git diff --exit-code -- packages/contracts apps/gateway/src/ai-client/generated \
+            apps/gateway/src/common/safety/data apps/ai-service/app/safety/data
 
       # The production image boots in fake LLM mode and answers /v1/process (no API keys needed).
       - name: AI service image smoke test
         run: |
           docker build -f infra/docker/ai-service.Dockerfile -t dawai/ai-service:ci .
-          docker run -d --name ai-ci -p 8120:8000 -e SERVICE_TOKEN=ci-token -e NODE_ENV=development             -e LLM_MODE=fake -e DATABASE_URL=postgresql://dawai_ai_ro:dawai_ai_ro@172.17.0.1:5432/dawai_test             dawai/ai-service:ci
+          docker run -d --name ai-ci -p 8120:8000 -e SERVICE_TOKEN=ci-token -e NODE_ENV=development \
+            -e LLM_MODE=fake -e DATABASE_URL=postgresql://dawai_ai_ro:dawai_ai_ro@172.17.0.1:5432/dawai_test \
+            dawai/ai-service:ci
           for i in $(seq 1 30); do curl -sf localhost:8120/health/live && break; sleep 1; done
-          curl -sf -X POST localhost:8120/v1/process -H 'X-Service-Token: ci-token' -H 'content-type: application/json'             -d '{"request_id":"ci","user":{"language":"en"},"input":{"type":"text","text":"what can you do"}}' | grep -q '"intent"'
+          curl -sf -X POST localhost:8120/v1/process -H 'X-Service-Token: ci-token' -H 'content-type: application/json' \
+            -d '{"request_id":"ci","user":{"language":"en"},"input":{"type":"text","text":"what can you do"}}' | grep -q '"intent"'
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8120/v1/process -H 'content-type: application/json' -d '{}')" = 401
+          # an emergency is answered by the keyword rules with 112 / 108 and no model call
+          curl -sf -X POST localhost:8120/v1/process -H 'X-Service-Token: ci-token' -H 'content-type: application/json' \
+            -d '{"request_id":"ci2","user":{"language":"en"},"input":{"type":"text","text":"my father has chest pain"}}' | grep -q '"emergency":true'
