@@ -29,7 +29,7 @@
                 "interactive": {
                   "type": "button_reply",
                   "button_reply": {
-                    "id": "consent_yes",
+                    "id": "consent:yes",
                     "title": "I agree"
                   }
                 }

@@ -1,0 +1,308 @@
+import type { PinoLogger } from 'nestjs-pino';
+
+import type { EchoBotService } from '../dev/echo-bot.service';
+import type { InboundJobData } from '../queues/queue.constants';
+import type { OnboardingStep, UserState, UsersService } from '../users/users.service';
+import type { CommandHandlersService } from './command-handlers.service';
+import type { DeletionFlowService } from './deletion-flow.service';
+import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
+import type { OnboardingService } from './onboarding.service';
+import type { RepliesService } from './replies.service';
+
+const NOW = new Date('2026-11-07T12:00:00Z');
+
+const user = (overrides: Partial<UserState> = {}): UserState => ({
+  id: 'user-1',
+  language: 'hi',
+  onboardingStep: 'done',
+  consentAt: new Date('2026-11-01T00:00:00Z'),
+  remindersEnabled: true,
+  deletedAt: null,
+  ...overrides,
+});
+
+const job = (overrides: Partial<InboundJobData> = {}): InboundJobData => ({
+  messageId: 'msg-1',
+  userId: 'user-1',
+  waMessageId: 'wamid.1',
+  type: 'text',
+  receivedAt: NOW.toISOString(),
+  requestId: 'req-1',
+  ...overrides,
+});
+
+function setup(
+  state: UserState | null,
+  options: { echoEnabled?: boolean } = {},
+): {
+  router: InboundRouter;
+  session: Record<'text' | 'textParts' | 'buttons' | 'emergency' | 'useLanguage', jest.Mock>;
+  onboarding: { handle: jest.Mock };
+  commands: Record<'help' | 'askLanguage' | 'setLanguage' | 'setReminders' | 'meds', jest.Mock>;
+  deletion: Record<'request' | 'confirm' | 'cancel', jest.Mock>;
+  echoBot: { enabled: boolean; handle: jest.Mock };
+} {
+  const session = {
+    text: jest.fn().mockResolvedValue(undefined),
+    textParts: jest.fn().mockResolvedValue(undefined),
+    buttons: jest.fn().mockResolvedValue(undefined),
+    emergency: jest.fn().mockResolvedValue(undefined),
+    useLanguage: jest.fn(),
+  };
+  const onboarding = { handle: jest.fn().mockResolvedValue(undefined) };
+  const commands = {
+    help: jest.fn().mockResolvedValue(undefined),
+    askLanguage: jest.fn().mockResolvedValue(undefined),
+    setLanguage: jest.fn().mockResolvedValue(undefined),
+    setReminders: jest.fn().mockResolvedValue(undefined),
+    meds: jest.fn().mockResolvedValue(undefined),
+  };
+  const deletion = {
+    request: jest.fn().mockResolvedValue(undefined),
+    confirm: jest.fn().mockResolvedValue(undefined),
+    cancel: jest.fn().mockResolvedValue(undefined),
+  };
+  const echoBot = {
+    enabled: options.echoEnabled === true,
+    handle: jest.fn().mockResolvedValue(undefined),
+  };
+  const logger = { setContext: jest.fn(), info: jest.fn() };
+  const router = new InboundRouter(
+    { getState: jest.fn().mockResolvedValue(state) } as unknown as UsersService,
+    { session: jest.fn().mockReturnValue(session) } as unknown as RepliesService,
+    onboarding as unknown as OnboardingService,
+    commands as unknown as CommandHandlersService,
+    deletion as unknown as DeletionFlowService,
+    echoBot as unknown as EchoBotService,
+    logger as unknown as PinoLogger,
+  );
+  return { router, session, onboarding, commands, deletion, echoBot };
+}
+
+const STEPS: OnboardingStep[] = ['language', 'consent', 'done'];
+
+describe('InboundRouter', () => {
+  describe('unknown / erased users', () => {
+    it('ignores a message for a user that no longer exists', async () => {
+      const s = setup(null);
+      await expect(s.router.route(job(), NOW)).resolves.toBe<RouteOutcome>('ignored_unknown_user');
+      expect(s.session.text).not.toHaveBeenCalled();
+      expect(s.onboarding.handle).not.toHaveBeenCalled();
+    });
+
+    it('ignores a user whose erasure is in flight', async () => {
+      const s = setup(user({ deletedAt: new Date(NOW.getTime() - 60_000) }));
+      await expect(s.router.route(job({ signals: { emergency: 'general' } }), NOW)).resolves.toBe(
+        'ignored_deletion_pending',
+      );
+      expect(s.session.emergency).not.toHaveBeenCalled();
+    });
+
+    it('stops ignoring a user whose deletion marker is stale (a stuck job must not silence them forever)', async () => {
+      const s = setup(user({ deletedAt: new Date(NOW.getTime() - DELETION_MARKER_TTL_MS - 1) }));
+      await expect(s.router.route(job(), NOW)).resolves.toBe('placeholder');
+    });
+  });
+
+  describe('1. emergency beats everything', () => {
+    it.each(STEPS)('answers an emergency for a user in step "%s"', async (step) => {
+      const s = setup(user({ onboardingStep: step }));
+      await expect(s.router.route(job({ signals: { emergency: 'general' } }), NOW)).resolves.toBe(
+        'emergency',
+      );
+      // bilingual only while no language has been chosen yet
+      expect(s.session.emergency).toHaveBeenCalledWith('general', step === 'language');
+    });
+
+    it('passes the self-harm kind through', async () => {
+      const s = setup(user());
+      await s.router.route(job({ signals: { emergency: 'self_harm' } }), NOW);
+      expect(s.session.emergency).toHaveBeenCalledWith('self_harm', false);
+    });
+
+    it('beats a command and does nothing else (no onboarding, no deletion, no processing)', async () => {
+      const s = setup(user({ onboardingStep: 'language' }));
+      await s.router.route(job({ signals: { emergency: 'general', command: 'delete' } }), NOW);
+      expect(s.deletion.request).not.toHaveBeenCalled();
+      expect(s.onboarding.handle).not.toHaveBeenCalled();
+      expect(s.commands.help).not.toHaveBeenCalled();
+      expect(s.echoBot.handle).not.toHaveBeenCalled();
+    });
+
+    it('works for an image caption before consent without touching the media', async () => {
+      const s = setup(user({ onboardingStep: 'consent' }));
+      const outcome = await s.router.route(
+        job({
+          type: 'image',
+          media: { id: 'm1', mimeType: 'image/jpeg' },
+          signals: { emergency: 'general' },
+        }),
+        NOW,
+      );
+      expect(outcome).toBe('emergency');
+    });
+  });
+
+  describe('2. global commands work in every onboarding step', () => {
+    it.each(STEPS)('DELETE in step "%s"', async (step) => {
+      const s = setup(user({ onboardingStep: step }));
+      await expect(s.router.route(job({ signals: { command: 'delete' } }), NOW)).resolves.toBe(
+        'delete_request',
+      );
+      expect(s.deletion.request).toHaveBeenCalledTimes(1);
+      expect(s.onboarding.handle).not.toHaveBeenCalled();
+    });
+
+    it.each(STEPS)('delete:confirm button in step "%s"', async (step) => {
+      const s = setup(user({ onboardingStep: step }));
+      await expect(
+        s.router.route(job({ type: 'button', button: { id: 'delete:confirm', title: 'x' } }), NOW),
+      ).resolves.toBe('delete_confirm');
+      expect(s.deletion.confirm).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(STEPS)('delete:cancel button in step "%s"', async (step) => {
+      const s = setup(user({ onboardingStep: step }));
+      await expect(
+        s.router.route(job({ type: 'button', button: { id: 'delete:cancel', title: 'x' } }), NOW),
+      ).resolves.toBe('delete_cancel');
+      expect(s.deletion.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(STEPS)('HELP in step "%s"', async (step) => {
+      const s = setup(user({ onboardingStep: step }));
+      await expect(s.router.route(job({ signals: { command: 'help' } }), NOW)).resolves.toBe(
+        'help',
+      );
+      expect(s.commands.help).toHaveBeenCalledTimes(1);
+      expect(s.onboarding.handle).not.toHaveBeenCalled();
+    });
+
+    it('matches the delete button by its id, never by its visible title', async () => {
+      const s = setup(user({ onboardingStep: 'done' }));
+      await s.router.route(
+        job({ type: 'button', button: { id: 'something:else', title: 'delete:confirm' } }),
+        NOW,
+      );
+      expect(s.deletion.confirm).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('3. onboarding gate (consent first)', () => {
+    it.each(['language', 'consent'] as const)(
+      'sends text of a user in step "%s" to onboarding only',
+      async (step) => {
+        const s = setup(user({ onboardingStep: step }));
+        await expect(s.router.route(job({ type: 'text' }), NOW)).resolves.toBe('onboarding');
+        expect(s.onboarding.handle).toHaveBeenCalledTimes(1);
+        expect(s.echoBot.handle).not.toHaveBeenCalled();
+        expect(s.session.textParts).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['image', 'document', 'audio'] as const)(
+      'a %s sent before consent goes to onboarding: never processed, never echoed',
+      async (type) => {
+        const s = setup(user({ onboardingStep: 'consent' }), { echoEnabled: true });
+        await expect(
+          s.router.route(job({ type, media: { id: 'm1', mimeType: 'image/jpeg' } }), NOW),
+        ).resolves.toBe('onboarding');
+        expect(s.echoBot.handle).not.toHaveBeenCalled();
+        expect(s.session.textParts).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['language', 'meds', 'stop_reminders', 'start_reminders'] as const)(
+      'the active-user command "%s" is not available before onboarding is done',
+      async (command) => {
+        const s = setup(user({ onboardingStep: 'consent' }));
+        await expect(s.router.route(job({ signals: { command } }), NOW)).resolves.toBe(
+          'onboarding',
+        );
+        expect(s.commands.meds).not.toHaveBeenCalled();
+        expect(s.commands.setReminders).not.toHaveBeenCalled();
+        expect(s.commands.askLanguage).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('4. commands for onboarded users', () => {
+    it('LANGUAGE shows the language buttons', async () => {
+      const s = setup(user());
+      await expect(s.router.route(job({ signals: { command: 'language' } }), NOW)).resolves.toBe(
+        'language_prompt',
+      );
+      expect(s.commands.askLanguage).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['lang:hi', 'hi'],
+      ['lang:en', 'en'],
+    ] as const)('button %s switches the language', async (id, language) => {
+      const s = setup(user({ language: language === 'hi' ? 'en' : 'hi' }));
+      await expect(
+        s.router.route(job({ type: 'button', button: { id, title: 'x' } }), NOW),
+      ).resolves.toBe('language_changed');
+      expect(s.commands.setLanguage).toHaveBeenCalledWith(expect.anything(), language, s.session);
+    });
+
+    it('STOP REMINDERS and START REMINDERS set the flag', async () => {
+      const s = setup(user());
+      await expect(
+        s.router.route(job({ signals: { command: 'stop_reminders' } }), NOW),
+      ).resolves.toBe('reminders_stopped');
+      expect(s.commands.setReminders).toHaveBeenLastCalledWith(expect.anything(), false, s.session);
+      await expect(
+        s.router.route(job({ signals: { command: 'start_reminders' } }), NOW),
+      ).resolves.toBe('reminders_started');
+      expect(s.commands.setReminders).toHaveBeenLastCalledWith(expect.anything(), true, s.session);
+    });
+
+    it('MEDS lists the medicines', async () => {
+      const s = setup(user());
+      await expect(s.router.route(job({ signals: { command: 'meds' } }), NOW)).resolves.toBe(
+        'meds',
+      );
+      expect(s.commands.meds).toHaveBeenCalledTimes(1);
+    });
+
+    it('replays the welcome when a retried consent:yes finds onboarding already finished', async () => {
+      const s = setup(user());
+      await expect(
+        s.router.route(job({ type: 'button', button: { id: 'consent:yes', title: 'x' } }), NOW),
+      ).resolves.toBe('welcome_replay');
+      expect(s.session.text).toHaveBeenCalledWith('consent.v1.accepted_welcome');
+    });
+  });
+
+  describe('5. everything else (consented users only)', () => {
+    it.each(['text', 'image', 'document', 'audio'] as const)(
+      'a %s goes to the placeholder: acknowledged, nothing else done',
+      async (type) => {
+        const s = setup(user());
+        await expect(s.router.route(job({ type }), NOW)).resolves.toBe('placeholder');
+        expect(s.session.textParts).toHaveBeenCalledWith([
+          'common.received_processing',
+          'dev.ai_not_ready',
+        ]);
+        expect(s.echoBot.handle).not.toHaveBeenCalled();
+      },
+    );
+
+    it('an unsupported message type gets the polite "cannot read this" reply', async () => {
+      const s = setup(user());
+      await expect(s.router.route(job({ type: 'unsupported' }), NOW)).resolves.toBe('placeholder');
+      expect(s.session.text).toHaveBeenCalledWith('common.unsupported_type');
+    });
+
+    it('runs the dev echo bot only when it is enabled (and only for consented users)', async () => {
+      const on = setup(user(), { echoEnabled: true });
+      await expect(on.router.route(job(), NOW)).resolves.toBe('echo_bot');
+      expect(on.echoBot.handle).toHaveBeenCalledTimes(1);
+
+      const off = setup(user(), { echoEnabled: false });
+      await expect(off.router.route(job(), NOW)).resolves.toBe('placeholder');
+      expect(off.echoBot.handle).not.toHaveBeenCalled();
+    });
+  });
+});

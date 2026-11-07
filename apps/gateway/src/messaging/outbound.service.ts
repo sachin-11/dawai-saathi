@@ -68,13 +68,16 @@ export class OutboundService {
       content: request.content,
       ...(request.templateFallback ? { templateFallback: request.templateFallback } : {}),
     };
-    await this.queue.add({
-      userId,
-      payload: this.crypto.encrypt(JSON.stringify(payload)),
-      sourceMessageId: request.sourceMessageId,
-      replyIndex: request.replyIndex,
-      requestId: request.requestId ?? '',
-    });
+    await this.queue.add(
+      {
+        userId,
+        payload: this.crypto.encrypt(JSON.stringify(payload)),
+        sourceMessageId: request.sourceMessageId,
+        replyIndex: request.replyIndex,
+        requestId: request.requestId ?? '',
+      },
+      request.priority !== undefined ? { priority: request.priority } : {},
+    );
   }
 
   /**

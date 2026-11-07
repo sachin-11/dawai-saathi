@@ -62,7 +62,7 @@ describe('parseWebhook', () => {
     const [message] = parse('button').messages;
     expect(message).toMatchObject({
       type: 'button',
-      button: { id: 'consent_yes', title: 'I agree' },
+      button: { id: 'consent:yes', title: 'I agree' },
     });
   });
 

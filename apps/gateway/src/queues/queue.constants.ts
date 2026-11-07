@@ -1,3 +1,4 @@
+import type { MessageSignals } from '../conversation/signals';
 import type { InboundButton, InboundMedia, InboundMessageType } from '../webhook/inbound-message';
 
 export const INBOUND_QUEUE = 'inbound';
@@ -16,6 +17,11 @@ export interface InboundJobData {
   /** Media is not downloaded until M3, so the Meta media id travels here. */
   media?: InboundMedia;
   button?: InboundButton;
+  /**
+   * What the router needs to know about the message text, as small enums (emergency / command).
+   * Computed in the webhook, where the text is already in memory, so no text enters the queue.
+   */
+  signals?: MessageSignals;
   /** ISO timestamp of when the message was sent (from Meta). */
   receivedAt: string;
   /** Request id of the webhook call, for log correlation. */

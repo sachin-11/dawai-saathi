@@ -2,15 +2,16 @@ import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { type Job, Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
-import { EchoBotService } from '../dev/echo-bot.service';
+import { InboundRouter } from '../conversation/inbound-router';
 import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
 import { INBOUND_QUEUE, type InboundJobData } from './queue.constants';
 
 /**
- * Consumer of the `inbound` queue. M2 only STUBS the processing: it logs the job and completes it.
- * Real work arrives later: media download (M3), onboarding/consent/commands (M4), AI (M5+).
+ * Consumer of the `inbound` queue. Every job goes through the InboundRouter (M4): emergency check,
+ * commands, onboarding/consent, and only then (for consented users) the processing branch, which is
+ * still a placeholder until the AI service arrives (M5+).
  */
 @Injectable()
 export class InboundWorker implements OnModuleInit, OnModuleDestroy {
@@ -18,7 +19,7 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly redis: RedisService,
-    private readonly echoBot: EchoBotService,
+    private readonly router: InboundRouter,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
   ) {
@@ -47,10 +48,7 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Log ids only (no phone number, no text). With DEV_ECHO_BOT the dev echo bot answers; otherwise
-   * this is still a stub until the consent flow (M4) and the AI pipeline (M5+) land.
-   */
+  /** Log ids only (no phone number, no text), then let the router decide what happens. */
   async process(job: Job<InboundJobData>): Promise<void> {
     const { messageId, userId, waMessageId, type, requestId } = job.data;
     this.logger.info(
@@ -64,9 +62,8 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
       },
       'inbound job received',
     );
-    if (this.echoBot.enabled) {
-      await this.echoBot.handle(job.data);
-    }
+    const outcome = await this.router.route(job.data);
+    this.logger.info({ job_id: job.id, outcome, request_id: requestId }, 'inbound job routed');
   }
 
   /** Waits for in-flight jobs to finish, then stops. */

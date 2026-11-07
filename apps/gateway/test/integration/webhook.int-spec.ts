@@ -136,8 +136,8 @@ describe('webhook (integration)', () => {
       type: 'text',
       mediaS3Key: null,
     });
-    // Redacted: the phone number inside the text never reaches the database.
-    expect(messages[0]?.bodyRedacted).toBe('Dolo 650 kab leni hai? Mera number [REDACTED_PHONE]');
+    // A brand-new user has not consented yet (M4): only metadata is stored, never the text.
+    expect(messages[0]?.bodyRedacted).toBeNull();
 
     const jobs = await jobsFor([waId]);
     expect(jobs).toHaveLength(1);
@@ -194,7 +194,7 @@ describe('webhook (integration)', () => {
       orderBy: { createdAt: 'asc' },
     });
     expect(rows.map((row) => row.type)).toEqual(['text', 'image', 'button']);
-    expect(rows[2]?.bodyRedacted).toBe('हिन्दी');
+    expect(rows.every((row) => row.bodyRedacted === null)).toBe(true); // pre-consent: no text stored
     expect(await jobsFor(rows.map((row) => row.waMessageId))).toHaveLength(3);
   });
 

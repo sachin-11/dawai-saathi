@@ -152,6 +152,21 @@ describe('messaging (integration)', () => {
     return user;
   };
 
+  /** The echo bot only answers users who finished onboarding (M4), so create such a user first. */
+  const onboardedUser = async (phone: string): Promise<{ id: string }> => {
+    const user = await prisma.user.create({
+      data: {
+        waPhoneHash: hashPhone(phone, PEPPER),
+        waPhoneEnc: app.get(CryptoService).encrypt(phone),
+        onboardingStep: 'done',
+        consentAt: new Date(),
+        consentVersion: 'v1',
+      },
+    });
+    userIds.add(user.id);
+    return user;
+  };
+
   const outboundRows = (
     userId: string,
   ): Promise<{ waMessageId: string; type: string; bodyRedacted: string | null }[]> =>
@@ -202,6 +217,7 @@ describe('messaging (integration)', () => {
     it('inbound text -> blue ticks -> ONE echo reply with the exact payload -> outbound row', async () => {
       const phone = randomPhone();
       phones.push(phone);
+      await onboardedUser(phone);
       const raw = webhookFor(phone, textMessage('Dolo 650 kab leni hai? Mera number 9876543210'));
       const waId = (
         JSON.parse(raw.toString()) as {
@@ -250,6 +266,7 @@ describe('messaging (integration)', () => {
     it('answers a button tap with the button id, and an unsupported type politely', async () => {
       const phone = randomPhone();
       phones.push(phone);
+      await onboardedUser(phone);
       await post(
         webhookFor(phone, {
           type: 'interactive',
@@ -275,6 +292,7 @@ describe('messaging (integration)', () => {
     it('downloads the image, stores it encrypted under a PII-free key and replies with its size', async () => {
       const phone = randomPhone();
       phones.push(phone);
+      await onboardedUser(phone);
       nock(GRAPH).get('/v21.0/media-int-1').reply(200, {
         url: 'https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=int1',
         mime_type: 'image/jpeg',
@@ -328,6 +346,7 @@ describe('messaging (integration)', () => {
     it('does not download a file over MAX_MEDIA_MB and says so', async () => {
       const phone = randomPhone();
       phones.push(phone);
+      await onboardedUser(phone);
       nock(GRAPH)
         .get('/v21.0/media-int-big')
         .reply(200, {
@@ -351,6 +370,7 @@ describe('messaging (integration)', () => {
     it('rejects a disallowed file type without downloading', async () => {
       const phone = randomPhone();
       phones.push(phone);
+      await onboardedUser(phone);
       nock(GRAPH).get('/v21.0/media-int-vid').reply(200, {
         url: 'https://lookaside.fbsbx.com/v',
         mime_type: 'video/mp4',
@@ -669,7 +689,7 @@ describe('messaging (integration)', () => {
 });
 
 describe('echo bot switch (integration)', () => {
-  it('does nothing when DEV_ECHO_BOT is off (the default): no read receipt, no reply', async () => {
+  it('with DEV_ECHO_BOT off (the default) a consented user gets the placeholder, not an echo', async () => {
     Object.assign(process.env, {
       ...INTEGRATION_ENV,
       WORKERS_ENABLED: 'true',
@@ -684,20 +704,30 @@ describe('echo bot switch (integration)', () => {
     const app = (await createApp()) as INestApplication<App>;
     const prisma = app.get(PrismaService);
     const phone = randomPhone();
+    const sendsTo = (to: string): GraphBody[] => graph.sends.filter((body) => body.to === to);
     try {
+      await prisma.user.create({
+        data: {
+          waPhoneHash: hashPhone(phone, PEPPER),
+          waPhoneEnc: app.get(CryptoService).encrypt(phone),
+          onboardingStep: 'done',
+          consentAt: new Date(),
+          consentVersion: 'v1',
+        },
+      });
       const raw = webhookFor(phone, textMessage('hello'));
       await request(app.getHttpServer())
         .post(URL)
         .set(signedHeaders(raw))
         .send(raw.toString())
         .expect(200);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      expect(graph.sends).toHaveLength(0);
+      await waitFor(() => sendsTo(phone).length === 1, 'placeholder reply');
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      expect(sendsTo(phone)).toHaveLength(1);
+      const reply = sendsTo(phone)[0]?.text?.body ?? '';
+      expect(reply).toContain('AI वाला हिस्सा'); // dev.ai_not_ready
+      expect(reply).not.toContain('आपने लिखा'); // no echo
       expect(graph.reads).toHaveLength(0);
-      const user = await prisma.user.findUniqueOrThrow({
-        where: { waPhoneHash: hashPhone(phone, PEPPER) },
-      });
-      expect(await prisma.message.count({ where: { userId: user.id, direction: 'out' } })).toBe(0);
     } finally {
       await prisma.user.deleteMany({ where: { waPhoneHash: hashPhone(phone, PEPPER) } });
       await app.close();

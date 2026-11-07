@@ -30,6 +30,15 @@ enum Language {
   @@map("language")
 }
 
+/// Where a user is in the first-contact flow (CLAUDE.md §7.1): pick a language, accept consent, done.
+enum OnboardingStep {
+  language
+  consent
+  done
+
+  @@map("onboarding_step")
+}
+
 enum MessageDirection {
   in
   out
@@ -126,16 +135,24 @@ enum AuditActor {
 // ------------------------------------------------------------------ user-owned tables
 
 model User {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Peppered SHA-256 of the phone number: used for lookup only.
-  waPhoneHash   String    @unique @map("wa_phone_hash")
+  waPhoneHash      String         @unique @map("wa_phone_hash")
   /// AES-256-GCM ciphertext of the phone number: used for sending only.
-  waPhoneEnc    String    @map("wa_phone_enc")
-  language      Language  @default(hi)
-  consentAt     DateTime? @map("consent_at") @db.Timestamptz(6)
-  lastInboundAt DateTime? @map("last_inbound_at") @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+  waPhoneEnc       String         @map("wa_phone_enc")
+  language         Language       @default(hi)
+  consentAt        DateTime?      @map("consent_at") @db.Timestamptz(6)
+  /// No document is processed until this is `done` (consent-first, CLAUDE.md §2.7).
+  onboardingStep   OnboardingStep @default(language) @map("onboarding_step")
+  /// Version of the consent text the user accepted, e.g. "v1".
+  consentVersion   String?        @map("consent_version")
+  /// STOP REMINDERS / START REMINDERS. The reminder scheduler (M10) must respect this.
+  remindersEnabled Boolean        @default(true) @map("reminders_enabled")
+  lastInboundAt    DateTime?      @map("last_inbound_at") @db.Timestamptz(6)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Set when the user confirms DELETE, while the erasure job runs: the conversation router ignores
+  /// such users. This is only an in-flight marker; the job then HARD-deletes the row (§6).
+  deletedAt        DateTime?      @map("deleted_at") @db.Timestamptz(6)
 
   caregivers  Caregiver[]
   messages    Message[]

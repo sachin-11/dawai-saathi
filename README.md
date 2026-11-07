@@ -99,7 +99,19 @@ make webhook FIXTURE=text BAD_SIGNATURE=1 # -> HTTP 401
 make webhook FIXTURE=batch WEBHOOK_URL=http://localhost:3010/webhook/whatsapp   # if :3000 is taken
 ```
 
-Fixtures (`apps/gateway/test/fixtures/whatsapp/`, fake numbers only): `text`, `image`, `document`, `audio`, `button`, `button-legacy`, `unsupported`, `location`, `status`, `batch`, `foreign`.
+Fixtures (`apps/gateway/test/fixtures/whatsapp/`, fake numbers only): `text`, `image`, `document`, `audio`, `button`, `button-legacy`, `unsupported`, `location`, `status`, `batch`, `foreign`, and for the conversation flow `help`, `delete`, `emergency`, `lang-hi`, `lang-en`, `consent-yes`, `consent-no`, `delete-confirm`, `delete-cancel`.
+
+To act as ONE user through onboarding, consent, commands and DELETE without Meta, keep the sender and change only the message ids:
+```bash
+export PHONE=919888800001 NEW_IDS=1
+make webhook FIXTURE=text            # first message -> language buttons
+make webhook FIXTURE=lang-en         # tap "English"  -> consent message
+make webhook FIXTURE=consent-yes     # tap "I agree"  -> welcome
+make webhook FIXTURE=help
+make webhook FIXTURE=delete          # -> "Delete everything?" buttons
+make webhook FIXTURE=delete-confirm  # -> user erased, final message
+```
+(Replies are sent to the Graph API, so with a fake `WA_ACCESS_TOKEN` you will see the sends fail in the gateway log; use a real Meta test number, or point `WA_API_BASE_URL` at a mock.)
 
 Check the handshake yourself (use your `WA_VERIFY_TOKEN`):
 ```bash
@@ -133,6 +145,20 @@ If nothing happens: the gateway log shows each Graph API call (`whatsapp api cal
 **Outside the 24 h window** only approved *template* messages can be sent; their texts are in [`docs/whatsapp-templates.md`](docs/whatsapp-templates.md).
 
 **Without Meta at all:** the integration tests mock the Graph API (`make test-integration`), and `make webhook` simulates inbound messages.
+
+## Conversation flow (M4)
+
+Every first-time number goes through the same short path, and **nothing is processed before consent**:
+
+```
+first message ──► choose language (हिन्दी / English) ──► consent message ──► "I agree" ──► active
+                                                              │ "Not now": nothing is read or saved
+```
+- **Before consent** only metadata is stored (no message text) and media is never downloaded; a photo just brings the consent reminder back.
+- **Emergency words** (chest pain, "saans nahi", suicide, ...) are answered with 112 / 108 (and Tele-MANAS 14416 for self-harm) at any step, even before consent.
+- **Commands** (whole-message match, any case): `HELP`, `LANGUAGE`, `MEDS`, `STOP REMINDERS` / `START REMINDERS`, `DELETE`. `HELP` and `DELETE` work at every step.
+- **`DELETE`** asks "Delete everything?" (valid for 5 minutes). On "Yes" a background job removes the photos from storage, the user's queued jobs and **all database rows**, leaves one anonymous `user_deleted` audit record, and sends a final confirmation. The same number writing again starts fresh.
+- Set `PRIVACY_POLICY_URL` for the link shown in the consent message (the real page arrives with M16).
 
 ## Common commands
 
