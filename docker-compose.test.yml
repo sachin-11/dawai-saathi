@@ -48,6 +48,8 @@ services:
     environment:
       MINIO_ROOT_USER: dawai-minio
       MINIO_ROOT_PASSWORD: dawai-minio-secret
+      # Local-only KMS key so server-side encryption (SSE-S3) works; MinIO rejects SSE without one.
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:-dawai-local-key:ZGF3YWktbG9jYWwtbWluaW8ta21zLWtleS0wMDAwMDA=}
     ports:
       - '9100:9000'
       - '9101:9001'

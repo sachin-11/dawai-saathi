@@ -193,6 +193,8 @@ caregivers       id, user_id FK, wa_phone_enc, wa_phone_hash, relation text, ver
 
 messages         id, user_id FK, direction enum(in,out), wa_message_id text UNIQUE, type enum(text,image,document,audio,button,template),
                  body_redacted text, media_s3_key text null, created_at
+                 delivery_status enum(sent,delivered,read,failed) null, status_updated_at timestamptz null, error_code text null   -- M3: outbound delivery receipts
+                 (M2 added the enum value `unsupported` to type; outbound button messages are stored as type `button`)
 
 documents        id, user_id FK, message_id FK, kind enum(prescription,lab_report,unknown),
                  s3_key, status enum(queued,processing,done,failed,needs_review),
@@ -413,9 +415,10 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   GET verification (`hub.mode`, `hub.verify_token`, `hub.challenge`), POST with signature verification, payload parsing (text, image, document, audio, interactive button reply, status updates), dedupe, persist `messages`, enqueue `inbound` job.
   ✅ Unit tests with recorded sample payloads; invalid signature → 401; duplicate message → enqueued once; response < 1 s.
   _Notes:_ Verified: `make webhook FIXTURE=text` → 200, row in `messages`, worker logs the job; same fixture again → no new row/job; wrong signature → 401; GET handshake returns the challenge; `make lint typecheck test` green (gateway 137 unit + 24 e2e, ai-service 29); `make test-integration` green (gateway 26, ai-service 7). NOT verified: a real Meta → ngrok round trip (needs the real `WA_APP_SECRET` / `WA_PHONE_NUMBER_ID`); `make dev` on :3000 (port busy locally, used :3010). Known: Jest e2e occasionally prints "worker failed to exit gracefully" when run in parallel (tests pass; clean with `--runInBand`). Deviations from the spec: a duplicate message still attempts the enqueue (jobId makes it a no-op) so a "row saved, enqueue failed, Meta retried" message is not lost; `WA_PHONE_NUMBER_ID` is a required env var; `messages.type` gained the value `unsupported` (migration `add_unsupported_message_type`; §6 lists only text/image/document/audio/button/template); phone hash is HMAC-SHA256 keyed with the pepper. Details: `docs/modules/M2.md`.
-- [ ] **M3 — Messaging client (outbound)**
+- [x] **M3 — Messaging client (outbound)** _(done 2026-11-07, manual Meta test pending)_
   Send text, interactive buttons (max 3), template messages, media download (get media URL → download → S3). Retry/backoff, rate handling, i18n strings.
   ✅ Mocked Graph API tests; a real "echo" bot works with a test number.
+  _Notes:_ Verified: `make lint typecheck test` green (gateway 332 unit + 25 e2e, ai-service 29); `make test-integration` green (gateway 45 incl. 19 messaging, ai-service 7), covering the echo loop with the exact Graph payloads (Graph API mocked with nock), media → MinIO with SSE `AES256`, status updates + out-of-order + race, retries, non-retryable failure, template fallback, presigned URL, `deletePrefix`. The built gateway image boots and refuses `NODE_ENV=production` + `DEV_ECHO_BOT=true`. A running gateway + a throwaway mock Graph server produced the read receipt and the Hindi echo. **NOT verified: the "real echo bot with a Meta test number" criterion** (needs your Meta token; steps in README "Connect a real Meta test number"). **⚠ The dev echo bot (`DEV_ECHO_BOT`, `apps/gateway/src/dev/`) BYPASSES CONSENT (§2.7): keep it `false` and delete it before the M4 consent flow goes live.** Known limits: a crash between a successful send and `job.updateData` can still double-send (WhatsApp has no idempotency key); order between separate outbound jobs is not guaranteed (send one logical reply as one job); the 30 s+ rate-limit backoff is unit-tested, not end-to-end. Details: `docs/modules/M3.md`.
 
 ### Phase 2 — Users & AI core
 - [ ] **M4 — Onboarding, consent, commands**
@@ -469,8 +472,8 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Load test (k6) on webhook, backup/restore drill, privacy policy page, real-user pilot (family/friends), collect metrics for portfolio.
 
 ### Current status
-- **Next module:** M3
-- **Notes:** M0, M1 and M2 complete. Before M3: check that GitHub Actions is green for M1/M2 (the `integration` job had not run on GitHub yet when M2 was finished). For real WhatsApp testing set the real `WA_APP_SECRET`, `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN` (and `WA_ACCESS_TOKEN` from M3). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
+- **Next module:** M4
+- **Notes:** M0–M3 complete (M3 still needs your manual Meta test-number round trip). Before M4: check GitHub Actions is green for M1–M3 (the `integration` job, which now also needs `nock`-based tests and a MinIO with `MINIO_KMS_SECRET_KEY`, had not run on GitHub yet) and do the manual echo-bot test; remember to disable the echo bot when the consent flow arrives. For real WhatsApp testing set the real `WA_APP_SECRET`, `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN` (and `WA_ACCESS_TOKEN` from M3). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
 
 ---
 
@@ -518,6 +521,16 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
 | 2026-11-07 | Exception filter passes through 4xx raised by Express middleware (413/400/415) with a FIXED message, and logs only stack frames for 5xx | body-parser messages can echo a body snippet (PHI); driver error messages can contain row data |
 | 2026-11-07 | Loggers are injected as `PinoLogger` + `setContext()` (not `@InjectPinoLogger`) | `@InjectPinoLogger` tokens only exist for classes imported before `LoggerModule` is evaluated |
 | 2026-11-07 | `prisma migrate dev` always proposes `DROP INDEX drugs_brand_name_trgm_idx` (hand-written GIN index); delete that line from every generated migration | Prisma cannot model `gin_trgm_ops` indexes |
+| 2026-11-07 | `messages` gains `delivery_status` (enum sent/delivered/read/failed), `status_updated_at`, `error_code` (text); statuses only move forward (`sent` < `delivered` < `read`; `failed` never overwrites delivered/read) | Persist Meta delivery receipts (M3). Webhooks arrive out of order; a receipt that beats our own outbound insert is retried 1 s / 3 s / 10 s in-process (best effort, not a durable job) |
+| 2026-11-07 | Outbound sends go through the BullMQ `outbound` queue: jobId `<sourceMessageId>_<replyIndex>`, limiter `OUTBOUND_RATE_PER_SEC`, custom backoff (30 s × attempt for rate limits), non-retryable errors → `UnrecoverableError` | One place for retry, throughput and dedupe. `:` is not allowed in BullMQ custom ids, hence `_` |
+| 2026-11-07 | `WhatsAppClient` retries ONLY transport-level trouble (HTTP 429, 5xx, connect-phase errors) for sends; read-only calls retry on any failure; code-based rate limits (130429/131056) are left to the queue | The Cloud API has no idempotency key: retrying a send after an ambiguous timeout can deliver twice |
+| 2026-11-07 | Message content in `outbound` jobs is stored ENCRYPTED (AES-256-GCM, same key as phone numbers); the Meta message id of every accepted part is written into the job data before the DB insert | Redis must not hold readable PHI (§2.6); a retry must not resend what Meta already accepted |
+| 2026-11-07 | 24 h window: open only if `now - last_inbound_at < 24 h` (exactly 24 h = closed, null = closed); checked at enqueue and again at send time; a template fallback is used when closed | Conservative; avoids Meta error 131047 |
+| 2026-11-07 | Inbound media: mime allowlist (jpeg/png/webp/pdf/ogg/mpeg/mp4/aac), `MAX_MEDIA_MB` (10) enforced on Meta's size, `Content-Length` and while streaming, S3 key `media/<userId>/<yyyy>/<mm>/<messageId>.<ext>` (no PII), S3 SSE `AES256` (`S3_SSE=none` only for a MinIO without KMS), sha256 verified when Meta sends one | Security and PHI rules (§2.6, §12). Local MinIO needs `MINIO_KMS_SECRET_KEY` (added to both compose files and CI) |
+| 2026-11-07 | The WhatsApp bearer token is only sent to https hosts ending in `.fbsbx.com`, `.facebook.com`, `.whatsapp.net`, `.fbcdn.net` | Media download URLs come from a response; never send the token to an arbitrary host |
+| 2026-11-07 | `DEV_ECHO_BOT` env flag (default `false`) runs a dev-only echo bot; the env schema REFUSES it when `NODE_ENV=production`; production also rejects `local-dev-*` secrets | The echo bot bypasses consent (§2.7). Must be removed before the M4 consent flow goes live |
+| 2026-11-07 | Test tooling: `nock` pinned to 14 (15 is ESM-only; gateway tests are CommonJS), `@aws-sdk/lib-storage` for streaming multipart upload | Same CJS reasoning as the NestJS 11 / Prisma 6 pins |
+| 2026-11-07 | `MinIO` images are `cgr.dev/chainguard/minio` and nothing in compose relies on `minio/minio` | Docker Hub no longer publishes it (see M1 entry) |
 
 ---
 

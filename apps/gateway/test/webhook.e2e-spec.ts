@@ -4,6 +4,7 @@ import type { App } from 'supertest/types';
 
 import {
   OFFLINE_ENV,
+  WA_PHONE_NUMBER_ID,
   WA_VERIFY_TOKEN,
   createApp,
   fixtureBuffer,
@@ -101,8 +102,28 @@ describe('WhatsApp webhook (e2e, no infrastructure)', () => {
     const post = (raw: Buffer | string): request.Test =>
       request(app.getHttpServer()).post(URL).set(signedHeaders(raw)).send(raw.toString());
 
-    it('200 for a status update (no user message, so no DB/Redis needed)', async () => {
-      const res = await post(fixtureBuffer('status')).expect(200);
+    it('500 for a status update when the database is unreachable (Meta retries it)', async () => {
+      // Statuses update the delivery state of our outbound messages (M3), so they need the DB.
+      await post(fixtureBuffer('status')).expect(500);
+    });
+
+    it('200 for a status type we do not model (no database access needed)', async () => {
+      const raw = JSON.stringify({
+        entry: [
+          {
+            changes: [
+              {
+                field: 'messages',
+                value: {
+                  metadata: { phone_number_id: WA_PHONE_NUMBER_ID },
+                  statuses: [{ id: 'wamid.X', status: 'warning' }],
+                },
+              },
+            ],
+          },
+        ],
+      });
+      const res = await post(raw).expect(200);
       expect(res.body).toEqual({ status: 'received' });
     });
 

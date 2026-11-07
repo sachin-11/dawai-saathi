@@ -1,0 +1,8 @@
+{
+  "common.received_processing": "Reading it now… this takes about 20–30 seconds.",
+  "common.unsupported_type": "Sorry, I can't read this type of message yet. Please send a photo, a PDF, a voice note or plain text.",
+  "common.file_too_large": "This file is too big (the limit is {{max_mb}} MB). Please send a smaller file or a clear photo.",
+  "common.error_try_again": "Something went wrong on my side. Please try again in a little while.",
+  "dev.echo_text": "[dev] You wrote: {{text}}",
+  "dev.echo_media": "[dev] Got your {{type}} ({{size_kb}} KB) and saved it."
+}

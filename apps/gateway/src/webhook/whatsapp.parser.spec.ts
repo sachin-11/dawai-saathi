@@ -95,8 +95,17 @@ describe('parseWebhook', () => {
     const parsed = parse('status');
     expect(parsed.messages).toEqual([]);
     expect(parsed.statuses).toEqual([
-      { waMessageId: 'wamid.OUT00001', status: 'delivered' },
-      { waMessageId: 'wamid.OUT00002', status: 'failed', errorCode: 131047 },
+      {
+        waMessageId: 'wamid.OUT00001',
+        status: 'delivered',
+        timestamp: new Date(1794000060 * 1000),
+      },
+      {
+        waMessageId: 'wamid.OUT00002',
+        status: 'failed',
+        timestamp: new Date(1794000061 * 1000),
+        errorCode: 131047,
+      },
     ]);
   });
 

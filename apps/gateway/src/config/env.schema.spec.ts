@@ -12,6 +12,7 @@ const valid = {
   WA_PHONE_NUMBER_ID: '100000000000001',
   ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
   PHONE_HASH_PEPPER: 'pepper-123456',
+  WA_ACCESS_TOKEN: 'access-token-123',
 };
 
 describe('validateEnv', () => {
@@ -24,6 +25,12 @@ describe('validateEnv', () => {
       AWS_REGION: 'ap-south-1',
       MEDIA_RETENTION_DAYS: 30,
       WORKERS_ENABLED: true,
+      WA_API_VERSION: 'v21.0',
+      WA_API_BASE_URL: 'https://graph.facebook.com',
+      MAX_MEDIA_MB: 10,
+      OUTBOUND_RATE_PER_SEC: 20,
+      DEV_ECHO_BOT: false,
+      S3_SSE: 'AES256',
     });
   });
 
@@ -34,8 +41,8 @@ describe('validateEnv', () => {
   });
 
   it('ignores variables owned by later modules', () => {
-    const env = validateEnv({ ...valid, WA_ACCESS_TOKEN: 'later-module' });
-    expect(env).not.toHaveProperty('WA_ACCESS_TOKEN');
+    const env = validateEnv({ ...valid, WA_BUSINESS_ACCOUNT_ID: 'later-module' });
+    expect(env).not.toHaveProperty('WA_BUSINESS_ACCOUNT_ID');
   });
 
   describe('S3 settings', () => {
@@ -88,6 +95,12 @@ describe('validateEnv', () => {
     ['ENCRYPTION_KEY', { ...valid, ENCRYPTION_KEY: undefined }],
     ['ENCRYPTION_KEY', { ...valid, ENCRYPTION_KEY: Buffer.alloc(16).toString('base64') }],
     ['PHONE_HASH_PEPPER', { ...valid, PHONE_HASH_PEPPER: 'short' }],
+    ['WA_ACCESS_TOKEN', { ...valid, WA_ACCESS_TOKEN: undefined }],
+    ['WA_API_VERSION', { ...valid, WA_API_VERSION: '21' }],
+    ['WA_API_BASE_URL', { ...valid, WA_API_BASE_URL: 'not-a-url' }],
+    ['MAX_MEDIA_MB', { ...valid, MAX_MEDIA_MB: '0' }],
+    ['OUTBOUND_RATE_PER_SEC', { ...valid, OUTBOUND_RATE_PER_SEC: '500' }],
+    ['S3_SSE', { ...valid, S3_SSE: 'aes' }],
   ])('rejects invalid %s', (key, raw) => {
     expect(() => validateEnv(raw)).toThrow(new RegExp(key));
   });
@@ -100,6 +113,59 @@ describe('validateEnv', () => {
       expect(error).toBeInstanceOf(EnvValidationError);
       expect((error as EnvValidationError).issues.length).toBeGreaterThanOrEqual(6);
     }
+  });
+
+  describe('M3 settings', () => {
+    it('DEV_ECHO_BOT is off by default and can be turned on outside production', () => {
+      expect(validateEnv(valid).DEV_ECHO_BOT).toBe(false);
+      expect(validateEnv({ ...valid, DEV_ECHO_BOT: 'true' }).DEV_ECHO_BOT).toBe(true);
+    });
+
+    it('REFUSES the dev echo bot in production (it bypasses consent)', () => {
+      expect(() =>
+        validateEnv({
+          ...valid,
+          NODE_ENV: 'production',
+          SERVICE_TOKEN: 'a-real-service-token',
+          DEV_ECHO_BOT: 'true',
+        }),
+      ).toThrow(/DEV_ECHO_BOT: the dev echo bot must not be enabled in production/);
+    });
+
+    it('rejects the placeholder WA_ACCESS_TOKEN in production', () => {
+      expect(() =>
+        validateEnv({
+          ...valid,
+          NODE_ENV: 'production',
+          SERVICE_TOKEN: 'a-real-service-token',
+          WA_ACCESS_TOKEN: 'local-dev-access-token',
+        }),
+      ).toThrow(/WA_ACCESS_TOKEN: placeholder/);
+    });
+
+    it.each(['WA_APP_SECRET', 'WA_VERIFY_TOKEN', 'PHONE_HASH_PEPPER'])(
+      'rejects the local-dev default of %s in production',
+      (key) => {
+        expect(() =>
+          validateEnv({
+            ...valid,
+            NODE_ENV: 'production',
+            SERVICE_TOKEN: 'a-real-service-token',
+            [key]: 'local-dev-something',
+          }),
+        ).toThrow(new RegExp(`${key}: placeholder`));
+      },
+    );
+
+    it('accepts S3_SSE=none (local MinIO without KMS) and a custom API base URL', () => {
+      const env = validateEnv({
+        ...valid,
+        S3_SSE: 'none',
+        WA_API_BASE_URL: 'http://localhost:9999',
+      });
+      expect(env.S3_SSE).toBe('none');
+      expect(env.WA_API_BASE_URL).toBe('http://localhost:9999');
+    });
   });
 
   describe('M2 settings', () => {

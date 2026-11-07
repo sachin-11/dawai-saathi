@@ -139,6 +139,9 @@ export function parseWebhook(body: unknown, expectedPhoneNumberId: string): Pars
           const update: StatusUpdate = {
             waMessageId: status.data.id,
             status: status.data.status,
+            ...(status.data.timestamp
+              ? { timestamp: new Date(Number(status.data.timestamp) * 1000) }
+              : {}),
             ...(errorCode !== undefined ? { errorCode } : {}),
           };
           result.statuses.push(update);

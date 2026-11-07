@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 const PLACEHOLDER_SECRETS = new Set(['change-me', 'changeme', '']);
 
+/** `change-me`, empty, or one of the `local-dev-*` defaults from `.env.example`. */
+const isPlaceholder = (value: string): boolean =>
+  PLACEHOLDER_SECRETS.has(value) || value.startsWith('local-dev');
+
 /**
  * The local-only AES key shipped in `.env.example` (base64 of a readable 32-byte string).
  * It is public, so it must never be accepted in production.
@@ -58,6 +62,24 @@ export const envSchema = z
 
     /** Set `false` to run the HTTP side without consuming queues (tests, API-only replicas). */
     WORKERS_ENABLED: z.stringbool().default(true),
+
+    // --- M3: outbound messaging + media
+    /** WhatsApp Cloud API bearer token (temporary 24h token or a system-user token). */
+    WA_ACCESS_TOKEN: z.string().min(8, 'must be at least 8 characters'),
+    WA_API_VERSION: z
+      .string()
+      .regex(/^v\d+\.\d+$/, 'must look like v21.0')
+      .default('v21.0'),
+    /** Only override for tests/mocks. */
+    WA_API_BASE_URL: z.url({ protocol: /^https?$/ }).default('https://graph.facebook.com'),
+    /** Inbound media larger than this is not downloaded. */
+    MAX_MEDIA_MB: z.coerce.number().int().min(1).max(100).default(10),
+    /** Outbound throughput cap (BullMQ limiter). Meta's default per-number limit is 80/s. */
+    OUTBOUND_RATE_PER_SEC: z.coerce.number().int().min(1).max(80).default(20),
+    /** DEV ONLY: echo inbound messages back. Bypasses consent, refused when NODE_ENV=production. */
+    DEV_ECHO_BOT: z.stringbool().default(false),
+    /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
+    S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })
   .superRefine((env, ctx) => {
     if (Boolean(env.S3_ACCESS_KEY_ID) !== Boolean(env.S3_SECRET_ACCESS_KEY)) {
@@ -67,16 +89,25 @@ export const envSchema = z
         message: 'S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be set together',
       });
     }
+    if (env.NODE_ENV === 'production' && env.DEV_ECHO_BOT) {
+      // The echo bot answers anyone without consent (CLAUDE.md §2.7).
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEV_ECHO_BOT'],
+        message: 'the dev echo bot must not be enabled in production',
+      });
+    }
     if (env.NODE_ENV === 'production') {
       const placeholders = {
-        SERVICE_TOKEN: PLACEHOLDER_SECRETS.has(env.SERVICE_TOKEN),
-        PHONE_HASH_PEPPER: PLACEHOLDER_SECRETS.has(env.PHONE_HASH_PEPPER),
-        WA_VERIFY_TOKEN: PLACEHOLDER_SECRETS.has(env.WA_VERIFY_TOKEN),
-        WA_APP_SECRET: PLACEHOLDER_SECRETS.has(env.WA_APP_SECRET),
+        SERVICE_TOKEN: isPlaceholder(env.SERVICE_TOKEN),
+        PHONE_HASH_PEPPER: isPlaceholder(env.PHONE_HASH_PEPPER),
+        WA_VERIFY_TOKEN: isPlaceholder(env.WA_VERIFY_TOKEN),
+        WA_APP_SECRET: isPlaceholder(env.WA_APP_SECRET),
+        WA_ACCESS_TOKEN: isPlaceholder(env.WA_ACCESS_TOKEN),
         ENCRYPTION_KEY: env.ENCRYPTION_KEY === DEV_ENCRYPTION_KEY,
       };
-      for (const [name, isPlaceholder] of Object.entries(placeholders)) {
-        if (isPlaceholder) {
+      for (const [name, isDefault] of Object.entries(placeholders)) {
+        if (isDefault) {
           ctx.addIssue({
             code: 'custom',
             path: [name],

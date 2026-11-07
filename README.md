@@ -106,11 +106,33 @@ Check the handshake yourself (use your `WA_VERIFY_TOKEN`):
 curl "localhost:3000/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=local-dev-verify-token&hub.challenge=123"   # -> 123
 ```
 
-**With real WhatsApp (Meta).**
-1. Expose the gateway: `ngrok http 3000` (or cloudflared).
-2. In the Meta app dashboard (WhatsApp → Configuration) set the callback URL to `https://<tunnel>/webhook/whatsapp` and the verify token to the same value as `WA_VERIFY_TOKEN` in `.env`.
-3. Put the **App Secret** (App settings → Basic) in `WA_APP_SECRET` and the **Phone number ID** (WhatsApp → API setup) in `WA_PHONE_NUMBER_ID`. Without the real app secret every call is rejected with 401.
-4. Subscribe to the `messages` field and send "Hi" from your WhatsApp to the test number. The gateway only receives and stores it for now (replies arrive in M3/M4).
+**Real WhatsApp round trip:** see the next section (needs a Meta test number).
+
+### Connect a real Meta test number (echo bot)
+
+With M3 the bot can talk back. A temporary **dev-only echo bot** proves the whole loop (webhook → queue → worker → WhatsApp reply) with a real number. It answers anyone who writes to the number and **skips consent**, so it is off by default and the app refuses to start with it on in production.
+
+1. **Create the Meta app.** [developers.facebook.com](https://developers.facebook.com/apps) → Create app → type *Business* → add the **WhatsApp** product. WhatsApp → *API Setup* shows a free **test number** and its **Phone number ID**.
+2. **Add yourself as a recipient.** On the same page, under *To*, add your own WhatsApp number and confirm the code Meta sends. A test number can only message numbers that are on this list.
+3. **Get a token.** *API Setup* shows a **temporary access token** (valid 24 hours: fine for a first test, copy a fresh one each day). For anything longer-lived create a **System User** in Business Settings → Users → System users, give it the app with *Full control*, and generate a token with the `whatsapp_business_messaging` and `whatsapp_business_management` permissions (it does not expire).
+4. **Fill `.env`** (never commit it):
+   ```
+   WA_ACCESS_TOKEN=<the token>
+   WA_PHONE_NUMBER_ID=<Phone number ID from API Setup>
+   WA_APP_SECRET=<App settings → Basic → App secret>
+   WA_VERIFY_TOKEN=<any string you invent, e.g. dawai-verify-2026>
+   DEV_ECHO_BOT=true
+   ```
+5. **Run the stack:** `make up && make migrate && make dev`. If another process owns port 3000 use `PORT=3010 make dev` or run the gateway yourself, and tunnel that port.
+6. **Expose it:** `ngrok http 3000` (or `cloudflared tunnel --url http://localhost:3000`). Copy the `https://…` URL.
+7. **Register the webhook.** WhatsApp → *Configuration* → Webhook → Edit: callback URL `https://<tunnel>/webhook/whatsapp`, verify token = your `WA_VERIFY_TOKEN`. Meta calls the GET handshake immediately: *Verify and save* succeeds only if the gateway is running and the token matches. Then **Manage → subscribe to `messages`**.
+8. **Try it.** From your phone send "hello" to the test number. You should get `[dev] आपने लिखा: hello` within a couple of seconds (blue ticks first). Send a photo: you get `[dev] आपका image मिल गया (N KB) और सेव हो गया।` and the file appears in the MinIO console (<http://localhost:9001>, bucket `dawai-media`, `media/<user-id>/<yyyy>/<mm>/<message-id>.jpg`).
+
+If nothing happens: the gateway log shows each Graph API call (`whatsapp api call`, with status and Meta error code, never the token or numbers). Common causes: `401 / code 190` = expired token; `403` on the webhook = wrong verify token; signature `401` = wrong `WA_APP_SECRET`; no reply but `131030` = your number is not on the recipient list; `131047` = more than 24 h since you last wrote (send "hello" again).
+
+**Outside the 24 h window** only approved *template* messages can be sent; their texts are in [`docs/whatsapp-templates.md`](docs/whatsapp-templates.md).
+
+**Without Meta at all:** the integration tests mock the Graph API (`make test-integration`), and `make webhook` simulates inbound messages.
 
 ## Common commands
 

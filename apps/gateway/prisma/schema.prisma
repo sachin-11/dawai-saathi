@@ -51,6 +51,17 @@ enum MessageType {
   @@map("message_type")
 }
 
+/// Delivery receipt state of an OUTBOUND message, from WhatsApp status webhooks (M3).
+/// Only ever moves forward: sent < delivered < read. `failed` never overwrites delivered/read.
+enum DeliveryStatus {
+  sent
+  delivered
+  read
+  failed
+
+  @@map("delivery_status")
+}
+
 enum DocumentKind {
   prescription
   lab_report
@@ -153,16 +164,21 @@ model Caregiver {
 }
 
 model Message {
-  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String           @map("user_id") @db.Uuid
-  direction    MessageDirection
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  direction       MessageDirection
   /// WhatsApp message id. UNIQUE = inbound dedupe (webhooks are delivered at-least-once).
-  waMessageId  String           @unique @map("wa_message_id")
-  type         MessageType
+  waMessageId     String           @unique @map("wa_message_id")
+  type            MessageType
   /// Redacted text only (no raw PHI). Null for pure media messages.
-  bodyRedacted String?          @map("body_redacted")
-  mediaS3Key   String?          @map("media_s3_key")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  bodyRedacted    String?          @map("body_redacted")
+  mediaS3Key      String?          @map("media_s3_key")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Outbound only: latest delivery receipt from Meta.
+  deliveryStatus  DeliveryStatus?  @map("delivery_status")
+  statusUpdatedAt DateTime?        @map("status_updated_at") @db.Timestamptz(6)
+  /// Outbound only: Meta error code of a failed delivery (text: codes are opaque to us).
+  errorCode       String?          @map("error_code")
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents Document[]

@@ -52,5 +52,6 @@ export type WhatsAppMessage = z.infer<typeof messageSchema>;
 export const statusSchema = z.object({
   id: z.string().min(1),
   status: z.string(),
+  timestamp: z.string().regex(/^\d+$/).optional(),
   errors: z.array(z.object({ code: z.number().optional() })).optional(),
 });

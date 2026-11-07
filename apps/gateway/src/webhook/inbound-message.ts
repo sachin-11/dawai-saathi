@@ -30,6 +30,8 @@ export interface InboundMessage {
 export interface StatusUpdate {
   waMessageId: string;
   status: string;
+  /** When Meta recorded the status. */
+  timestamp?: Date;
   /** First error code, if Meta reported a failure. Error text is not kept (may contain PII). */
   errorCode?: number;
 }
