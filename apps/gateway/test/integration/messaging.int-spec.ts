@@ -711,7 +711,11 @@ describe('AI branch (integration)', () => {
   async function run(
     aiBehaviour: (body: { input: { text?: string } }) => [number, object],
     expectedSends: number,
-  ): Promise<{ replies: string[]; aiBodies: Array<{ input: { text?: string } }> }> {
+  ): Promise<{
+    replies: string[];
+    aiBodies: Array<{ input: { text?: string } }>;
+    audits: Array<{ action: string; metadata: unknown }>;
+  }> {
     Object.assign(process.env, {
       ...INTEGRATION_ENV,
       WORKERS_ENABLED: 'true',
@@ -736,6 +740,7 @@ describe('AI branch (integration)', () => {
     const prisma = app.get(PrismaService);
     const phone = randomPhone();
     const sendsTo = (to: string): GraphBody[] => graph.sends.filter((body) => body.to === to);
+    let userId: string | undefined;
     try {
       await prisma.user.create({
         data: {
@@ -754,11 +759,23 @@ describe('AI branch (integration)', () => {
         .expect(200);
       await waitFor(() => sendsTo(phone).length >= expectedSends, 'AI-branch reply');
       await new Promise((resolve) => setTimeout(resolve, 1500));
+      const row = await prisma.user.findUnique({
+        where: { waPhoneHash: hashPhone(phone, PEPPER) },
+      });
+      userId = row?.id;
+      const audits = userId
+        ? await prisma.auditLog.findMany({
+            where: { userId, action: 'emergency_detected' },
+            select: { action: true, metadata: true },
+          })
+        : [];
       return {
         replies: sendsTo(phone).map((body) => body.text?.body ?? ''),
         aiBodies,
+        audits,
       };
     } finally {
+      if (userId) await prisma.auditLog.deleteMany({ where: { userId } });
       await prisma.user.deleteMany({ where: { waPhoneHash: hashPhone(phone, PEPPER) } });
       await app.close();
       nock.cleanAll();
@@ -784,5 +801,19 @@ describe('AI branch (integration)', () => {
     expect(replies).toHaveLength(1);
     expect(replies[0]).toBeTruthy();
     expect(replies[0]).not.toContain('LLM_UNAVAILABLE');
+  });
+
+  it('an AI emergency reply is sent once and audited with the category only', async () => {
+    const emergency = {
+      ...aiResponse('अभी 112 पर कॉल करें'),
+      intent: 'emergency',
+      emergency: true,
+      emergency_category: 'cardiac',
+    };
+    const { replies, audits } = await run(() => [200, emergency], 1);
+    expect(replies).toEqual(['अभी 112 पर कॉल करें']);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.metadata).toEqual({ category: 'cardiac' });
+    expect(JSON.stringify(audits)).not.toContain('kya kar sakte ho');
   });
 });

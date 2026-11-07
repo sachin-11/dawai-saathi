@@ -145,7 +145,7 @@ class TestLangfuseTracer:
         sent = client.everything_sent()
         assert "9876543210" not in sent
         assert "a@b.com" not in sent
-        assert "[REDACTED_PHONE]" in sent and "[REDACTED_EMAIL]" in sent
+        assert "[PHONE]" in sent and "[EMAIL]" in sent
 
     def test_images_are_never_uploaded_only_a_placeholder(self):
         import base64

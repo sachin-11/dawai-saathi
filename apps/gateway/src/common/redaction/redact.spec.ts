@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { redactText } from './redact';
 
 describe('redactText', () => {
@@ -55,4 +58,44 @@ describe('redactText', () => {
     const once = redactText('9876543210 and 411001');
     expect(redactText(once)).toBe(once);
   });
+});
+
+describe('shared redaction fixture (also run by the AI service)', () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        '..',
+        '..',
+        'packages',
+        'contracts',
+        'safety',
+        'redaction-samples.json',
+      ),
+      'utf8',
+    ),
+  ) as {
+    must_redact: Array<{ input: string; secrets: string[] }>;
+    must_keep: Array<{ input: string }>;
+  };
+
+  it.each(fixture.must_redact.map((sample) => [sample.input, sample.secrets] as const))(
+    'removes every secret from "%s"',
+    (input, secrets) => {
+      const output = redactText(input);
+      for (const secret of secrets) {
+        expect(output).not.toContain(secret);
+      }
+    },
+  );
+
+  it.each(fixture.must_keep.map((sample) => [sample.input] as const))(
+    'leaves "%s" untouched',
+    (input) => {
+      expect(redactText(input)).toBe(input);
+    },
+  );
 });

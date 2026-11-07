@@ -21,6 +21,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 COPY apps/ai-service/app ./app
 
+# Slim the environment (M6 added Presidio + spaCy, +500 MB). Presidio is used with our own
+# recognisers only, so phonenumbers' geocoder / carrier data is never loaded; package test suites are
+# not needed at runtime. The spaCy model (`en_core_web_sm`, 12 MB) is installed by `uv sync` above
+# from uv.lock, i.e. at BUILD time, never downloaded when a container starts.
+RUN find /app/.venv -type d \( -name tests -o -name test \) -prune -exec rm -rf {} + \
+ && rm -rf /app/.venv/lib/python3.12/site-packages/phonenumbers/geodata \
+           /app/.venv/lib/python3.12/site-packages/phonenumbers/carrierdata
+
 # ---------------------------------------------------------------- runtime
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 RUN groupadd --system --gid 10001 app \

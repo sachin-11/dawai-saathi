@@ -21,6 +21,22 @@
         "title": "ActiveMedication",
         "type": "object"
       },
+      "EmergencyCategory": {
+        "description": "Why a message was treated as an emergency (shared with the keyword file's categories).",
+        "enum": [
+          "cardiac",
+          "breathing",
+          "unconscious",
+          "bleeding",
+          "poisoning_overdose",
+          "seizure",
+          "stroke",
+          "severe_allergy",
+          "self_harm"
+        ],
+        "title": "EmergencyCategory",
+        "type": "string"
+      },
       "InputPayload": {
         "additionalProperties": false,
         "properties": {
@@ -81,6 +97,8 @@
           "interaction_query",
           "help",
           "emergency",
+          "greeting",
+          "out_of_scope",
           "other"
         ],
         "title": "Intent",
@@ -203,6 +221,16 @@
             "default": false,
             "title": "Emergency",
             "type": "boolean"
+          },
+          "emergency_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmergencyCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "extraction": {
             "anyOf": [

@@ -7,11 +7,14 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "anthropic>=2.6",
     "asyncpg>=0.32",
+    "en-core-web-sm",
     "fastapi>=0.162.1",
     "httpx>=0.28.1",
     "jinja2>=3.1",
     "langfuse>=5.2",
     "openai>=3.46",
+    "presidio-analyzer>=2.2.366",
+    "presidio-anonymizer>=2.2.366",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
     "pyyaml>=6",
@@ -22,16 +25,21 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "jsonschema>=4.26.0",
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
     "respx>=0.23.1",
     "ruff>=0.17.4",
+    "types-jsonschema>=4.26.0.20261006",
     "types-pyyaml>=6.0.12.20261103",
 ]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]

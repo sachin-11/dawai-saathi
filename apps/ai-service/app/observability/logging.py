@@ -12,6 +12,7 @@ import structlog
 from structlog.typing import Processor
 
 from app.config import LogLevel
+from app.safety.redaction import redact_value
 
 SILENT: Final = logging.CRITICAL + 10
 
@@ -26,11 +27,25 @@ _LEVELS: Final[dict[LogLevel, int]] = {
 }
 
 
+# Log fields that may carry user text. Whatever is logged under these names is redacted first.
+SENSITIVE_FIELDS: Final = frozenset({"text", "body", "prompt", "output"})
+
+
+def redact_sensitive_fields(
+    _logger: object, _method: str, event_dict: structlog.typing.EventDict
+) -> structlog.typing.EventDict:
+    """structlog processor: redact the value of any field named text / body / prompt / output."""
+    for name in SENSITIVE_FIELDS & event_dict.keys():
+        event_dict[name] = redact_value(event_dict[name])
+    return event_dict
+
+
 def configure_logging(level: LogLevel, service: str = "ai-service") -> None:
     numeric_level = _LEVELS[level]
 
     shared: list[Processor] = [
         structlog.contextvars.merge_contextvars,
+        redact_sensitive_fields,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True),

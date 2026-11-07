@@ -1,0 +1,351 @@
+{
+  "$schema": "./emergency-keywords.schema.json",
+  "version": "emergency_keywords_v1",
+  "description": "Single source of emergency phrases (CLAUDE.md section 2.2). Read by the gateway pre-check and by the AI service rules stage. Edit ONLY this file, then run `make contracts` to refresh the copies inside the apps. Phrases are written naturally and normalised by the apps (lower-case, punctuation removed, Devanagari nukta/candrabindu folded). Latin phrases match whole words; Devanagari phrases match as substrings. Safety-first: false positives are accepted, a missed emergency is not.",
+  "categories": {
+    "cardiac": {
+      "kind": "general",
+      "en": [
+        "chest pain",
+        "pain in my chest",
+        "pain in his chest",
+        "pain in her chest",
+        "pain in the chest",
+        "pain in their chest",
+        "pain in chest",
+        "chest tightness",
+        "tightness in my chest",
+        "heart attack",
+        "heart pain",
+        "cardiac arrest"
+      ],
+      "hi": [
+        "सीने में दर्द",
+        "छाती में दर्द",
+        "दिल का दौरा",
+        "हार्ट अटैक",
+        "सीने में जकड़न",
+        "दिल में दर्द"
+      ],
+      "hinglish": [
+        "seene me dard",
+        "seene mein dard",
+        "seene main dard",
+        "sine me dard",
+        "seena dard",
+        "chhati me dard",
+        "chhati mein dard",
+        "chati me dard",
+        "chati mein dard",
+        "chaati me dard",
+        "chhaati me dard",
+        "dil ka daura",
+        "dil me dard",
+        "dil mein dard",
+        "heart attack aa"
+      ],
+      "misspellings": [
+        "chest pian",
+        "chst pain",
+        "chest paine",
+        "hart attack",
+        "heart atack",
+        "heartattack"
+      ]
+    },
+    "breathing": {
+      "kind": "general",
+      "en": [
+        "can't breathe",
+        "cant breathe",
+        "cannot breathe",
+        "can not breathe",
+        "difficulty breathing",
+        "trouble breathing",
+        "short of breath",
+        "shortness of breath",
+        "not breathing",
+        "struggling to breathe",
+        "gasping for air"
+      ],
+      "hi": ["सांस नहीं", "सांस लेने में तकलीफ", "सांस फूल", "सांस लेने में दिक्कत", "दम घुट"],
+      "hinglish": [
+        "saans nahi",
+        "sans nahi",
+        "saans lene me takleef",
+        "saans lene mein takleef",
+        "saans lene me dikkat",
+        "saans phool",
+        "saans phoolna",
+        "saans ruk",
+        "dam ghut",
+        "dam ghutna"
+      ],
+      "misspellings": ["cant breath", "can't breath", "cannot breath", "breathles", "sas nahi"]
+    },
+    "unconscious": {
+      "kind": "general",
+      "en": [
+        "unconscious",
+        "unresponsive",
+        "not responding",
+        "passed out",
+        "fainted",
+        "collapsed",
+        "not waking up",
+        "wont wake up",
+        "won't wake up",
+        "not waking"
+      ],
+      "hi": ["बेहोश", "बेहोशी", "होश नहीं", "उठ नहीं रहा", "उठ नहीं रही"],
+      "hinglish": [
+        "behosh",
+        "behoshi",
+        "hosh nahi",
+        "hosh me nahi",
+        "uth nahi raha",
+        "uth nahi rahi",
+        "uth nahi rahe"
+      ],
+      "misspellings": ["unconcious", "uncouncious", "unconsious", "behos", "bahosh"]
+    },
+    "bleeding": {
+      "kind": "general",
+      "en": [
+        "heavy bleeding",
+        "bleeding heavily",
+        "bleeding a lot",
+        "bleeding badly",
+        "won't stop bleeding",
+        "wont stop bleeding",
+        "vomiting blood",
+        "coughing blood",
+        "coughing up blood"
+      ],
+      "hi": ["खून बहुत", "बहुत खून", "खून नहीं रुक", "खून बह रहा", "खून की उल्टी", "उल्टी में खून"],
+      "hinglish": [
+        "khoon bahut",
+        "bahut khoon",
+        "bahut zyada khoon",
+        "khoon nahi ruk",
+        "khoon nahi rukta",
+        "khoon beh raha",
+        "khoon bah raha",
+        "khoon ki ulti",
+        "ulti me khoon",
+        "ulti mein khoon"
+      ],
+      "misspellings": ["heavy bleding", "bleding heavily", "bahut khun", "khoon bhut"]
+    },
+    "poisoning_overdose": {
+      "kind": "general",
+      "en": [
+        "poisoned",
+        "poisoning",
+        "poison",
+        "overdose",
+        "overdosed",
+        "overdosing",
+        "took too many",
+        "too many tablets",
+        "too many pills",
+        "swallowed too many",
+        "ate too many pills",
+        "accidentally took double"
+      ],
+      "hi": [
+        "जहर",
+        "ज़हर",
+        "ओवरडोज",
+        "गलती से ज्यादा गोली",
+        "ज्यादा गोली खा ली",
+        "ज्यादा दवाई खा ली",
+        "ज्यादा दवा खा ली"
+      ],
+      "hinglish": [
+        "zeher",
+        "jehar",
+        "zehar",
+        "zeher pi liya",
+        "galti se zyada goli",
+        "zyada goli kha li",
+        "zyada dawai kha li",
+        "zyada dawa kha li",
+        "bahut saari goli",
+        "galti se double dose",
+        "phenyl pi li",
+        "keede ki dawai pi li"
+      ],
+      "misspellings": ["overdoze", "over dose", "overdoese", "poisen", "poision", "zaher"]
+    },
+    "seizure": {
+      "kind": "general",
+      "en": [
+        "seizure",
+        "seizures",
+        "convulsion",
+        "convulsions",
+        "fits",
+        "having a fit",
+        "epileptic fit",
+        "shaking uncontrollably"
+      ],
+      "hi": ["दौरा पड", "मिर्गी", "झटके", "झटके आ रहे"],
+      "hinglish": [
+        "daura pad",
+        "daura pada",
+        "mirgi",
+        "mirgi ka daura",
+        "fit aaya",
+        "jhatke aa",
+        "jhatke lag"
+      ],
+      "misspellings": ["seziure", "seizeure", "seizur", "convulsons", "mirgee", "daura pdh"]
+    },
+    "stroke": {
+      "kind": "general",
+      "en": [
+        "stroke",
+        "face drooping",
+        "face drooped",
+        "mouth drooping",
+        "slurred speech",
+        "paralysis",
+        "paralysed",
+        "paralyzed",
+        "sudden weakness",
+        "cant move my arm",
+        "can't move my arm",
+        "cant lift his arm",
+        "face numb"
+      ],
+      "hi": [
+        "लकवा",
+        "चेहरा टेढ़ा",
+        "मुंह टेढ़ा",
+        "हाथ नहीं उठ",
+        "बोलने में दिक्कत",
+        "बोलने में तकलीफ",
+        "ज़ुबान लड़खड़ा",
+        "जुबान लड़खड़ा"
+      ],
+      "hinglish": [
+        "lakwa",
+        "lakva",
+        "face tedha",
+        "chehra tedha",
+        "munh tedha",
+        "hath nahi uth",
+        "haath nahi uth",
+        "bolne me dikkat",
+        "bolne mein dikkat",
+        "bolne me takleef",
+        "zubaan ladkhada",
+        "jubaan ladkhada"
+      ],
+      "misspellings": ["strok", "paralisis", "slured speech", "lakwaa", "chehra tedaa"]
+    },
+    "severe_allergy": {
+      "kind": "general",
+      "en": [
+        "anaphylaxis",
+        "anaphylactic",
+        "severe allergic reaction",
+        "swelling in throat",
+        "swelling in my throat",
+        "throat swelling",
+        "throat is swelling",
+        "swollen throat",
+        "throat closing",
+        "face swelling",
+        "lips swelling"
+      ],
+      "hi": ["गले में सूजन", "गला बंद", "चेहरे पर सूजन", "होंठ सूज", "गले में सूज"],
+      "hinglish": [
+        "gale me sujan",
+        "gale mein sujan",
+        "gale me soojan",
+        "gala band",
+        "gala sujh",
+        "munh me sujan",
+        "hothon me sujan",
+        "chehre pe sujan"
+      ],
+      "misspellings": ["anaphalaxis", "anafilaxis", "throat swelng", "gale me sujhan"]
+    },
+    "self_harm": {
+      "kind": "self_harm",
+      "en": [
+        "suicide",
+        "suicidal",
+        "kill myself",
+        "killing myself",
+        "end my life",
+        "ending my life",
+        "take my own life",
+        "want to die",
+        "wanna die",
+        "don't want to live",
+        "dont want to live",
+        "no reason to live",
+        "better off dead",
+        "end it all",
+        "hurt myself",
+        "harm myself",
+        "self harm",
+        "selfharm",
+        "cut myself"
+      ],
+      "hi": [
+        "आत्महत्या",
+        "खुदकुशी",
+        "सुसाइड",
+        "खुद को नुकसान",
+        "खुद को खत्म",
+        "मरना चाहता",
+        "मरना चाहती",
+        "मर जाना चाहता",
+        "मर जाना चाहती",
+        "मरने का मन",
+        "मर जाऊं",
+        "जान दे दूं",
+        "जान दे दूंगा",
+        "जान दे दूंगी",
+        "जीना नहीं चाहता",
+        "जीना नहीं चाहती",
+        "जीना नहीं है",
+        "जीने का मन नहीं",
+        "ज़िंदगी खत्म"
+      ],
+      "hinglish": [
+        "khud ko nuksan",
+        "khud ko khatam",
+        "khudkushi",
+        "khud kushi",
+        "atmahatya",
+        "aatmahatya",
+        "aatmhatya",
+        "jaan de dunga",
+        "jaan de dungi",
+        "jaan dena chahta",
+        "jaan dena chahti",
+        "marna chahta",
+        "marna chahti",
+        "marne ka mann",
+        "mar jana chahta",
+        "mar jaana chahta",
+        "mar jana chahti",
+        "mar jaana chahti",
+        "mar jaunga",
+        "mar jaungi",
+        "zindagi khatam",
+        "jeena nahi chahta",
+        "jeena nahi chahti",
+        "jeena nahi hai",
+        "jeene ka mann nahi",
+        "jeene ki ichha nahi"
+      ],
+      "misspellings": ["sucide", "suiside", "suicid", "sucidal", "khudkhushi", "aatmahatiya"]
+    }
+  }
+}

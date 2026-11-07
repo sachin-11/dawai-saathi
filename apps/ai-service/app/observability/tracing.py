@@ -19,7 +19,7 @@ import structlog
 
 from app.config import Settings
 from app.llm.types import LLMCallRecord
-from app.safety.redaction import redact_text, redact_value
+from app.safety.redaction import redact_str, redact_value
 
 _logger = structlog.get_logger(__name__)
 
@@ -85,7 +85,7 @@ class NoopTracer:
 
 def _describe_messages(record: LLMCallRecord) -> list[dict[str, str]]:
     """Prompt as sent to the model, redacted, with images replaced by a placeholder."""
-    described = [{"role": m.role, "content": redact_text(m.content)} for m in record.messages]
+    described = [{"role": m.role, "content": redact_str(m.content)} for m in record.messages]
     for image in record.images:
         described.append({"role": "user", "content": image.describe()})
     return described
@@ -111,7 +111,7 @@ class _LangfuseSession:
                 as_type="generation",
                 model=record.model,
                 input=_describe_messages(record),
-                output=redact_text(record.output_text) if record.output_text is not None else None,
+                output=redact_str(record.output_text) if record.output_text is not None else None,
                 usage_details={"input": record.input_tokens, "output": record.output_tokens},
                 cost_details={"total": record.cost_usd},
                 version=record.prompt_version,

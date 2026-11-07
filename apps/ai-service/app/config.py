@@ -86,6 +86,18 @@ class Settings(BaseSettings):
         default=60.0, ge=0, validation_alias="LLM_BREAKER_COOLDOWN_S"
     )
 
+    # ---- M6: safety layer
+    # Deliberately low: a needless "call 112" costs far less than a missed emergency (CLAUDE.md §2.2).
+    emergency_min_confidence: float = Field(
+        default=0.5, ge=0.0, le=1.0, validation_alias="EMERGENCY_MIN_CONFIDENCE"
+    )
+    # The classifier stage must never delay help: past this, the rules alone decide.
+    emergency_classifier_timeout_s: float = Field(
+        default=5.0, gt=0, le=60, validation_alias="EMERGENCY_CLASSIFIER_TIMEOUT_S"
+    )
+    # Redaction of logs, traces and classifier input. Can only be switched off outside production.
+    redaction_enabled: bool = Field(default=True, validation_alias="REDACTION_ENABLED")
+
     # ---- M5: media access (SSRF guard)
     # host[:port] entries a presigned URL may point to (MinIO locally, the S3 host in production).
     allowed_media_hosts_raw: str = Field(
@@ -121,6 +133,8 @@ class Settings(BaseSettings):
                 raise ValueError("SERVICE_TOKEN: placeholder value is not allowed in production")
             if self.llm_mode == "fake":
                 raise ValueError("LLM_MODE: the fake LLM is not allowed in production")
+            if not self.redaction_enabled:
+                raise ValueError("REDACTION_ENABLED: must be true in production")
         return self
 
     @property

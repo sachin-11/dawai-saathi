@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "emergency-keywords.schema.json",
+  "title": "Emergency keywords",
+  "type": "object",
+  "required": ["version", "categories"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "string", "pattern": "^emergency_keywords_v[0-9]+$" },
+    "description": { "type": "string" },
+    "categories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cardiac",
+        "breathing",
+        "unconscious",
+        "bleeding",
+        "poisoning_overdose",
+        "seizure",
+        "stroke",
+        "severe_allergy",
+        "self_harm"
+      ],
+      "properties": {
+        "cardiac": { "$ref": "#/definitions/category" },
+        "breathing": { "$ref": "#/definitions/category" },
+        "unconscious": { "$ref": "#/definitions/category" },
+        "bleeding": { "$ref": "#/definitions/category" },
+        "poisoning_overdose": { "$ref": "#/definitions/category" },
+        "seizure": { "$ref": "#/definitions/category" },
+        "stroke": { "$ref": "#/definitions/category" },
+        "severe_allergy": { "$ref": "#/definitions/category" },
+        "self_harm": { "$ref": "#/definitions/category" }
+      }
+    }
+  },
+  "definitions": {
+    "phrases": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 2 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "category": {
+      "type": "object",
+      "required": ["kind", "en", "hi", "hinglish", "misspellings"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["general", "self_harm"] },
+        "en": { "$ref": "#/definitions/phrases" },
+        "hi": { "$ref": "#/definitions/phrases" },
+        "hinglish": { "$ref": "#/definitions/phrases" },
+        "misspellings": { "$ref": "#/definitions/phrases" }
+      }
+    }
+  }
+}

@@ -81,3 +81,31 @@ class TestDatabaseUrl:
 
         s = load_settings(**{**VALID, "DATABASE_URL": "postgresql://u:hunter2@localhost/db"})
         assert "hunter2" not in repr(s)
+
+
+class TestSafetySettings:
+    def test_defaults(self) -> None:
+        s = load_settings(**VALID)
+        assert s.emergency_min_confidence == 0.5
+        assert s.emergency_classifier_timeout_s == 5.0
+        assert s.redaction_enabled is True
+
+    def test_redaction_cannot_be_disabled_in_production(self) -> None:
+        with pytest.raises(ConfigError, match="REDACTION_ENABLED"):
+            load_settings(
+                **{
+                    **VALID,
+                    "NODE_ENV": "production",
+                    "LLM_MODE": "real",
+                    "REDACTION_ENABLED": "false",
+                }
+            )
+
+    def test_redaction_can_be_disabled_in_development(self) -> None:
+        s = load_settings(**{**VALID, "NODE_ENV": "development", "REDACTION_ENABLED": "false"})
+        assert s.redaction_enabled is False
+
+    @pytest.mark.parametrize("value", ["-0.1", "1.5", "abc"])
+    def test_the_confidence_threshold_must_be_a_probability(self, value: str) -> None:
+        with pytest.raises(ConfigError):
+            load_settings(**{**VALID, "EMERGENCY_MIN_CONFIDENCE": value})

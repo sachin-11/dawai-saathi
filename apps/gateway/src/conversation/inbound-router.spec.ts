@@ -118,6 +118,16 @@ describe('InboundRouter', () => {
       expect(s.session.emergency).toHaveBeenCalledWith('general', step === 'language');
     });
 
+    it('never calls the AI service when the gateway pre-check fires (works with the AI service down)', async () => {
+      const s = setup(user());
+      s.ai.handle.mockRejectedValue(new Error('AI service is down'));
+      await expect(s.router.route(job({ signals: { emergency: 'general' } }), NOW)).resolves.toBe(
+        'emergency',
+      );
+      expect(s.ai.handle).not.toHaveBeenCalled();
+      expect(s.session.emergency).toHaveBeenCalledTimes(1);
+    });
+
     it('passes the self-harm kind through', async () => {
       const s = setup(user());
       await s.router.route(job({ signals: { emergency: 'self_harm' } }), NOW);

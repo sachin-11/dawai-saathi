@@ -156,6 +156,16 @@ The gateway sends every ordinary message of a consented user to the AI service (
 
 **Contract:** the OpenAPI file `packages/contracts/openapi/ai-service.json` and the gateway types in `apps/gateway/src/ai-client/generated/` are generated from the Pydantic schemas. After changing a schema run `make contracts` and commit the result; CI fails on any drift.
 
+## Safety layer (M6)
+
+Three guards run before any medical work (CLAUDE.md §2):
+
+1. **Emergency guard.** The gateway keeps a keyword pre-check (works even when the AI service is down). The AI service adds the same rules with fuzzy matching, plus a cheap-model classifier for messages the rules miss. A match answers at once with 112 / 108 (self-harm adds Tele-MANAS 14416), makes no further model call, and the gateway sends it at top queue priority and writes an `emergency_detected` audit row (category only). If the classifier is down the rules still decide.
+2. **PHI redaction.** Presidio + spaCy (`en_core_web_sm`) with Indian recognisers (mobile, Aadhaar-like, PAN, ABHA, PIN, hospital ids, names after Mr / Dr / "mera naam"). Applied to the text sent to models, to log fields named `text|body|prompt|output` and to Langfuse. Doses, schedules and lab values are never redacted. `REDACTION_ENABLED=false` is refused in production.
+3. **Scope guard.** Only medicines, prescriptions and lab reports. Everything else (cricket, coding, diet advice ...) gets a fixed polite reply; the model never writes it.
+
+The emergency phrases live in ONE file, `packages/contracts/safety/emergency-keywords.json`. After editing it run `make safety-data` (or `make contracts`); a test in each app fails if its copy is stale. `make eval-emergency` runs the emergency eval set (`evals/datasets/emergency/`), writes a report to `evals/reports/` and fails when recall drops below 100%; `make eval-emergency MODE=real` does the manual run with your real model keys.
+
 ## Conversation flow (M4)
 
 Every first-time number goes through the same short path, and **nothing is processed before consent**:
@@ -182,6 +192,8 @@ first message ──► choose language (हिन्दी / English) ──►
 | `make lint` | ESLint, Prettier, ruff, mypy |
 | `make migrate` | Apply database migrations (`make migrate-dev name=…` creates one) |
 | `make db-reset` | Wipe local volumes, restart infra, re-migrate (asks first) |
+| `make safety-data` | Copy the shared emergency keywords into both apps |
+| `make eval-emergency` | Emergency-detection eval (rules, then rules + classifier) |
 | `make seed` | Load catalog datasets |
 | `make eval` | Run evaluation suite → `evals/reports/` |
 
