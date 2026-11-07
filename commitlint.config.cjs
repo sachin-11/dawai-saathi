@@ -35,6 +35,7 @@ module.exports = {
         'evals',
         'data',
         'admin',
+        'web',
       ],
     ],
   },

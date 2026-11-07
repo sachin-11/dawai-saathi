@@ -5,10 +5,12 @@ description = "Dawai Saathi AI service — stateless LangGraph pipeline (FastAPI
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "asyncpg>=0.32",
     "fastapi>=0.162.1",
     "httpx>=0.28.1",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
+    "sqlalchemy[asyncio]>=2.1",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -50,7 +52,7 @@ known-first-party = ["app"]
 
 [tool.ruff.lint.per-file-ignores]
 # asserts and dummy test tokens are fine in tests
-"tests/**" = ["S101", "S105", "S106", "ANN"]
+"tests/**" = ["S101", "S105", "S106", "S608", "E501", "ANN"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -74,4 +76,7 @@ warn_required_dynamic_aliases = false
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers -m 'not integration'"
+markers = [
+  "integration: needs real Postgres (docker-compose.test.yml); run with `pytest -m integration`",
+]

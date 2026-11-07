@@ -1,6 +1,6 @@
 """Validated settings (pydantic-settings). Invalid config aborts startup (fail fast).
 
-M0 validates only what the skeleton needs; later modules add LLM, DB, Langfuse etc.
+M0 validates the skeleton's needs, M1 adds the database; later modules add LLM, Langfuse etc.
 (see CLAUDE.md §9). The environment is shared with the gateway, so `NODE_ENV` is
 accepted as the environment name (`APP_ENV` wins if both are set).
 """
@@ -8,7 +8,7 @@ accepted as the environment name (`APP_ENV` wins if both are set).
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import AliasChoices, Field, ValidationError, model_validator
+from pydantic import AliasChoices, Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "production"]
@@ -29,6 +29,23 @@ class Settings(BaseSettings):
     environment: Environment = Field(validation_alias=AliasChoices("APP_ENV", "NODE_ENV"))
     log_level: LogLevel = Field(default="info", validation_alias="LOG_LEVEL")
     service_token: str = Field(min_length=8, validation_alias="SERVICE_TOKEN")
+    # The AI service must use the READ-ONLY role (`dawai_ai_ro`), so it has its own variable.
+    # It falls back to DATABASE_URL for simple setups; the session is read-only either way.
+    database_url: str = Field(
+        validation_alias=AliasChoices("AI_DATABASE_URL", "DATABASE_URL"), repr=False
+    )
+
+    @field_validator("database_url")
+    @classmethod
+    def _to_asyncpg_url(cls, value: str) -> str:
+        """`postgresql://…` (shared with Prisma) -> `postgresql+asyncpg://…` (SQLAlchemy driver)."""
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+asyncpg://" + value.removeprefix(prefix)
+        if value.startswith("postgresql+asyncpg://"):
+            return value
+        # Never echo the value: it contains the password.
+        raise ValueError("must be a postgresql:// URL")
 
     @model_validator(mode="after")
     def _no_placeholder_secrets_in_production(self) -> Self:

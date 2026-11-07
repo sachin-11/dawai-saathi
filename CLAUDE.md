@@ -65,7 +65,7 @@ These rules apply to every prompt, every response and every code path. Any PR th
 | Object storage | AWS S3 (MinIO locally) |
 | PII redaction | Microsoft Presidio + custom Indian recognisers (phone, Aadhaar-like numbers, PIN codes) |
 | Observability | Langfuse (LLM traces), OpenTelemetry + structured JSON logs (pino / structlog), Prometheus metrics |
-| Admin panel (later) | Next.js 15 + Tailwind |
+| Web app (later) | Next.js 15 (App Router) + Tailwind + shadcn/ui, NextAuth for admin login — landing page, web demo playground, admin dashboard |
 | Infra | Docker, docker-compose (local), AWS ECS Fargate + RDS + ElastiCache + S3, Terraform |
 | CI/CD | GitHub Actions |
 | Tests | Jest (gateway), pytest (AI), evals in `evals/` |
@@ -160,7 +160,7 @@ dawai-saathi/
 │   │   │   └── observability/
 │   │   ├── tests/
 │   │   └── pyproject.toml
-│   └── admin/                 # Next.js (Module M16, later)
+│   └── web/                   # Next.js: landing page + web demo playground + admin (Module M16)
 ├── packages/
 │   └── contracts/             # JSON Schema / OpenAPI shared between gateway & ai-service
 ├── data/
@@ -176,6 +176,7 @@ dawai-saathi/
 │   └── docker/
 ├── docs/
 │   ├── adr/                   # architecture decision records
+│   ├── modules/               # one simple Hinglish explainer per module (M0.md, M1.md, ...) for interviews
 │   └── whatsapp-templates.md  # template texts submitted to Meta
 └── .github/workflows/
 ```
@@ -404,9 +405,10 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Monorepo (pnpm + turbo), NestJS app skeleton, FastAPI app skeleton (`uv`), shared lint/format configs, `.env.example`, Makefile, pre-commit hooks, GitHub Actions (lint + test for both apps).
   ✅ `make lint` and `make test` pass on empty skeletons; CI green.
   _Notes:_ `make install/lint/typecheck/test/build` all green locally (gateway: 12 unit + 5 e2e Jest tests; ai-service: 15 pytest). Both `/health/live` verified via `make dev` on :3000 and :8000. CI workflow has not run yet because there is no GitHub remote; confirm it is green on the first push. Docker images are not built yet (Docker daemon was not running); the gateway `pnpm deploy --prod` output was verified to boot.
-- [ ] **M1 — Local infra**
+- [x] **M1 — Local infra** _(done 2026-11-07)_
   `docker-compose.yml` with Postgres 16 (pg_trgm), Redis 7, MinIO (+ bucket init), optional Langfuse. Prisma schema for §6 tables + first migration. Health endpoints in both apps.
   ✅ `make up` → both apps `/health/ready` return 200.
+  _Notes:_ Verified locally: `make up` all healthy; `make migrate` applies `init_schema` (`pg_trgm` + `pgcrypto` installed); gateway + ai-service `/health/ready` 200; stopping Redis → gateway 503 with `redis: "fail"` (recovers to 200 on restart); stopping Postgres → both apps 503; `make lint typecheck test` green (gateway 33 unit + 6 e2e, ai-service 29); `make test-integration` green (gateway 11, ai-service 7); gateway Docker image builds and serves `/health/ready` 200. NOT verified: Langfuse profile (`make up-obs`; compose config validates but was not started), the new CI `integration` job (first run on GitHub pending; its MinIO/role bootstrap steps were simulated locally), `make dev` on :3000/:8000 (those ports were occupied by other local containers, so both apps were run on :3010/:8010 instead). Deviations from §6: `medications.salt/strength/form/dose` are nullable (unreadable/unmatched items are flagged, never guessed); `messages.body_redacted` nullable (media messages); added UNIQUE `caregivers (user_id, wa_phone_hash)`; `drugs.id` is a uuid. Details: `docs/modules/M1.md`.
 - [ ] **M2 — WhatsApp webhook (inbound)**
   GET verification (`hub.mode`, `hub.verify_token`, `hub.challenge`), POST with signature verification, payload parsing (text, image, document, audio, interactive button reply, status updates), dedupe, persist `messages`, enqueue `inbound` job.
   ✅ Unit tests with recorded sample payloads; invalid signature → 401; duplicate message → enqueued once; response < 1 s.
@@ -453,8 +455,12 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   `evals/run_eval.py`, metrics from §11, markdown report, CI job with thresholds.
 - [ ] **M15 — Observability, rate limits, cost guard**
   Metrics, dashboards, DLQ, per-user limits, daily LLM budget guard, alerting.
-- [ ] **M16 — Admin dashboard (Next.js)**
-  Login (admin only), stats (users, docs/day, ack rate, cost), review queue for `needs_review` documents, prompt version view. No PHI shown except via explicit "reveal" with audit log.
+- [ ] **M16 — Web app (Next.js): landing + demo playground + admin**
+  `apps/web`, three sections:
+  1. Landing page — what Dawai Saathi does, WhatsApp number / QR "send Hi to start", privacy policy and terms pages (also needed for Meta business verification).
+  2. Web demo playground (portfolio-critical) — pick or upload a SAMPLE prescription/lab report → calls the same AI service `/v1/process` → shows extracted medicines with confidence, generic alternatives + savings, warnings, final reply text, and a LangGraph trace view (nodes run, latency, cost per node). Only anonymised sample images allowed: show a clear "do not upload real patient documents" notice, rate limit per IP, never persist uploads, no PHI in logs.
+  3. Admin dashboard — login (admin only), stats (users, docs/day, ack rate, cost), review queue for `needs_review` documents, prompt version + eval report view. No PHI shown except via explicit "reveal" with audit log.
+  Note: the demo playground may be pulled forward right after M9 once prescription + generic finder work end-to-end.
 - [ ] **M17 — AWS deployment**
   Terraform: VPC, ECS Fargate (gateway, workers, ai-service), RDS Postgres, ElastiCache Redis, S3, Secrets Manager, ALB + HTTPS, CloudWatch. GitHub Actions deploy on tag. Runbook in `docs/`.
   ✅ Public webhook URL connected to a real WhatsApp Business number; smoke test passes.
@@ -462,8 +468,8 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Load test (k6) on webhook, backup/restore drill, privacy policy page, real-user pilot (family/friends), collect metrics for portfolio.
 
 ### Current status
-- **Next module:** M1
-- **Notes:** M0 complete. Before M1: push to GitHub and confirm CI is green; run `make docker-build` once Docker Desktop is running. Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry).
+- **Next module:** M2
+- **Notes:** M0 and M1 complete. Before M2: check that the GitHub Actions run for M0 and the new `integration` job are green (neither has run on GitHub yet when M1 was finished). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
 
 ---
 
@@ -490,6 +496,18 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
 | 2026-11-07 | Gateway image built with `pnpm deploy --prod` + `"files": ["dist"]`; both images run as non-root with a HEALTHCHECK | Minimal production image |
 | 2026-11-07 | `.gitattributes` forces LF | Windows `core.autocrlf` would otherwise break Prettier/ruff checks |
 | 2026-11-07 | pnpm installed via `npm i -g pnpm@9` locally (corepack needs admin on this Windows machine); version pinned through `packageManager` | Reproducible pnpm version |
+| 2026-11-07 | `apps/admin` replaced by `apps/web` (landing + demo playground + admin) | Interviewers need a web demo without WhatsApp |
+| 2026-11-07 | Every module ends with a Hinglish explainer in `docs/modules/` | Developer must explain each module in interviews |
+| 2026-11-07 | **Prisma pinned to 6.19.3** (not 7.x / 8.0 RC) | npm `latest` is an 8.0 release candidate; 7.x changes the client setup (driver adapters, new generator) and was not tried with our CommonJS + Jest stack (see NestJS 11 entry). 6.x is stable and known to work. Revisit with the Node 22 / ESM move |
+| 2026-11-07 | Gateway uses **ioredis 5** (not 6) | BullMQ (M2) depends on ioredis 5; one shared Redis library version |
+| 2026-11-07 | MinIO images from **`cgr.dev/chainguard/minio`** (server + init, it ships `mc`) | `minio/minio` and `minio/mc` are no longer published on Docker Hub and `quay.io/minio` returns 401 |
+| 2026-11-07 | AI service connects as read-only DB role **`dawai_ai_ro`** (`AI_DATABASE_URL`, falls back to `DATABASE_URL`) and every session is `default_transaction_read_only=on` | Enforce the §4 ownership rule in the database, not only in code. Role is created by `infra/docker/postgres/init/02-roles.sh`; the SELECT grants live in the Prisma init migration (guarded if the role is absent) |
+| 2026-11-07 | `audit_logs.user_id` has **no FK**; `medications.drug_id` is `ON DELETE SET NULL`; every other user-owned FK cascades from `users` | `DELETE` must hard-delete a user in one statement yet keep the anonymous `user_deleted` audit row (§6); `drugs` is a shared catalog |
+| 2026-11-07 | Pg enums are mapped to snake_case type names (`@@map`), Prisma model/field names are camelCase | Consistent DB naming; readable TypeScript |
+| 2026-11-07 | Gateway infra clients (Prisma, ioredis, S3) connect lazily; Prisma logs go through the Nest logger as events (target only) | App boots without Docker for unit/e2e tests; query details can contain PHI (§2.6) |
+| 2026-11-07 | `make up` starts long-running services with `--wait`, then runs `minio-init` separately | `docker compose up --wait` fails when a one-shot container exits |
+| 2026-11-07 | Integration tests refuse to run unless the DB name ends with `_test`; they use `docker-compose.test.yml` (ports 5543/6479/9100, tmpfs) | Never touch dev data; CI uses the same env var names (`INTEGRATION_*`) |
+| 2026-11-07 | Gateway Docker image ships `prisma/` (schema + migrations), installs OpenSSL, and re-runs `prisma generate` inside the deploy output | `pnpm deploy --prod` drops the generated client; Prisma's engine needs OpenSSL on bookworm-slim |
 
 ---
 
@@ -501,3 +519,13 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
 4. Never weaken §2 Safety rules or §12 Security to make a test pass.
 5. Never commit secrets, real patient images or real phone numbers. Eval images must be anonymised.
 6. At module end: run `make lint test`, update README if commands/setup changed, tick §14, update "Current status".
+7. Module explainer doc (mandatory): at the end of every module write `docs/modules/M<N>.md` in simple Hinglish (Hindi-English mix, Roman script), written so the developer can explain the module to an interviewer. Keep it short (1–2 pages) with these sections:
+   ## Is module me kya banaya — 3–5 lines, plain language
+   ## Kyun zaroori tha — the problem it solves
+   ## Kaise kaam karta hai — step-by-step flow, small ASCII diagram if useful
+   ## Important technical decisions — choice + reason (trade-offs)
+   ## Production-ready points — security, reliability, testing done in this module
+   ## Interview me kaise bolna hai — a 30–45 second spoken-style explanation
+   ## Possible interview questions — 4–6 likely questions with short answers
+   ## Files / folders — key files touched
+   Use real names from the code (files, tables, endpoints). No marketing language.

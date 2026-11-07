@@ -2,7 +2,12 @@ import pytest
 
 from app.config import ConfigError, load_settings
 
-VALID = {"_env_file": None, "NODE_ENV": "test", "SERVICE_TOKEN": "test-service-token"}
+VALID = {
+    "_env_file": None,
+    "NODE_ENV": "test",
+    "SERVICE_TOKEN": "test-service-token",
+    "DATABASE_URL": "postgresql://dawai:dawai@localhost:5432/dawai",
+}
 
 
 def test_valid_settings_with_defaults() -> None:
@@ -24,6 +29,8 @@ def test_app_env_takes_precedence_over_node_env() -> None:
         ({"SERVICE_TOKEN": "short"}, "SERVICE_TOKEN"),
         ({"NODE_ENV": "staging"}, "NODE_ENV"),
         ({"LOG_LEVEL": "verbose"}, "LOG_LEVEL"),
+        ({"DATABASE_URL": None}, "DATABASE_URL"),
+        ({"DATABASE_URL": "mysql://u:p@localhost/db"}, "DATABASE_URL"),
     ],
 )
 def test_invalid_values_fail_fast(override: dict[str, str | None], field: str) -> None:
@@ -36,7 +43,7 @@ def test_invalid_values_fail_fast(override: dict[str, str | None], field: str) -
 def test_missing_everything_reports_all_issues() -> None:
     with pytest.raises(ConfigError) as exc_info:
         load_settings(_env_file=None)
-    assert len(exc_info.value.issues) >= 2
+    assert len(exc_info.value.issues) >= 3
 
 
 def test_placeholder_token_rejected_in_production() -> None:
@@ -48,3 +55,27 @@ def test_error_never_echoes_secret_value() -> None:
     with pytest.raises(ConfigError) as exc_info:
         load_settings(**{**VALID, "SERVICE_TOKEN": "s3cr3t"})
     assert "s3cr3t" not in str(exc_info.value)
+
+
+class TestDatabaseUrl:
+    def test_converted_to_asyncpg_driver(self) -> None:
+        s = load_settings(**VALID)
+        assert s.database_url == "postgresql+asyncpg://dawai:dawai@localhost:5432/dawai"
+
+    def test_postgres_scheme_alias_is_accepted(self) -> None:
+        s = load_settings(**{**VALID, "DATABASE_URL": "postgres://u:p@h:5432/d"})
+        assert s.database_url.startswith("postgresql+asyncpg://")
+
+    def test_ai_database_url_wins_over_database_url(self) -> None:
+        s = load_settings(
+            **VALID, AI_DATABASE_URL="postgresql://dawai_ai_ro:ro@localhost:5432/dawai"
+        )
+        assert "dawai_ai_ro" in s.database_url
+
+    def test_password_never_appears_in_errors_or_repr(self) -> None:
+        with pytest.raises(ConfigError) as exc_info:
+            load_settings(**{**VALID, "DATABASE_URL": "mysql://u:hunter2@localhost/db"})
+        assert "hunter2" not in str(exc_info.value)
+
+        s = load_settings(**{**VALID, "DATABASE_URL": "postgresql://u:hunter2@localhost/db"})
+        assert "hunter2" not in repr(s)

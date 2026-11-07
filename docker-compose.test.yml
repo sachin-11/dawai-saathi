@@ -1,0 +1,78 @@
+# Throwaway infra for integration tests: separate ports, separate DB, data in tmpfs.
+#
+#   docker compose -f docker-compose.test.yml up -d --wait
+#   docker compose -f docker-compose.test.yml down -v
+#
+# Ports: postgres 5543, redis 6479, minio 9100 (console 9101). Does not touch the dev stack.
+
+name: dawai-saathi-test
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: dawai-test-postgres
+    environment:
+      POSTGRES_USER: dawai
+      POSTGRES_PASSWORD: dawai
+      POSTGRES_DB: dawai_test
+      AI_RO_PASSWORD: dawai_ai_ro
+    ports:
+      - '5543:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dawai -d dawai_test']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: dawai-test-redis
+    ports:
+      - '6479:6379'
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: dawai-test-minio
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: dawai-minio
+      MINIO_ROOT_PASSWORD: dawai-minio-secret
+    ports:
+      - '9100:9000'
+      - '9101:9001'
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  minio-init:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: dawai-test-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_USER: dawai-minio
+      MINIO_PASSWORD: dawai-minio-secret
+      BUCKETS: dawai-media-test
+      EXPIRE_DAYS: '1'
+      EXPIRE_BUCKETS: dawai-media-test
+    volumes:
+      - ./infra/docker/minio/init.sh:/init.sh:ro
+    entrypoint: ['/bin/sh', '/init.sh']
+    restart: 'no'
