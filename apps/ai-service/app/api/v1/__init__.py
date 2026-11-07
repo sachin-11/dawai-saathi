@@ -1,5 +1,8 @@
-"""Versioned internal API. `POST /v1/process` arrives in M5 (CLAUDE.md §8.1)."""
+"""Versioned internal API (CLAUDE.md §8.1): `POST /v1/process`."""
 
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/v1")
+from app.api.v1.process import router as process_router
+
+router = APIRouter()
+router.include_router(process_router)

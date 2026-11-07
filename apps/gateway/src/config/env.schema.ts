@@ -78,6 +78,10 @@ export const envSchema = z
     OUTBOUND_RATE_PER_SEC: z.coerce.number().int().min(1).max(80).default(20),
     /** DEV ONLY: echo inbound messages back. Bypasses consent, refused when NODE_ENV=production. */
     DEV_ECHO_BOT: z.stringbool().default(false),
+    // --- M5: AI service client
+    /** The AI service can take up to PROCESS_TIMEOUT_S (60 s); keep this a little higher. */
+    AI_CLIENT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300_000).default(70_000),
+
     // --- M4: consent text
     /** Link shown in the consent message. The real privacy-policy page arrives with M16 (web app). */
     PRIVACY_POLICY_URL: z

@@ -18,7 +18,7 @@ def test_valid_settings_with_defaults() -> None:
 
 
 def test_app_env_takes_precedence_over_node_env() -> None:
-    s = load_settings(**VALID, APP_ENV="production")
+    s = load_settings(**VALID, APP_ENV="production", LLM_MODE="real")
     assert s.environment == "production"
 
 
@@ -48,7 +48,9 @@ def test_missing_everything_reports_all_issues() -> None:
 
 def test_placeholder_token_rejected_in_production() -> None:
     with pytest.raises(ConfigError, match="placeholder"):
-        load_settings(**{**VALID, "NODE_ENV": "production", "SERVICE_TOKEN": "change-me"})
+        load_settings(
+            **{**VALID, "NODE_ENV": "production", "SERVICE_TOKEN": "change-me", "LLM_MODE": "real"}
+        )
 
 
 def test_error_never_echoes_secret_value() -> None:

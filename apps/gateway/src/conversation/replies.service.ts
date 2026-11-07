@@ -57,6 +57,29 @@ export class ReplySession {
     return this.sendText(this.i18n.t(this.language, key, params));
   }
 
+  /**
+   * An i18n text at a FIXED reply index (it does not advance the counter). Used for the "something
+   * went wrong" message so a retried job can never send it more than once per inbound message.
+   */
+  textAt(replyIndex: number, key: MessageKey, params: Params = {}): Promise<void> {
+    return this.sendText(this.i18n.t(this.language, key, params), undefined, replyIndex);
+  }
+
+  /** A reply whose text comes from the AI service (already in the user's language). */
+  rawText(body: string): Promise<void> {
+    return this.sendText(body);
+  }
+
+  /** A reply with buttons from the AI service (the contract limits them to 3, title <= 20). */
+  rawButtons(body: string, buttons: readonly { id: string; title: string }[]): Promise<void> {
+    return this.outbound.enqueue(this.ctx.userId, {
+      content: { kind: 'buttons', body, buttons: buttons.map(({ id, title }) => ({ id, title })) },
+      sourceMessageId: this.ctx.messageId,
+      replyIndex: this.nextIndex++,
+      requestId: this.ctx.requestId,
+    });
+  }
+
   buttons(bodyKey: MessageKey, params: Params, buttons: readonly ButtonSpec[]): Promise<void> {
     return this.outbound.enqueue(this.ctx.userId, {
       content: {
@@ -102,11 +125,11 @@ export class ReplySession {
     return this.sendText(lines.join('\n'));
   }
 
-  private sendText(body: string, priority?: number): Promise<void> {
+  private sendText(body: string, priority?: number, replyIndex?: number): Promise<void> {
     return this.outbound.enqueue(this.ctx.userId, {
       content: { kind: 'text', body },
       sourceMessageId: this.ctx.messageId,
-      replyIndex: this.nextIndex++,
+      replyIndex: replyIndex ?? this.nextIndex++,
       requestId: this.ctx.requestId,
       ...(priority !== undefined ? { priority } : {}),
     });

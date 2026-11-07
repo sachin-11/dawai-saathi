@@ -133,6 +133,17 @@ export class UsersService {
     return rows.map((row) => ({ name: row.rawName, timings: row.timings }));
   }
 
+  /** `{salt, strength}` of the user's active medicines: the context sent to the AI service. */
+  async activeMedicationSalts(userId: string): Promise<{ salt: string; strength: string }[]> {
+    const rows = await this.prisma.medication.findMany({
+      where: { userId, active: true, salt: { not: null }, strength: { not: null } },
+      select: { salt: true, strength: true },
+    });
+    return rows.flatMap((row) =>
+      row.salt && row.strength ? [{ salt: row.salt, strength: row.strength }] : [],
+    );
+  }
+
   /**
    * Mark that an erasure is running. Only the first caller sets it; the router ignores such users
    * while the deletion job works. (The job then hard-deletes the row.)

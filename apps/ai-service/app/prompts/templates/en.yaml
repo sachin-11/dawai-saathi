@@ -1,0 +1,22 @@
+# Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
+version: reply_templates_v1
+texts:
+  help: |-
+    I'm Dawai Saathi 💊
+
+    I can:
+    • Read a prescription photo and explain it simply
+    • Explain a lab report (never a diagnosis)
+    • Suggest cheaper generics with the same salt
+
+    Send a clear photo of your prescription or lab report to start. Send HELP to see all commands.
+
+    🚨 Emergency? Call 112 or 108.
+
+    I am not a doctor. Always ask your doctor or pharmacist before changing anything.
+  coming_soon: |-
+    Thanks for your message! This feature is coming soon. For now, send HELP to see what I can do.
+  received_media: |-
+    I received your file. Reading it will be available very soon. Thank you for your patience!
+  emergency: |-
+    🚨 This sounds like an emergency. Please call 112 (or 108 for an ambulance) right now or go to the nearest hospital. Do not wait for a reply here: I am not a doctor and cannot help in an emergency.

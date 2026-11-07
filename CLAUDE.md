@@ -338,6 +338,17 @@ TEXT_MODEL=
 CHEAP_MODEL=
 STT_PROVIDER=whisper                    # whisper | sarvam
 EXTRACTION_MIN_CONFIDENCE=0.75
+FALLBACK_VISION_MODEL=                  # model ids for LLM_FALLBACK (M5)
+FALLBACK_TEXT_MODEL=
+FALLBACK_CHEAP_MODEL=
+LLM_MODE=fake                           # fake | real (fake refused in production)
+LLM_CALL_TIMEOUT_S=20
+LLM_MAX_ATTEMPTS=2                      # per provider, inside the request deadline
+LLM_BREAKER_THRESHOLD=5
+LLM_BREAKER_COOLDOWN_S=60
+PROCESS_TIMEOUT_S=60                    # total budget of one /v1/process call
+AI_CLIENT_TIMEOUT_MS=70000              # gateway -> ai-service
+ALLOWED_MEDIA_HOSTS=localhost:9000      # hosts the AI service may fetch presigned URLs from
 PINECONE_API_KEY=
 PINECONE_INDEX=dawai-drugs
 LANGFUSE_PUBLIC_KEY=
@@ -427,9 +438,10 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Language selection, consent flow, users table with hash+encryption, commands HELP/LANGUAGE/DELETE (with confirmation + hard delete incl. S3)/STOP REMINDERS.
   ✅ E2E test: new number → consent → DELETE wipes all rows and S3 objects.
   _Notes:_ Verified: `make lint typecheck test` green (gateway 639 unit + 25 e2e, ai-service 29); `make test-integration` green (gateway 69 incl. 24 conversation, ai-service 7) including the acceptance E2E (new number → language → consent → photo stored in MinIO → DELETE → confirm → no row in any `user_id` table, S3 prefix empty, exactly one anonymous `user_deleted` audit row, final message once, same number → fresh onboarding), consent-no + photo (nothing downloaded), confirm after TTL (expired, nothing deleted), emergency before consent. A running gateway + mock Graph server went through language → consent → HELP → DELETE → erased, with no phone/text in the logs. NOT verified: the flow on a real Meta number (README "Connect a real Meta test number" + "Conversation flow"). Deviations / additions: message text is classified in the webhook into `signals` (emergency/command) so the router and the queue never see text; deleting a user also deletes that user's other audit rows (only the anonymous `user_deleted` row remains, per §6); the erasure job keeps the phone number ENCRYPTED in its job data (removed on completion) so the final message can still be sent after the row is gone; `users.deleted_at` is set while an erasure is in flight and the router ignores such a user for 15 minutes. Known limits: DB backups/PITR keep deleted data until their own retention expires (document in the privacy policy, decide retention in M17/M18); jobs that are `active` during an erasure cannot be removed (they contain ids only); no emergency check on voice notes until STT (M13); withdrawing consent = `DELETE` for now. Details: `docs/modules/M4.md`.
-- [ ] **M5 — AI service skeleton**
+- [x] **M5 — AI service skeleton** _(done 2026-11-07, real-provider test pending)_
   `/v1/process` contract, service-token auth, LLM provider abstraction (primary + fallback, timeouts, cost tracking), Langfuse integration, prompt loader with versions, gateway `ai-client` module.
   ✅ Fake-LLM test mode; contract test passes; fallback triggered when primary errors.
+  _Notes:_ Verified: `make lint typecheck test` green (gateway 691 unit + 25 e2e, ai-service 309); `make test-integration` green (gateway 70, ai-service 7) including the AI branch with the AI service mocked (reply once; AI down -> one error message); the production image builds, boots in fake mode, answers `/v1/process` and returns 401 without the token; `make contracts` is deterministic. NOT verified: the Anthropic/OpenAI adapters against the real APIs (only mocked HTTP), Langfuse against a real server (fake client only), the CI additions (contracts drift + image smoke test) on GitHub, and a WhatsApp round trip. `pricing.yaml` prices are PLACEHOLDERS: fill them before trusting `cost_usd`. Known limits: presigned URLs point at `localhost:9000`, not reachable from a containerised AI service (M7 must fix: public/internal S3 endpoint); the pipeline only classifies text, media gets a static "received" reply. Details: `docs/modules/M5.md`.
 - [ ] **M6 — Emergency guard + redaction**
   Keyword lists (hi/en/Hinglish/Devanagari + transliteration), small-LLM classifier, emergency template, Presidio with Indian recognisers.
   ✅ Emergency test set recall = 100%; redaction tests for phone/Aadhaar-like/PIN.
@@ -476,8 +488,8 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Load test (k6) on webhook, backup/restore drill, privacy policy page, real-user pilot (family/friends), collect metrics for portfolio.
 
 ### Current status
-- **Next module:** M5
-- **Notes:** M0–M4 complete (M3 and M4 still need your manual Meta test-number round trip). Before M5: check GitHub Actions is green for M1–M4 (the `integration` job, which now also needs `nock`-based tests and a MinIO with `MINIO_KMS_SECRET_KEY`, had not run on GitHub yet) and do the manual echo-bot test. The echo bot no longer bypasses consent. For real WhatsApp testing set the real `WA_APP_SECRET`, `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN` (and `WA_ACCESS_TOKEN` from M3). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
+- **Next module:** M6
+- **Notes:** M0–M5 complete (M5 needs a real API-key test: `LLM_MODE=real`, README "AI service (M5)") (M3 and M4 still need your manual Meta test-number round trip). Before M6: check GitHub Actions is green for M1–M4 (the `integration` job, which now also needs `nock`-based tests and a MinIO with `MINIO_KMS_SECRET_KEY`, had not run on GitHub yet) and do the manual echo-bot test. The echo bot no longer bypasses consent. For real WhatsApp testing set the real `WA_APP_SECRET`, `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN` (and `WA_ACCESS_TOKEN` from M3). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
 
 ---
 
@@ -543,6 +555,14 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
 | 2026-11-07 | The erasure job keeps the phone ENCRYPTED in its data (`removeOnComplete`, failed jobs kept 1 h); `users.deleted_at` marks an in-flight erasure and the router ignores the user for 15 min | The final message is sent after `wa_phone_enc` is gone; a stuck job must not silence a user forever |
 | 2026-11-07 | Audit metadata is validated (`assertSafeAuditMetadata`): only numbers, booleans, null and short machine tokens; phone-/PIN-/email-like values rejected | Audit must never carry PII (§2.6, §12) |
 | 2026-11-07 | The dev echo bot is now called by the InboundRouter only for onboarded users | It can no longer bypass consent (§2.7) |
+| 2026-11-07 | Fallback models have their own env vars (`FALLBACK_VISION/TEXT/CHEAP_MODEL`); roles (vision/text/cheap) map to model ids from env only | Model ids differ per provider and are never hard-coded |
+| 2026-11-07 | LLM router: up to `LLM_MAX_ATTEMPTS` (2) per provider with jitter inside one request deadline; fallback to the other provider ONLY on timeout/429/5xx/connection, never on 400/auth/schema errors; per-provider circuit breaker (5 failures, 60 s cooldown, half-open probe) | A bad request would fail on both providers and double the cost; a dead provider must not slow every request |
+| 2026-11-07 | Structured output = forced tool call (Anthropic) / json_schema (OpenAI), one repair retry, then `LLMSchemaError`; the Anthropic adapter sends no `temperature` | Strict JSON per §8; the installed Anthropic SDK rejects the parameter for these models |
+| 2026-11-07 | The AI service receives the REDACTED text stored by the webhook; media goes as a 5-minute presigned URL fetched through an SSRF-safe fetcher (host allowlist, no redirects, mime + size limits) | §2.6 and §12: no raw PHI to the AI service, no open fetcher |
+| 2026-11-07 | Contract-first: Pydantic -> OpenAPI (`packages/contracts`) -> generated gateway types; CI fails on drift; `meta` has the extra fields `provider` and `fallback_used` | §10: keep both apps in sync automatically |
+| 2026-11-07 | `LLM_MODE=fake` is the default and is refused when `NODE_ENV=production`; the gateway maps `document` to input type `image` | Tests and CI need no keys; the contract only knows image/text/audio |
+| 2026-11-07 | Gateway `AiClient` retries only connection errors and 5xx (not 504, not 4xx, not timeouts); an AI failure sends ONE error message (fixed outbound reply index 99) and rethrows so BullMQ retries | `/v1/process` is idempotent by `request_id`; the user must never get two error messages |
+| 2026-11-07 | Provider SDK tests mock `httpx2.MockTransport` (the SDKs run on httpx2); `respx` only for our own httpx code | respx cannot intercept the SDK clients |
 
 ---
 

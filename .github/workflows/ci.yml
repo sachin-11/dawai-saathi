@@ -165,3 +165,19 @@ jobs:
 
       - name: AI service integration tests
         run: pnpm --filter @dawai/ai-service run test:integration
+
+      # Contract-first (M5): the committed OpenAPI file and the generated TypeScript types must match
+      # what the AI service code produces today. Fails when someone changed a schema without `make contracts`.
+      - name: Contracts are up to date
+        run: |
+          make contracts
+          git diff --exit-code -- packages/contracts apps/gateway/src/ai-client/generated
+
+      # The production image boots in fake LLM mode and answers /v1/process (no API keys needed).
+      - name: AI service image smoke test
+        run: |
+          docker build -f infra/docker/ai-service.Dockerfile -t dawai/ai-service:ci .
+          docker run -d --name ai-ci -p 8120:8000 -e SERVICE_TOKEN=ci-token -e NODE_ENV=development             -e LLM_MODE=fake -e DATABASE_URL=postgresql://dawai_ai_ro:dawai_ai_ro@172.17.0.1:5432/dawai_test             dawai/ai-service:ci
+          for i in $(seq 1 30); do curl -sf localhost:8120/health/live && break; sleep 1; done
+          curl -sf -X POST localhost:8120/v1/process -H 'X-Service-Token: ci-token' -H 'content-type: application/json'             -d '{"request_id":"ci","user":{"language":"en"},"input":{"type":"text","text":"what can you do"}}' | grep -q '"intent"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8120/v1/process -H 'content-type: application/json' -d '{}')" = 401

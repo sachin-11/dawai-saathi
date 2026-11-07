@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'eslint.config.mjs'] },
+  { ignores: ['dist/**', 'coverage/**', 'eslint.config.mjs', 'src/ai-client/generated/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   prettier,

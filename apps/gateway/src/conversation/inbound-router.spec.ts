@@ -3,6 +3,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import type { EchoBotService } from '../dev/echo-bot.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import type { OnboardingStep, UserState, UsersService } from '../users/users.service';
+import type { AiProcessor } from './ai-processor.service';
 import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
@@ -41,6 +42,7 @@ function setup(
   commands: Record<'help' | 'askLanguage' | 'setLanguage' | 'setReminders' | 'meds', jest.Mock>;
   deletion: Record<'request' | 'confirm' | 'cancel', jest.Mock>;
   echoBot: { enabled: boolean; handle: jest.Mock };
+  ai: { handle: jest.Mock };
 } {
   const session = {
     text: jest.fn().mockResolvedValue(undefined),
@@ -66,6 +68,7 @@ function setup(
     enabled: options.echoEnabled === true,
     handle: jest.fn().mockResolvedValue(undefined),
   };
+  const ai = { handle: jest.fn().mockResolvedValue('ai_reply') };
   const logger = { setContext: jest.fn(), info: jest.fn() };
   const router = new InboundRouter(
     { getState: jest.fn().mockResolvedValue(state) } as unknown as UsersService,
@@ -74,9 +77,10 @@ function setup(
     commands as unknown as CommandHandlersService,
     deletion as unknown as DeletionFlowService,
     echoBot as unknown as EchoBotService,
+    ai as unknown as AiProcessor,
     logger as unknown as PinoLogger,
   );
-  return { router, session, onboarding, commands, deletion, echoBot };
+  return { router, session, onboarding, commands, deletion, echoBot, ai };
 }
 
 const STEPS: OnboardingStep[] = ['language', 'consent', 'done'];
@@ -100,7 +104,7 @@ describe('InboundRouter', () => {
 
     it('stops ignoring a user whose deletion marker is stale (a stuck job must not silence them forever)', async () => {
       const s = setup(user({ deletedAt: new Date(NOW.getTime() - DELETION_MARKER_TTL_MS - 1) }));
-      await expect(s.router.route(job(), NOW)).resolves.toBe('placeholder');
+      await expect(s.router.route(job(), NOW)).resolves.toBe('ai_reply');
     });
   });
 
@@ -275,34 +279,63 @@ describe('InboundRouter', () => {
     });
   });
 
-  describe('5. everything else (consented users only)', () => {
-    it.each(['text', 'image', 'document', 'audio'] as const)(
-      'a %s goes to the placeholder: acknowledged, nothing else done',
+  describe('5. everything else (consented users only) goes to the AI processor', () => {
+    it.each(['text', 'image', 'document', 'audio', 'unsupported'] as const)(
+      'a %s is handed to the AI processor with the user, the job and the reply session',
       async (type) => {
         const s = setup(user());
-        await expect(s.router.route(job({ type }), NOW)).resolves.toBe('placeholder');
-        expect(s.session.textParts).toHaveBeenCalledWith([
-          'common.received_processing',
-          'dev.ai_not_ready',
-        ]);
+        const j = job({ type });
+        await expect(s.router.route(j, NOW)).resolves.toBe('ai_reply');
+        expect(s.ai.handle).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'user-1' }),
+          j,
+          s.session,
+        );
         expect(s.echoBot.handle).not.toHaveBeenCalled();
       },
     );
 
-    it('an unsupported message type gets the polite "cannot read this" reply', async () => {
+    it('returns whatever outcome the AI processor reports', async () => {
       const s = setup(user());
-      await expect(s.router.route(job({ type: 'unsupported' }), NOW)).resolves.toBe('placeholder');
-      expect(s.session.text).toHaveBeenCalledWith('common.unsupported_type');
+      s.ai.handle.mockResolvedValue('media_rejected');
+      await expect(s.router.route(job({ type: 'image' }), NOW)).resolves.toBe('media_rejected');
     });
 
-    it('runs the dev echo bot only when it is enabled (and only for consented users)', async () => {
+    it('lets an AI failure propagate so the inbound job is retried', async () => {
+      const s = setup(user());
+      s.ai.handle.mockRejectedValue(new Error('ai down'));
+      await expect(s.router.route(job(), NOW)).rejects.toThrow('ai down');
+    });
+
+    it('runs the dev echo bot INSTEAD of the AI only when it is enabled', async () => {
       const on = setup(user(), { echoEnabled: true });
       await expect(on.router.route(job(), NOW)).resolves.toBe('echo_bot');
       expect(on.echoBot.handle).toHaveBeenCalledTimes(1);
+      expect(on.ai.handle).not.toHaveBeenCalled();
 
       const off = setup(user(), { echoEnabled: false });
-      await expect(off.router.route(job(), NOW)).resolves.toBe('placeholder');
+      await expect(off.router.route(job(), NOW)).resolves.toBe('ai_reply');
       expect(off.echoBot.handle).not.toHaveBeenCalled();
+    });
+
+    it('never reaches the AI before onboarding is done, whatever was sent', async () => {
+      for (const step of ['language', 'consent'] as const) {
+        const s = setup(user({ onboardingStep: step }));
+        await s.router.route(
+          job({ type: 'image', media: { id: 'm', mimeType: 'image/jpeg' } }),
+          NOW,
+        );
+        await s.router.route(job({ type: 'text' }), NOW);
+        expect(s.ai.handle).not.toHaveBeenCalled();
+      }
+    });
+
+    it('commands and emergencies are answered without calling the AI', async () => {
+      const s = setup(user());
+      await s.router.route(job({ signals: { command: 'meds' } }), NOW);
+      await s.router.route(job({ signals: { command: 'help' } }), NOW);
+      await s.router.route(job({ signals: { emergency: 'general' } }), NOW);
+      expect(s.ai.handle).not.toHaveBeenCalled();
     });
   });
 });

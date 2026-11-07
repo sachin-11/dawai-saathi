@@ -7,10 +7,35 @@ from httpx import ASGITransport, AsyncClient
 from app.config import Settings, load_settings
 from app.main import create_app
 
-_ENV_KEYS = ("APP_ENV", "NODE_ENV", "LOG_LEVEL", "SERVICE_TOKEN", "AI_DATABASE_URL", "DATABASE_URL")
+_ENV_KEYS = (
+    "APP_ENV",
+    "NODE_ENV",
+    "LOG_LEVEL",
+    "SERVICE_TOKEN",
+    "AI_DATABASE_URL",
+    "DATABASE_URL",
+    "LLM_MODE",
+    "LLM_PRIMARY",
+    "LLM_FALLBACK",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "VISION_MODEL",
+    "TEXT_MODEL",
+    "CHEAP_MODEL",
+    "FALLBACK_VISION_MODEL",
+    "FALLBACK_TEXT_MODEL",
+    "FALLBACK_CHEAP_MODEL",
+    "PROCESS_TIMEOUT_S",
+    "ALLOWED_MEDIA_HOSTS",
+    "MAX_MEDIA_MB",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "LANGFUSE_HOST",
+)
 
 # Nothing listens here: unit tests must never need (or accidentally reach) a real database.
 UNREACHABLE_DB_URL = "postgresql://user:pass@127.0.0.1:1/none"
+SERVICE_TOKEN = "test-service-token"
 
 
 @pytest.fixture(autouse=True)
@@ -20,15 +45,22 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
+def make_settings(**overrides: object) -> Settings:
+    values: dict[str, object] = {
+        "_env_file": None,
+        "NODE_ENV": "test",
+        "LOG_LEVEL": "silent",
+        "SERVICE_TOKEN": SERVICE_TOKEN,
+        "DATABASE_URL": UNREACHABLE_DB_URL,
+        "LLM_MODE": "fake",
+    }
+    values.update(overrides)
+    return load_settings(**values)
+
+
 @pytest.fixture
 def settings() -> Settings:
-    return load_settings(
-        _env_file=None,
-        NODE_ENV="test",
-        LOG_LEVEL="silent",
-        SERVICE_TOKEN="test-service-token",
-        DATABASE_URL=UNREACHABLE_DB_URL,
-    )
+    return make_settings()
 
 
 @pytest.fixture

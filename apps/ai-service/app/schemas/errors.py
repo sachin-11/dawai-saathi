@@ -29,12 +29,16 @@ def status_code_name(status: int) -> str:
 
 
 def error_body(
-    status: int, message: str, request_id: str, details: list[str] | None = None
+    status: int,
+    message: str,
+    request_id: str,
+    details: list[str] | None = None,
+    code: str | None = None,
 ) -> ErrorResponse:
     return ErrorResponse(
         error=ErrorDetail(
             status=status,
-            code=status_code_name(status),
+            code=code or status_code_name(status),
             message=message,
             details=details,
             request_id=request_id,

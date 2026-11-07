@@ -4,6 +4,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { EchoBotService } from '../dev/echo-bot.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import { type UserState, UsersService } from '../users/users.service';
+import { AiProcessor } from './ai-processor.service';
 import { CommandHandlersService } from './command-handlers.service';
 import { BUTTON_ID } from './commands';
 import { DeletionFlowService } from './deletion-flow.service';
@@ -32,7 +33,9 @@ export type RouteOutcome =
   | 'reminders_started'
   | 'meds'
   | 'echo_bot'
-  | 'placeholder';
+  | 'ai_reply'
+  | 'media_rejected'
+  | 'unsupported';
 
 /**
  * Single entry point for every inbound message after the webhook has stored it (CLAUDE.md §7).
@@ -42,7 +45,7 @@ export type RouteOutcome =
  *   2. DELETE / HELP and the delete buttons — work in every onboarding step
  *   3. onboarding — until it is `done`, nothing else happens (no media download, no processing)
  *   4. commands for onboarded users — LANGUAGE, STOP/START REMINDERS, MEDS
- *   5. everything else — the dev echo bot (if enabled) or a placeholder until the AI service (M5)
+ *   5. everything else — the dev echo bot (if enabled) or the AI service (M5)
  *
  * The router never sees message text: the webhook turns it into `signals` (emergency / command)
  * and buttons are matched by id. Collaborators are injected, so every branch is unit-testable.
@@ -56,6 +59,7 @@ export class InboundRouter {
     private readonly commands: CommandHandlersService,
     private readonly deletion: DeletionFlowService,
     private readonly echoBot: EchoBotService,
+    private readonly aiProcessor: AiProcessor,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(InboundRouter.name);
@@ -151,12 +155,6 @@ export class InboundRouter {
       await this.echoBot.handle(job);
       return 'echo_bot';
     }
-    if (job.type === 'unsupported') {
-      await session.text('common.unsupported_type');
-    } else {
-      // Placeholder until M5 plugs in the AI service: acknowledge, do nothing else.
-      await session.textParts(['common.received_processing', 'dev.ai_not_ready']);
-    }
-    return 'placeholder';
+    return this.aiProcessor.handle(user, job, session);
   }
 }

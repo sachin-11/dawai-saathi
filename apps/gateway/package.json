@@ -21,7 +21,8 @@
     "test:cov": "jest --coverage",
     "postinstall": "prisma generate",
     "webhook": "ts-node scripts/send-test-webhook.ts",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "contracts:types": "openapi-typescript ../../packages/contracts/openapi/ai-service.json -o src/ai-client/generated/ai-service.ts"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -73,6 +74,7 @@
     "globals": "^17.14.0",
     "jest": "^30.5.2",
     "nock": "^14.0.17",
+    "openapi-typescript": "^7",
     "prisma": "6.19.3",
     "supertest": "^7.3.2",
     "ts-jest": "^29.4.15",
