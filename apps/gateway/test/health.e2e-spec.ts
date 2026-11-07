@@ -1,9 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
 import { AppModule } from '../src/app.module';
+import { NEST_APP_OPTIONS, configureApp } from '../src/app.setup';
 
 describe('Health (e2e)', () => {
   let app: INestApplication<App>;
@@ -22,10 +24,17 @@ describe('Health (e2e)', () => {
       S3_ENDPOINT: 'http://127.0.0.1:1',
       S3_ACCESS_KEY_ID: 'test',
       S3_SECRET_ACCESS_KEY: 'test-secret',
+      WA_VERIFY_TOKEN: 'test-verify-token',
+      WA_APP_SECRET: 'test-app-secret',
+      WA_PHONE_NUMBER_ID: '100000000000001',
+      ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      PHONE_HASH_PEPPER: 'test-pepper-value',
+      WORKERS_ENABLED: 'false',
     });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(NEST_APP_OPTIONS);
+    configureApp(app as unknown as NestExpressApplication);
     await app.init();
   });
 

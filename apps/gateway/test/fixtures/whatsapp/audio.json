@@ -1,0 +1,42 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "200000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550000000",
+              "phone_number_id": "100000000000001"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Test Patient"
+                },
+                "wa_id": "919999999999"
+              }
+            ],
+            "messages": [
+              {
+                "from": "919999999999",
+                "id": "wamid.AUDIO001",
+                "timestamp": "1794000030",
+                "type": "audio",
+                "audio": {
+                  "id": "media-aud-1",
+                  "mime_type": "audio/ogg; codecs=opus",
+                  "sha256": "ghi789sha",
+                  "voice": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

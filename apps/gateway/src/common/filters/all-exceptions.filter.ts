@@ -27,8 +27,32 @@ interface NormalisedError {
   details?: string[];
 }
 
+/** Fixed messages for 4xx errors raised outside Nest (e.g. by the body parser). */
+const CLIENT_ERROR_MESSAGES: Record<number, string> = {
+  400: 'Bad request',
+  413: 'Payload too large',
+  415: 'Unsupported media type',
+};
+
+/**
+ * Express middleware (body-parser) throws http-errors, not Nest HttpExceptions: an oversized body is
+ * a 413, bad JSON a 400. Keep the status but NOT the original message, because it can echo a snippet
+ * of the request body (PHI).
+ */
+function clientErrorStatus(exception: unknown): number | undefined {
+  if (typeof exception !== 'object' || exception === null || !('status' in exception)) {
+    return undefined;
+  }
+  const status = exception.status;
+  return typeof status === 'number' && status >= 400 && status < 500 ? status : undefined;
+}
+
 function normalise(exception: unknown): NormalisedError {
   if (!(exception instanceof HttpException)) {
+    const status = clientErrorStatus(exception);
+    if (status !== undefined) {
+      return { status, message: CLIENT_ERROR_MESSAGES[status] ?? 'Bad request' };
+    }
     // Never leak internal error messages to callers.
     return { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' };
   }
@@ -61,9 +85,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const requestId = getRequestId(res);
 
     if (status >= 500) {
-      // Log the error type and stack only; messages may contain user data.
       const err = exception instanceof Error ? exception : new Error('non-error thrown');
-      this.logger.error({ err: { type: err.name, stack: err.stack }, status }, 'unhandled error');
+      // Only stack FRAMES are logged: the first lines of `stack` repeat the message (driver errors
+      // can contain row data), so keep just the "at ..." lines.
+      const frames = (err.stack ?? '')
+        .split('\n')
+        .filter((line) => line.trimStart().startsWith('at '))
+        .join('\n');
+      this.logger.error({ err: { type: err.name, stack: frames }, status }, 'unhandled error');
     } else {
       this.logger.warn({ status }, 'request failed');
     }

@@ -409,9 +409,10 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   `docker-compose.yml` with Postgres 16 (pg_trgm), Redis 7, MinIO (+ bucket init), optional Langfuse. Prisma schema for §6 tables + first migration. Health endpoints in both apps.
   ✅ `make up` → both apps `/health/ready` return 200.
   _Notes:_ Verified locally: `make up` all healthy; `make migrate` applies `init_schema` (`pg_trgm` + `pgcrypto` installed); gateway + ai-service `/health/ready` 200; stopping Redis → gateway 503 with `redis: "fail"` (recovers to 200 on restart); stopping Postgres → both apps 503; `make lint typecheck test` green (gateway 33 unit + 6 e2e, ai-service 29); `make test-integration` green (gateway 11, ai-service 7); gateway Docker image builds and serves `/health/ready` 200. NOT verified: Langfuse profile (`make up-obs`; compose config validates but was not started), the new CI `integration` job (first run on GitHub pending; its MinIO/role bootstrap steps were simulated locally), `make dev` on :3000/:8000 (those ports were occupied by other local containers, so both apps were run on :3010/:8010 instead). Deviations from §6: `medications.salt/strength/form/dose` are nullable (unreadable/unmatched items are flagged, never guessed); `messages.body_redacted` nullable (media messages); added UNIQUE `caregivers (user_id, wa_phone_hash)`; `drugs.id` is a uuid. Details: `docs/modules/M1.md`.
-- [ ] **M2 — WhatsApp webhook (inbound)**
+- [x] **M2 — WhatsApp webhook (inbound)** _(done 2026-11-07)_
   GET verification (`hub.mode`, `hub.verify_token`, `hub.challenge`), POST with signature verification, payload parsing (text, image, document, audio, interactive button reply, status updates), dedupe, persist `messages`, enqueue `inbound` job.
   ✅ Unit tests with recorded sample payloads; invalid signature → 401; duplicate message → enqueued once; response < 1 s.
+  _Notes:_ Verified: `make webhook FIXTURE=text` → 200, row in `messages`, worker logs the job; same fixture again → no new row/job; wrong signature → 401; GET handshake returns the challenge; `make lint typecheck test` green (gateway 137 unit + 24 e2e, ai-service 29); `make test-integration` green (gateway 26, ai-service 7). NOT verified: a real Meta → ngrok round trip (needs the real `WA_APP_SECRET` / `WA_PHONE_NUMBER_ID`); `make dev` on :3000 (port busy locally, used :3010). Known: Jest e2e occasionally prints "worker failed to exit gracefully" when run in parallel (tests pass; clean with `--runInBand`). Deviations from the spec: a duplicate message still attempts the enqueue (jobId makes it a no-op) so a "row saved, enqueue failed, Meta retried" message is not lost; `WA_PHONE_NUMBER_ID` is a required env var; `messages.type` gained the value `unsupported` (migration `add_unsupported_message_type`; §6 lists only text/image/document/audio/button/template); phone hash is HMAC-SHA256 keyed with the pepper. Details: `docs/modules/M2.md`.
 - [ ] **M3 — Messaging client (outbound)**
   Send text, interactive buttons (max 3), template messages, media download (get media URL → download → S3). Retry/backoff, rate handling, i18n strings.
   ✅ Mocked Graph API tests; a real "echo" bot works with a test number.
@@ -468,8 +469,8 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
   Load test (k6) on webhook, backup/restore drill, privacy policy page, real-user pilot (family/friends), collect metrics for portfolio.
 
 ### Current status
-- **Next module:** M2
-- **Notes:** M0 and M1 complete. Before M2: check that the GitHub Actions run for M0 and the new `integration` job are green (neither has run on GitHub yet when M1 was finished). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
+- **Next module:** M3
+- **Notes:** M0, M1 and M2 complete. Before M3: check that GitHub Actions is green for M1/M2 (the `integration` job had not run on GitHub yet when M2 was finished). For real WhatsApp testing set the real `WA_APP_SECRET`, `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN` (and `WA_ACCESS_TOKEN` from M3). Node 20 reached end-of-life in April 2026; consider moving to Node 22 LTS (needs a Decisions Log entry). Local `.env` may need `POSTGRES_PORT` changed if another Postgres owns 5432 (see README "Ports").
 
 ---
 
@@ -508,6 +509,15 @@ Both apps validate env at boot (zod in NestJS, pydantic-settings in FastAPI) and
 | 2026-11-07 | `make up` starts long-running services with `--wait`, then runs `minio-init` separately | `docker compose up --wait` fails when a one-shot container exits |
 | 2026-11-07 | Integration tests refuse to run unless the DB name ends with `_test`; they use `docker-compose.test.yml` (ports 5543/6479/9100, tmpfs) | Never touch dev data; CI uses the same env var names (`INTEGRATION_*`) |
 | 2026-11-07 | Gateway Docker image ships `prisma/` (schema + migrations), installs OpenSSL, and re-runs `prisma generate` inside the deploy output | `pnpm deploy --prod` drops the generated client; Prisma's engine needs OpenSSL on bookworm-slim |
+| 2026-11-07 | Webhook raw body: app is created with `rawBody: true` (`app.setup.ts`, shared by `main.ts` and tests); JSON body limit 1 MB; signature compare via `timingSafeEqual` | HMAC must be computed on the exact received bytes (§12) |
+| 2026-11-07 | Idempotency on inbound: DB `UNIQUE wa_message_id` + `INSERT … ON CONFLICT DO NOTHING`, plus BullMQ `jobId = waMessageId`; a duplicate message STILL attempts the enqueue | Meta delivers at-least-once. Skipping the enqueue on duplicates would lose a message when the row was saved but Redis failed before the job was added (Meta retries after our 500) |
+| 2026-11-07 | Phone hash = HMAC-SHA256(pepper, normalised E.164 digits); encryption = AES-256-GCM, format `v1:<iv>:<tag>:<ct>` (base64) | Keyed hash is stronger than hash+concatenated pepper for a small input space; version prefix allows key rotation |
+| 2026-11-07 | Queue job payload carries ids, type, media id, button id only (media filename redacted); no phone number, no text | Redis is not a PHI store (§2.6) |
+| 2026-11-07 | `messages.type` enum gets `unsupported`; `WA_PHONE_NUMBER_ID`, `WA_VERIFY_TOKEN`, `WA_APP_SECRET`, `ENCRYPTION_KEY`, `PHONE_HASH_PEPPER` are required env vars (placeholders / the public dev encryption key rejected in production) | Unsupported inbound types must still be stored for a polite reply later; foreign `phone_number_id` events can only be ignored if ours is known |
+| 2026-11-07 | Webhook status codes: bad/missing signature 401; DB or Redis failure 500 (Meta retries); everything else valid-signature (unsupported type, foreign number, malformed items) 200 | Meta retries on non-2xx; retrying garbage is pointless |
+| 2026-11-07 | Exception filter passes through 4xx raised by Express middleware (413/400/415) with a FIXED message, and logs only stack frames for 5xx | body-parser messages can echo a body snippet (PHI); driver error messages can contain row data |
+| 2026-11-07 | Loggers are injected as `PinoLogger` + `setContext()` (not `@InjectPinoLogger`) | `@InjectPinoLogger` tokens only exist for classes imported before `LoggerModule` is evaluated |
+| 2026-11-07 | `prisma migrate dev` always proposes `DROP INDEX drugs_brand_name_trgm_idx` (hand-written GIN index); delete that line from every generated migration | Prisma cannot model `gin_trgm_ops` indexes |
 
 ---
 

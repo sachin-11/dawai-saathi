@@ -87,10 +87,30 @@ Other targets: `make format`, `make build`, `make docker-build`, `make down`, `m
 
 Coming later: `make seed` (M8), `make eval` (M14). For now these only print which module will implement them.
 
-### Connect WhatsApp locally (from M2)
+### Test the webhook locally
+
+**Without Meta (recommended first).** `make webhook` sends a sample payload, signed with your `WA_APP_SECRET` exactly like Meta signs it. Start `make up`, `make migrate`, `make dev` first.
+
+```bash
+make webhook FIXTURE=text                 # -> HTTP 200 {"status":"received"}; a row in `messages`, a job logged by the worker
+make webhook FIXTURE=text                 # again: same message id -> no new row, no new job
+make webhook FIXTURE=text FRESH=1         # new sender + new message ids every time
+make webhook FIXTURE=text BAD_SIGNATURE=1 # -> HTTP 401
+make webhook FIXTURE=batch WEBHOOK_URL=http://localhost:3010/webhook/whatsapp   # if :3000 is taken
+```
+
+Fixtures (`apps/gateway/test/fixtures/whatsapp/`, fake numbers only): `text`, `image`, `document`, `audio`, `button`, `button-legacy`, `unsupported`, `location`, `status`, `batch`, `foreign`.
+
+Check the handshake yourself (use your `WA_VERIFY_TOKEN`):
+```bash
+curl "localhost:3000/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=local-dev-verify-token&hub.challenge=123"   # -> 123
+```
+
+**With real WhatsApp (Meta).**
 1. Expose the gateway: `ngrok http 3000` (or cloudflared).
-2. In the Meta app dashboard set the webhook URL to `https://<tunnel>/webhook/whatsapp` and the verify token to `WA_VERIFY_TOKEN`.
-3. Subscribe to the `messages` field and send "Hi" from your WhatsApp to the test number.
+2. In the Meta app dashboard (WhatsApp → Configuration) set the callback URL to `https://<tunnel>/webhook/whatsapp` and the verify token to the same value as `WA_VERIFY_TOKEN` in `.env`.
+3. Put the **App Secret** (App settings → Basic) in `WA_APP_SECRET` and the **Phone number ID** (WhatsApp → API setup) in `WA_PHONE_NUMBER_ID`. Without the real app secret every call is rejected with 401.
+4. Subscribe to the `messages` field and send "Hi" from your WhatsApp to the test number. The gateway only receives and stores it for now (replies arrive in M3/M4).
 
 ## Common commands
 
@@ -100,6 +120,7 @@ Coming later: `make seed` (M8), `make eval` (M14). For now these only print whic
 | `make dev` | Run gateway and AI service with hot reload |
 | `make test` | Unit + e2e tests (both apps, no Docker needed) |
 | `make test-integration` | Integration tests against real Postgres, Redis, MinIO |
+| `make webhook FIXTURE=text` | Send a signed sample WhatsApp webhook to the local gateway |
 | `make lint` | ESLint, Prettier, ruff, mypy |
 | `make migrate` | Apply database migrations (`make migrate-dev name=…` creates one) |
 | `make db-reset` | Wipe local volumes, restart infra, re-migrate (asks first) |

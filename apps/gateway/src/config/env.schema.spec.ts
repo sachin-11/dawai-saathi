@@ -1,4 +1,4 @@
-import { EnvValidationError, validateEnv } from './env.schema';
+import { DEV_ENCRYPTION_KEY, EnvValidationError, validateEnv } from './env.schema';
 
 const valid = {
   NODE_ENV: 'test',
@@ -7,6 +7,11 @@ const valid = {
   DATABASE_URL: 'postgresql://dawai:dawai@localhost:5432/dawai',
   REDIS_URL: 'redis://localhost:6379',
   S3_BUCKET: 'dawai-media',
+  WA_VERIFY_TOKEN: 'verify-token-123',
+  WA_APP_SECRET: 'app-secret-123',
+  WA_PHONE_NUMBER_ID: '100000000000001',
+  ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+  PHONE_HASH_PEPPER: 'pepper-123456',
 };
 
 describe('validateEnv', () => {
@@ -18,6 +23,7 @@ describe('validateEnv', () => {
       PORT: 3000,
       AWS_REGION: 'ap-south-1',
       MEDIA_RETENTION_DAYS: 30,
+      WORKERS_ENABLED: true,
     });
   });
 
@@ -76,6 +82,12 @@ describe('validateEnv', () => {
     ['S3_BUCKET', { ...valid, S3_BUCKET: undefined }],
     ['S3_ENDPOINT', { ...valid, S3_ENDPOINT: 'not-a-url' }],
     ['MEDIA_RETENTION_DAYS', { ...valid, MEDIA_RETENTION_DAYS: '0' }],
+    ['WA_VERIFY_TOKEN', { ...valid, WA_VERIFY_TOKEN: undefined }],
+    ['WA_APP_SECRET', { ...valid, WA_APP_SECRET: undefined }],
+    ['WA_PHONE_NUMBER_ID', { ...valid, WA_PHONE_NUMBER_ID: 'not-a-number' }],
+    ['ENCRYPTION_KEY', { ...valid, ENCRYPTION_KEY: undefined }],
+    ['ENCRYPTION_KEY', { ...valid, ENCRYPTION_KEY: Buffer.alloc(16).toString('base64') }],
+    ['PHONE_HASH_PEPPER', { ...valid, PHONE_HASH_PEPPER: 'short' }],
   ])('rejects invalid %s', (key, raw) => {
     expect(() => validateEnv(raw)).toThrow(new RegExp(key));
   });
@@ -88,6 +100,34 @@ describe('validateEnv', () => {
       expect(error).toBeInstanceOf(EnvValidationError);
       expect((error as EnvValidationError).issues.length).toBeGreaterThanOrEqual(6);
     }
+  });
+
+  describe('M2 settings', () => {
+    it('parses WORKERS_ENABLED=false', () => {
+      expect(validateEnv({ ...valid, WORKERS_ENABLED: 'false' }).WORKERS_ENABLED).toBe(false);
+    });
+
+    it.each([
+      ['PHONE_HASH_PEPPER', 'change-me'],
+      ['WA_VERIFY_TOKEN', 'change-me'],
+      ['WA_APP_SECRET', 'change-me'],
+      ['ENCRYPTION_KEY', DEV_ENCRYPTION_KEY],
+    ])('rejects the placeholder %s in production', (key, value) => {
+      expect(() =>
+        validateEnv({
+          ...valid,
+          NODE_ENV: 'production',
+          SERVICE_TOKEN: 'a-real-service-token',
+          [key]: value,
+        }),
+      ).toThrow(new RegExp(`${key}: placeholder`));
+    });
+
+    it('accepts the same values outside production', () => {
+      expect(() =>
+        validateEnv({ ...valid, SERVICE_TOKEN: 'change-me', ENCRYPTION_KEY: DEV_ENCRYPTION_KEY }),
+      ).not.toThrow();
+    });
   });
 
   it('rejects placeholder SERVICE_TOKEN in production', () => {
