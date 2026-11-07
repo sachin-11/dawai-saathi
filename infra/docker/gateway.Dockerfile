@@ -19,9 +19,19 @@ COPY packages/contracts/package.json packages/contracts/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts --filter "@dawai/gateway..."
 
+# Prisma's engine needs OpenSSL to be detected correctly when the client is generated.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY apps/gateway apps/gateway
-RUN pnpm --filter @dawai/gateway run build \
+# Install ran with --ignore-scripts, so generate the Prisma client explicitly (the build needs its types).
+RUN pnpm --filter @dawai/gateway exec prisma generate \
+ && pnpm --filter @dawai/gateway run build \
  && pnpm --filter @dawai/gateway deploy --prod --ignore-scripts /out
+# `deploy` re-links production deps and drops the generated client, so generate it again inside /out
+# (using the Prisma CLI from this stage; the CLI itself is a devDependency and is not shipped).
+RUN cd /out && node /repo/apps/gateway/node_modules/prisma/build/index.js generate
 
 # ---------------------------------------------------------------- runtime
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -29,7 +39,13 @@ ENV NODE_ENV=production \
     PORT=3000
 WORKDIR /app
 
-# Only dist/ + production node_modules (pnpm deploy honours "files").
+# Prisma's query engine links against OpenSSL, which the slim image does not include.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# dist/, prisma/ (schema + migrations, for `prisma migrate deploy` jobs) + production node_modules
+# (pnpm deploy honours "files").
 COPY --from=build --chown=node:node /out ./
 
 USER node

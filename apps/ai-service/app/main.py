@@ -4,6 +4,9 @@ Run with: `uvicorn app.main:create_app --factory --port 8000`
 (the factory keeps imports side-effect free, so tests can inject settings).
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,9 +15,17 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import health
 from app.api.v1 import router as v1_router
 from app.config import Settings, get_settings
+from app.db.session import Database
 from app.observability.logging import configure_logging
 from app.observability.request_id import RequestIdMiddleware, current_request_id
 from app.schemas.errors import error_body
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    # Graceful shutdown: close pooled DB connections.
+    await app.state.db.dispose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -28,8 +39,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if is_prod else "/docs",
         redoc_url=None,
         openapi_url=None if is_prod else "/openapi.json",
+        lifespan=_lifespan,
     )
     app.state.settings = settings
+    app.state.db = Database(settings)  # lazy: no connection until first query
 
     app.add_middleware(RequestIdMiddleware)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)

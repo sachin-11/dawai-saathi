@@ -6,6 +6,11 @@ SHELL := sh
 .DEFAULT_GOAL := help
 
 AI_DIR := apps/ai-service
+GATEWAY_DIR := apps/gateway
+
+# Run a command with the repo-root .env exported (sh handles inline comments in .env).
+# Real environment variables already set in your shell are overridden by .env, so unset them if needed.
+WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
 .PHONY: help install dev lint format typecheck test build docker-build clean \
         up down migrate seed eval
@@ -46,13 +51,55 @@ clean: ## Remove build artefacts, caches and installed deps
 	       $(AI_DIR)/.venv $(AI_DIR)/.mypy_cache $(AI_DIR)/.ruff_cache $(AI_DIR)/.pytest_cache
 	find $(AI_DIR) -type d -name __pycache__ -prune -exec rm -rf {} +
 
+# ---- local infrastructure (M1) ----
+up: ## Start local infra (postgres, redis, minio) and wait until healthy
+	docker compose up -d --wait postgres redis minio
+	docker compose up --no-deps --exit-code-from minio-init minio-init
+	@$(WITH_ENV) echo "infra is up: postgres :$${POSTGRES_PORT:-5432}, redis :$${REDIS_PORT:-6379}, minio console http://localhost:$${MINIO_CONSOLE_PORT:-9001}"
+
+up-obs: up ## Same as `up` plus Langfuse (profile "observability", UI on :3002; first boot takes 1-2 min)
+	docker compose --profile observability up -d langfuse-web langfuse-worker
+	@echo "langfuse UI: http://localhost:3002 (create a local account on first visit)"
+
+down: ## Stop local infra (volumes are kept)
+	docker compose --profile observability down
+
+logs: ## Tail infra logs
+	docker compose --profile observability logs -f --tail=100
+
+db-reset: ## DESTROY local DB/Redis/MinIO volumes, restart infra, re-run migrations (asks first)
+	@printf "This deletes ALL local Dawai Saathi data (postgres, redis, minio volumes). Type 'yes' to continue: "; 	read answer; [ "$$answer" = "yes" ] || { echo "aborted"; exit 1; }
+	docker compose --profile observability down -v
+	$(MAKE) up
+	$(MAKE) migrate
+
+migrate: ## Apply Prisma migrations (prisma migrate deploy) to DATABASE_URL
+	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec prisma migrate deploy
+
+migrate-dev: ## Create/apply a new migration during development: make migrate-dev name=add_x
+	@[ -n "$(name)" ] || { echo "usage: make migrate-dev name=<migration_name>"; exit 1; }
+	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec prisma migrate dev --name $(name)
+
+db-studio: ## Open Prisma Studio (http://localhost:5555)
+	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec prisma studio
+
+# ---- integration tests (need Docker; use docker-compose.test.yml on separate ports) ----
+test-infra-up: ## Start the throwaway test stack (postgres :5543, redis :6479, minio :9100)
+	docker compose -f docker-compose.test.yml up -d --wait postgres redis minio
+	docker compose -f docker-compose.test.yml up --no-deps --exit-code-from minio-init minio-init
+
+test-infra-down: ## Stop and wipe the test stack
+	docker compose -f docker-compose.test.yml down -v
+
+test-integration: ## Run gateway + ai-service integration tests against the test stack (always cleans up)
+	$(MAKE) test-infra-up
+	@status=0; \
+	pnpm --filter @dawai/gateway run test:integration || status=$$?; \
+	pnpm --filter @dawai/ai-service run test:integration || status=$$?; \
+	$(MAKE) test-infra-down; \
+	exit $$status
+
 # ---- placeholders: implemented in later modules (see CLAUDE.md §14) ----
-up: ## [M1] Start local infra (postgres, redis, minio)
-	@echo "make up: not implemented yet - arrives in M1 (local infra / docker-compose)."
-down: ## [M1] Stop local infra
-	@echo "make down: not implemented yet - arrives in M1 (local infra / docker-compose)."
-migrate: ## [M1] Apply Prisma migrations
-	@echo "make migrate: not implemented yet - arrives in M1 (Prisma schema + first migration)."
 seed: ## [M8] Load catalog datasets
 	@echo "make seed: not implemented yet - arrives in M8 (medicine catalog), extended in M11/M12."
 eval: ## [M14] Run the evaluation suite

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Dawai Saathi gateway — WhatsApp webhook, user state, queues (NestJS)",
   "files": [
-    "dist"
+    "dist",
+    "prisma"
   ],
   "scripts": {
     "build": "nest build -p tsconfig.build.json",
@@ -16,7 +17,10 @@
     "test": "jest --passWithNoTests && jest --config test/jest-e2e.json",
     "test:unit": "jest",
     "test:e2e": "jest --config test/jest-e2e.json",
-    "test:cov": "jest --coverage"
+    "test:integration": "jest --config test/jest-integration.json --runInBand",
+    "test:cov": "jest --coverage",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -38,9 +42,12 @@
     "testEnvironment": "node"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1164",
     "@nestjs/common": "^11.2.8",
     "@nestjs/core": "^11.2.8",
     "@nestjs/platform-express": "^11.2.8",
+    "@prisma/client": "6.19.3",
+    "ioredis": "^5",
     "nestjs-pino": "^4.6.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
@@ -60,6 +67,7 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
     "jest": "^30.5.2",
+    "prisma": "6.19.3",
     "supertest": "^7.3.2",
     "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",

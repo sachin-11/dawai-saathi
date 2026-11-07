@@ -7,7 +7,10 @@ from httpx import ASGITransport, AsyncClient
 from app.config import Settings, load_settings
 from app.main import create_app
 
-_ENV_KEYS = ("APP_ENV", "NODE_ENV", "LOG_LEVEL", "SERVICE_TOKEN")
+_ENV_KEYS = ("APP_ENV", "NODE_ENV", "LOG_LEVEL", "SERVICE_TOKEN", "AI_DATABASE_URL", "DATABASE_URL")
+
+# Nothing listens here: unit tests must never need (or accidentally reach) a real database.
+UNREACHABLE_DB_URL = "postgresql://user:pass@127.0.0.1:1/none"
 
 
 @pytest.fixture(autouse=True)
@@ -20,7 +23,11 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def settings() -> Settings:
     return load_settings(
-        _env_file=None, NODE_ENV="test", LOG_LEVEL="silent", SERVICE_TOKEN="test-service-token"
+        _env_file=None,
+        NODE_ENV="test",
+        LOG_LEVEL="silent",
+        SERVICE_TOKEN="test-service-token",
+        DATABASE_URL=UNREACHABLE_DB_URL,
     )
 
 

@@ -14,6 +14,14 @@ describe('Health (e2e)', () => {
       LOG_LEVEL: 'silent',
       SERVICE_TOKEN: 'test-service-token',
       AI_SERVICE_URL: 'http://localhost:8000',
+      // Nothing listens on port 1: the app must still boot (lazy connections) and /health/ready
+      // must report the dependencies as failed. No Docker needed for this suite.
+      DATABASE_URL: 'postgresql://user:pass@127.0.0.1:1/none',
+      REDIS_URL: 'redis://127.0.0.1:1',
+      S3_BUCKET: 'test-bucket',
+      S3_ENDPOINT: 'http://127.0.0.1:1',
+      S3_ACCESS_KEY_ID: 'test',
+      S3_SECRET_ACCESS_KEY: 'test-secret',
     });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -28,6 +36,15 @@ describe('Health (e2e)', () => {
   it('GET /health/live → 200 { status: "ok" }', async () => {
     const res = await request(app.getHttpServer()).get('/health/live').expect(200);
     expect(res.body).toEqual({ status: 'ok' });
+  });
+
+  it('GET /health/ready → 503 with per-dependency status when infra is unreachable', async () => {
+    const res = await request(app.getHttpServer()).get('/health/ready').expect(503);
+    expect(res.body).toEqual({
+      status: 'degraded',
+      checks: { db: 'fail', redis: 'fail', s3: 'fail' },
+    });
+    expect(JSON.stringify(res.body)).not.toContain('pass');
   });
 
   it('assigns a request id when none is sent', async () => {
