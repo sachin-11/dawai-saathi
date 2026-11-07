@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { type Job, Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
+import { EchoBotService } from '../dev/echo-bot.service';
 import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
@@ -17,6 +18,7 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly redis: RedisService,
+    private readonly echoBot: EchoBotService,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
   ) {
@@ -45,8 +47,11 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** Stub: log ids only (no phone number, no text) and complete. */
-  process(job: Job<InboundJobData>): Promise<void> {
+  /**
+   * Log ids only (no phone number, no text). With DEV_ECHO_BOT the dev echo bot answers; otherwise
+   * this is still a stub until the consent flow (M4) and the AI pipeline (M5+) land.
+   */
+  async process(job: Job<InboundJobData>): Promise<void> {
     const { messageId, userId, waMessageId, type, requestId } = job.data;
     this.logger.info(
       {
@@ -59,7 +64,9 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
       },
       'inbound job received',
     );
-    return Promise.resolve();
+    if (this.echoBot.enabled) {
+      await this.echoBot.handle(job.data);
+    }
   }
 
   /** Waits for in-flight jobs to finish, then stops. */

@@ -25,6 +25,9 @@ export const INTEGRATION_ENV: Record<string, string> = {
   ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
   PHONE_HASH_PEPPER: 'integration-pepper-value',
   WORKERS_ENABLED: 'false',
+  WA_ACCESS_TOKEN: 'integration-access-token',
+  DEV_ECHO_BOT: 'false',
+  S3_SSE: 'AES256',
 };
 
 /** Refuse to touch anything but a `*_test` database, then apply the real migrations. */

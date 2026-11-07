@@ -31,6 +31,7 @@ export const OFFLINE_ENV: Record<string, string> = {
   ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
   PHONE_HASH_PEPPER: 'test-pepper-value',
   WORKERS_ENABLED: 'false',
+  WA_ACCESS_TOKEN: 'test-access-token',
 };
 
 export function fixtureBuffer(name: string): Buffer {

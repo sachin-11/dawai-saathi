@@ -4,6 +4,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
 import { MessagesService } from '../messaging/messages.service';
+import { StatusUpdater } from '../messaging/status-updater.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import { InboundQueue } from '../queues/inbound.queue';
 import { UsersService } from '../users/users.service';
@@ -25,6 +26,7 @@ export class WebhookService {
     private readonly users: UsersService,
     private readonly messages: MessagesService,
     private readonly queue: InboundQueue,
+    private readonly statuses: StatusUpdater,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(WebhookService.name);
@@ -38,16 +40,9 @@ export class WebhookService {
   async handle(body: unknown, requestId: string): Promise<WebhookSummary> {
     const parsed = parseWebhook(body, this.env.WA_PHONE_NUMBER_ID);
 
-    // Statuses describe OUR outbound messages. Log only; persisting them comes in M3.
+    // Statuses describe OUR outbound messages: update delivery state, never create user messages.
     for (const status of parsed.statuses) {
-      this.logger.info(
-        {
-          wa_message_id: status.waMessageId,
-          status: status.status,
-          ...(status.errorCode !== undefined ? { error_code: status.errorCode } : {}),
-        },
-        'whatsapp status update',
-      );
+      await this.statuses.apply(status);
     }
     if (parsed.foreignCount > 0) {
       this.logger.info(
