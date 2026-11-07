@@ -102,6 +102,8 @@ export type MediaResult =
 @Injectable()
 export class MediaService {
   private readonly maxBytes: number;
+  /** For the "file too large" message. */
+  readonly maxMediaMb: number;
 
   constructor(
     @Inject(APP_CONFIG) env: Env,
@@ -111,6 +113,7 @@ export class MediaService {
     private readonly logger: PinoLogger,
   ) {
     this.maxBytes = env.MAX_MEDIA_MB * 1024 * 1024;
+    this.maxMediaMb = env.MAX_MEDIA_MB;
     this.logger.setContext(MediaService.name);
   }
 

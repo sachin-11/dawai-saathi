@@ -5,11 +5,16 @@ description = "Dawai Saathi AI service — stateless LangGraph pipeline (FastAPI
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "anthropic>=2.6",
     "asyncpg>=0.32",
     "fastapi>=0.162.1",
     "httpx>=0.28.1",
+    "jinja2>=3.1",
+    "langfuse>=5.2",
+    "openai>=3.46",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
+    "pyyaml>=6",
     "sqlalchemy[asyncio]>=2.1",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
@@ -20,7 +25,9 @@ dev = [
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
+    "respx>=0.23.1",
     "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12.20261103",
 ]
 
 [tool.uv]
@@ -45,7 +52,7 @@ select = [
   "ANN",           # type annotations everywhere
   "T20",           # no print()
 ]
-ignore = ["ANN401"]
+ignore = ["ANN401", "E501"]  # the formatter wraps code; long docstrings and comments are fine
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

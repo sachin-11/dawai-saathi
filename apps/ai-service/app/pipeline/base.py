@@ -1,0 +1,61 @@
+"""The `Pipeline` interface the `/v1/process` endpoint talks to.
+
+M5 ships `MinimalPipeline`. M9 replaces it with the LangGraph pipeline behind the same interface, so
+the endpoint, the contract and the gateway do not change.
+"""
+
+from dataclasses import dataclass, field
+from typing import Protocol
+
+from app.config import Settings
+from app.llm.router import Deadline, LLMRouter
+from app.llm.types import LLMResult
+from app.prompts.registry import PromptRegistry, TemplateStore
+from app.schemas.process import Intent, ProcessRequest, Reply, Warning
+
+
+@dataclass(slots=True)
+class RequestUsage:
+    """What one request cost: summed over every LLM call it made."""
+
+    cost_usd: float = 0.0
+    latency_ms: int = 0
+    model: str | None = None
+    provider: str | None = None
+    fallback_used: bool = False
+    prompt_versions: list[str] = field(default_factory=list)
+
+    def add(self, result: LLMResult, prompt_version: str | None) -> None:
+        self.cost_usd += result.cost_usd
+        self.latency_ms += result.latency_ms
+        self.model = result.model
+        self.provider = result.provider
+        self.fallback_used = self.fallback_used or result.fallback_used
+        if prompt_version is not None:
+            self.add_prompt_version(prompt_version)
+
+    def add_prompt_version(self, version: str) -> None:
+        if version not in self.prompt_versions:
+            self.prompt_versions.append(version)
+
+
+@dataclass(frozen=True, slots=True)
+class PipelineContext:
+    settings: Settings
+    router: LLMRouter
+    prompts: PromptRegistry
+    templates: TemplateStore
+    deadline: Deadline
+    usage: RequestUsage
+
+
+@dataclass(frozen=True, slots=True)
+class PipelineOutput:
+    intent: Intent
+    emergency: bool
+    reply: Reply
+    warnings: list[Warning] = field(default_factory=list)
+
+
+class Pipeline(Protocol):
+    async def run(self, request: ProcessRequest, ctx: PipelineContext) -> PipelineOutput: ...

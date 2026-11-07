@@ -146,6 +146,16 @@ If nothing happens: the gateway log shows each Graph API call (`whatsapp api cal
 
 **Without Meta at all:** the integration tests mock the Graph API (`make test-integration`), and `make webhook` simulates inbound messages.
 
+## AI service (M5)
+
+The gateway sends every ordinary message of a consented user to the AI service (`POST /v1/process`, header `X-Service-Token`) and forwards the reply. In M5 the service only classifies text and answers with a fixed template; reading prescriptions arrives in M7.
+
+**Fake mode (default, no API keys, used by tests and CI):** `LLM_MODE=fake`. Start with `make dev`; send "help" from WhatsApp (or call the endpoint with curl). `LLM_MODE=fake` is refused when `NODE_ENV=production`.
+
+**Real mode:** set `LLM_MODE=real`, `LLM_PRIMARY` / `LLM_FALLBACK` (`anthropic` | `openai`), the matching `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, and the model ids for both providers: `VISION_MODEL`, `TEXT_MODEL`, `CHEAP_MODEL` and `FALLBACK_VISION_MODEL`, `FALLBACK_TEXT_MODEL`, `FALLBACK_CHEAP_MODEL`. Model ids are never hard-coded. Fill in the real prices in `apps/ai-service/app/llm/pricing.yaml` (the shipped values are placeholders). Optional tracing: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`. `/health/ready` reports `llm_config` and returns 503 when the configuration is invalid.
+
+**Contract:** the OpenAPI file `packages/contracts/openapi/ai-service.json` and the gateway types in `apps/gateway/src/ai-client/generated/` are generated from the Pydantic schemas. After changing a schema run `make contracts` and commit the result; CI fails on any drift.
+
 ## Conversation flow (M4)
 
 Every first-time number goes through the same short path, and **nothing is processed before consent**:

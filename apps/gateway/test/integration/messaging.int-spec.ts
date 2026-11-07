@@ -688,8 +688,30 @@ describe('messaging (integration)', () => {
   });
 });
 
-describe('echo bot switch (integration)', () => {
-  it('with DEV_ECHO_BOT off (the default) a consented user gets the placeholder, not an echo', async () => {
+describe('AI branch (integration)', () => {
+  const AI = 'http://localhost:8000';
+  const aiResponse = (text: string): object => ({
+    request_id: 'x',
+    intent: 'help',
+    emergency: false,
+    extraction: null,
+    warnings: [],
+    reply: { language: 'hi', text, buttons: [] },
+    meta: {
+      model: 'fake-model',
+      prompt_version: 'v1',
+      latency_ms: 5,
+      cost_usd: 0,
+      trace_id: null,
+      provider: 'fake',
+      fallback_used: false,
+    },
+  });
+
+  async function run(
+    aiBehaviour: (body: { input: { text?: string } }) => [number, object],
+    expectedSends: number,
+  ): Promise<{ replies: string[]; aiBodies: Array<{ input: { text?: string } }> }> {
     Object.assign(process.env, {
       ...INTEGRATION_ENV,
       WORKERS_ENABLED: 'true',
@@ -700,6 +722,15 @@ describe('echo bot switch (integration)', () => {
     installGraphMock();
     graph.sends.length = 0;
     graph.reads.length = 0;
+    const aiBodies: Array<{ input: { text?: string } }> = [];
+    nock(AI)
+      .persist()
+      .post('/v1/process')
+      .matchHeader('x-service-token', INTEGRATION_ENV['SERVICE_TOKEN'] ?? '')
+      .reply((_uri, body) => {
+        aiBodies.push(body as { input: { text?: string } });
+        return aiBehaviour(body as { input: { text?: string } });
+      });
 
     const app = (await createApp()) as INestApplication<App>;
     const prisma = app.get(PrismaService);
@@ -715,19 +746,18 @@ describe('echo bot switch (integration)', () => {
           consentVersion: 'v1',
         },
       });
-      const raw = webhookFor(phone, textMessage('hello'));
+      const raw = webhookFor(phone, textMessage('kya kar sakte ho'));
       await request(app.getHttpServer())
         .post(URL)
         .set(signedHeaders(raw))
         .send(raw.toString())
         .expect(200);
-      await waitFor(() => sendsTo(phone).length === 1, 'placeholder reply');
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      expect(sendsTo(phone)).toHaveLength(1);
-      const reply = sendsTo(phone)[0]?.text?.body ?? '';
-      expect(reply).toContain('AI वाला हिस्सा'); // dev.ai_not_ready
-      expect(reply).not.toContain('आपने लिखा'); // no echo
-      expect(graph.reads).toHaveLength(0);
+      await waitFor(() => sendsTo(phone).length >= expectedSends, 'AI-branch reply');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return {
+        replies: sendsTo(phone).map((body) => body.text?.body ?? ''),
+        aiBodies,
+      };
     } finally {
       await prisma.user.deleteMany({ where: { waPhoneHash: hashPhone(phone, PEPPER) } });
       await app.close();
@@ -736,5 +766,23 @@ describe('echo bot switch (integration)', () => {
       process.env['DEV_ECHO_BOT'] = 'false';
       process.env['WORKERS_ENABLED'] = 'false';
     }
+  }
+
+  it('with DEV_ECHO_BOT off a consented user gets the AI service reply, exactly once', async () => {
+    const { replies, aiBodies } = await run(() => [200, aiResponse('मैं दवाई साथी हूँ')], 1);
+    expect(replies).toEqual(['मैं दवाई साथी हूँ']);
+    expect(aiBodies).toHaveLength(1);
+    expect(aiBodies[0]?.input.text).toBe('kya kar sakte ho');
+    expect(graph.reads).toHaveLength(0); // text messages are not marked as read
+  });
+
+  it('when the AI service is down the user gets ONE error message, however often the job retries', async () => {
+    const { replies } = await run(
+      () => [503, { error: { status: 503, code: 'LLM_UNAVAILABLE' } }],
+      1,
+    );
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toBeTruthy();
+    expect(replies[0]).not.toContain('LLM_UNAVAILABLE');
   });
 });

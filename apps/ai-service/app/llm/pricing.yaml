@@ -1,0 +1,22 @@
+# Per-model LLM prices, in US dollars per 1 million tokens.
+#
+# !!! PLACEHOLDER VALUES !!!  The numbers below are NOT real prices. They exist so the cost
+# plumbing can be exercised end to end. Before relying on `meta.cost_usd` (or on any budget guard),
+# replace every entry with the provider's current published price and set `placeholder: false`.
+#
+# Keys are the EXACT model ids you put in VISION_MODEL / TEXT_MODEL / CHEAP_MODEL (and the
+# FALLBACK_* variants). A model without an entry costs 0 and is logged once as "pricing missing".
+
+version: pricing_v1_placeholder
+models:
+  # Anthropic (placeholder prices)
+  claude-fable-5-1: { input_per_mtok: 3.00, output_per_mtok: 15.00, placeholder: true }
+  claude-opus-5-5: { input_per_mtok: 5.00, output_per_mtok: 25.00, placeholder: true }
+  claude-sonnet-5-5: { input_per_mtok: 3.00, output_per_mtok: 15.00, placeholder: true }
+  claude-haiku-5-5: { input_per_mtok: 1.00, output_per_mtok: 5.00, placeholder: true }
+
+  # OpenAI: add your model ids here, e.g.
+  # your-openai-model-id: { input_per_mtok: 0.00, output_per_mtok: 0.00, placeholder: true }
+
+  # The offline fake provider is free.
+  fake-model: { input_per_mtok: 0.00, output_per_mtok: 0.00, placeholder: false }

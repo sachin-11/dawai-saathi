@@ -1,0 +1,14 @@
+import type { components } from './generated/ai-service';
+
+/**
+ * The AI service contract. These types are GENERATED from the OpenAPI document
+ * (`packages/contracts/openapi/ai-service.json`, exported from the Pydantic models by
+ * `make contracts`): never write them by hand.
+ */
+export type ProcessRequest = components['schemas']['ProcessRequest'];
+export type ProcessResponse = components['schemas']['ProcessResponse'];
+export type ProcessReply = components['schemas']['Reply'];
+export type ProcessReplyButton = components['schemas']['ReplyButton'];
+export type ProcessMeta = components['schemas']['Meta'];
+export type ProcessIntent = components['schemas']['Intent'];
+export type ProcessInputType = components['schemas']['InputType'];
