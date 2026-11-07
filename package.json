@@ -1,0 +1,29 @@
+{
+  "name": "dawai-saathi",
+  "version": "0.0.0",
+  "private": true,
+  "description": "WhatsApp AI health assistant (Hindi + English) — monorepo root",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.11",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write . && pnpm --filter @dawai/ai-service run format",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10"
+  }
+}

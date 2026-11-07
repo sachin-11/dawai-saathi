@@ -1,0 +1,14 @@
+{
+  "name": "@dawai/ai-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Thin wrapper so Turborepo can orchestrate the Python service. Real deps live in pyproject.toml (uv).",
+  "scripts": {
+    "install:py": "uv sync --frozen",
+    "dev": "uv run uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
+    "format": "uv run ruff check --fix . && uv run ruff format .",
+    "typecheck": "uv run mypy",
+    "test": "uv run pytest"
+  }
+}

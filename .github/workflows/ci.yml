@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gateway:
+    name: gateway (lint · typecheck · test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version read from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm # caches the pnpm store keyed on pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check (root)
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm --filter @dawai/gateway lint
+
+      - name: Typecheck
+        run: pnpm --filter @dawai/gateway typecheck
+
+      - name: Test (unit + e2e)
+        run: pnpm --filter @dawai/gateway test
+
+      - name: Build
+        run: pnpm --filter @dawai/gateway build
+
+  ai-service:
+    name: ai-service (ruff · mypy · pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/ai-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12' # keep in sync with .python-version
+          enable-cache: true # caches the uv cache keyed on uv.lock
+          cache-dependency-glob: apps/ai-service/uv.lock
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy (strict)
+        run: uv run mypy
+
+      - name: Pytest
+        run: uv run pytest

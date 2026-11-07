@@ -1,0 +1,9 @@
+# Normalise to LF everywhere (Prettier/ruff expect LF; avoids CRLF churn on Windows).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.pdf binary
+*.ogg binary
