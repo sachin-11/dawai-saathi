@@ -218,20 +218,33 @@ def parse_release(text: str) -> ReleaseType:
     return next(iter(found)) if len(found) == 1 else "mr"
 
 
+def explicit_form(text: str | None) -> FormKey | None:
+    """The form a text SAYS ("Dolo 650 syrup" -> syrup, "chewable tablet" -> other), or None when it
+    names no form at all. `other` means an explicitly non-substitutable form (eye drops, chewable ...)."""
+    if not text:
+        return None
+    lowered = unicodedata.normalize("NFKC", to_roman(text)).lower()
+    if _NOT_SUBSTITUTABLE_FORM.search(lowered) and not re.search(r"\boral solution\b", lowered):
+        return "other"
+    for pattern, form in _FORM_PATTERNS:
+        if re.search(pattern, lowered):
+            return form
+    return None
+
+
 def parse_form(text: str | None) -> tuple[FormKey, ReleaseType]:
     """`Film coated tablets` -> (tablet, ir); `Metformin SR tablet` -> (tablet, sr); unknown -> (other, na)."""
     if not text:
         return "other", "na"
-    lowered = unicodedata.normalize("NFKC", to_roman(text)).lower()
-    release = parse_release(lowered)
-    if _NOT_SUBSTITUTABLE_FORM.search(lowered) and not re.search(r"\boral solution\b", lowered):
+    release = parse_release(unicodedata.normalize("NFKC", to_roman(text)).lower())
+    form = explicit_form(text)
+    if form is None:
+        return "other", "na"
+    if form == "other":
         return "other", release if release != "ir" else "na"
-    for pattern, form in _FORM_PATTERNS:
-        if re.search(pattern, lowered):
-            if form in {"syrup", "suspension", "injection", "drops", "cream", "gel", "inhaler"}:
-                return form, "na" if release == "ir" else release
-            return form, release
-    return "other", "na"
+    if form in {"syrup", "suspension", "injection", "drops", "cream", "gel", "inhaler"}:
+        return form, "na" if release == "ir" else release
+    return form, release
 
 
 # ---------------------------------------------------------------- brand names

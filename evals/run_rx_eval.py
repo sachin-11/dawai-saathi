@@ -43,7 +43,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "ai-service"))
 sys.path.insert(0, str(ROOT / "data" / "scripts"))
 
-import app.pipeline.rx as rx_module  # noqa: E402
+import app.tools.image_input as image_input_module  # noqa: E402
 from app.catalog.repository import InMemoryCatalogRepository  # noqa: E402
 from app.catalog.service import CatalogService  # noqa: E402
 from app.config import Settings, load_settings  # noqa: E402
@@ -53,14 +53,15 @@ from app.llm.fake_rx import SAMPLE_CLASSIFICATION  # noqa: E402
 from app.llm.router import Deadline  # noqa: E402
 from app.media.fetcher import FetchedMedia  # noqa: E402
 from app.observability.logging import configure_logging  # noqa: E402
-from app.pipeline.base import PipelineContext, PipelineOutput, RequestUsage  # noqa: E402
+from app.pipeline.base import Pipeline, PipelineContext, PipelineOutput, RequestUsage  # noqa: E402
+from app.pipeline.graph import GraphPipeline  # noqa: E402
 from app.pipeline.minimal import MinimalPipeline  # noqa: E402
 from app.pipeline.rx import RxPipeline  # noqa: E402
 from app.prompts.registry import PromptRegistry, TemplateStore  # noqa: E402
 from app.safety.emergency_guard import EmergencyGuard  # noqa: E402
 from app.safety.redaction import Redactor  # noqa: E402
 from app.schemas.prescription import PrescriptionExtraction  # noqa: E402
-from app.schemas.process import ProcessRequest  # noqa: E402
+from app.schemas.process import Intent, ProcessRequest, Reply  # noqa: E402
 from app.tools.rx_validate import normalise_strength  # noqa: E402
 from catalog_sources import load_curated, load_fixture, to_drug_rows  # noqa: E402
 
@@ -203,15 +204,25 @@ def make_settings(mode: str) -> Settings:
     )
 
 
+def build_pipeline(name: str) -> Pipeline:
+    """`graph` = the LangGraph pipeline (the default since M9); `minimal` = the pre-graph code."""
+    return GraphPipeline() if name == "graph" else RxPipeline(MinimalPipeline())
+
+
 async def run_case(
-    case: Case, index: int, mode: str, settings: Settings, catalog: CatalogService
+    case: Case,
+    index: int,
+    mode: str,
+    settings: Settings,
+    catalog: CatalogService,
+    pipeline: Pipeline | None = None,
 ) -> Result:
     image_bytes = case.image.read_bytes()
 
     async def local_fetch(*_args: Any, **_kwargs: Any) -> FetchedMedia:
         return FetchedMedia(data=image_bytes, mime="image/jpeg")
 
-    rx_module.fetch_media = local_fetch  # type: ignore[assignment]  # no S3 in the eval
+    image_input_module.fetch_media = local_fetch  # type: ignore[assignment]  # no S3 in the eval
 
     provider = None
     if mode != "real":
@@ -243,12 +254,12 @@ async def run_case(
     )
     started = time.perf_counter()
     try:
-        output = await RxPipeline(MinimalPipeline()).run(request, ctx)
+        output = await (pipeline or build_pipeline("graph")).run(request, ctx)
     except Exception as error:  # a real-mode API failure must not abort the whole run
         empty = PipelineOutput(
-            intent=rx_module.Intent.other,
+            intent=Intent.other,
             emergency=False,
-            reply=rx_module.Reply(language=request.user.language, text="(error)"),
+            reply=Reply(language=request.user.language, text="(error)"),
         )
         return Result(
             case,
@@ -317,8 +328,8 @@ def _norm(text: str | None) -> str:
 
 def _norm_dose(text: str | None) -> str:
     folded = _norm(text)
-    folded = re.sub(r"(?:tablets?|tabs?)", "tablet", folded)
-    return re.sub(r"(?:capsules?|caps?)", "capsule", folded)
+    folded = re.sub(r"\b(?:tablets?|tabs?)\b", "tablet", folded)
+    return re.sub(r"\b(?:capsules?|caps?)\b", "capsule", folded)
 
 
 def _ratio(a: str | None, b: str | None) -> float:
@@ -582,12 +593,14 @@ def report(results: list[Result], s: Scores, mode: str, failures: list[str]) -> 
     return "\n".join(lines)
 
 
-async def evaluate(cases: list[Case], mode: str) -> list[Result]:
+async def evaluate(cases: list[Case], mode: str, pipeline_name: str = "graph") -> list[Result]:
     settings = make_settings(mode)
     results: list[Result] = []
     catalog = make_catalog()
     for index, case in enumerate(cases):
-        results.append(await run_case(case, index, mode, settings, catalog))
+        results.append(
+            await run_case(case, index, mode, settings, catalog, build_pipeline(pipeline_name))
+        )
     return results
 
 
@@ -596,6 +609,7 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--mode", choices=("fake", "fake-noisy", "real"), default="fake")
+    parser.add_argument("--pipeline", choices=("graph", "minimal"), default="graph")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dataset", type=Path, default=DATASET)
     parser.add_argument("--no-report", action="store_true")
@@ -606,14 +620,15 @@ def main() -> int:
     if not cases:
         print("no cases found: run evals/scripts/make_synthetic_rx.py first", file=sys.stderr)
         return 2
-    results = asyncio.run(evaluate(cases, args.mode))
+    results = asyncio.run(evaluate(cases, args.mode, args.pipeline))
     scores = score(results)
     failures = gate_failures(scores, args.mode)
     text = report(results, scores, args.mode, failures)
     print(text)
     if not args.no_report:
         REPORTS.mkdir(parents=True, exist_ok=True)
-        target = REPORTS / f"{date.today().isoformat()}-{PROMPT_VERSION}-rx-{args.mode}.md"
+        suffix = "" if args.pipeline == "graph" else "-minimal"
+        target = REPORTS / f"{date.today().isoformat()}-{PROMPT_VERSION}-rx-{args.mode}{suffix}.md"
         target.write_text(text, encoding="utf-8")
         print(f"report written to {target.relative_to(ROOT)}", file=sys.stderr)
     return 1 if failures else 0

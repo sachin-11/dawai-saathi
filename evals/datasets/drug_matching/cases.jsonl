@@ -253,27 +253,32 @@
 {"id": "dm_252", "category": "wrong_form", "name": "Azithral 500", "strength": null, "form": "injection", "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
 {"id": "dm_253", "category": "wrong_form", "name": "Omez", "strength": null, "form": "tablet", "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
 {"id": "dm_254", "category": "wrong_form", "name": "Atorva 10", "strength": null, "form": "syrup", "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_255", "category": "strength_unverified", "name": "Cetzine", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_256", "category": "strength_unverified", "name": "Atorva", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_257", "category": "strength_unverified", "name": "Telma-AM", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_258", "category": "strength_unverified", "name": "Amaryl", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_259", "category": "strength_unverified", "name": "Glycomet", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_260", "category": "strength_unverified", "name": "Dolo", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_261", "category": "strength_unverified", "name": "डोलो", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_262", "category": "release", "name": "Glycomet 500", "strength": null, "form": null, "gold": {"salt_key": "metformin", "strength_key": "500mg", "form_key": "tablet", "release_type": "ir"}, "excluded": false, "forbid_suggestion": false, "expect_suggestion": true}
-{"id": "dm_263", "category": "release", "name": "Glycomet SR 500", "strength": null, "form": null, "gold": {"salt_key": "metformin", "strength_key": "500mg", "form_key": "tablet", "release_type": "sr"}, "excluded": true, "forbid_suggestion": false, "expect_suggestion": false}
-{"id": "dm_264", "category": "unknown", "name": "Zzxq 10", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_265", "category": "unknown", "name": "Qwertyuiop", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_266", "category": "unknown", "name": "Mediplex Forte", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_267", "category": "unknown", "name": "Xylofen 200", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_268", "category": "unknown", "name": "Brandnotreal 5", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_269", "category": "unknown", "name": "Nuvaxin", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_270", "category": "unknown", "name": "Kolopril 25", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_271", "category": "unknown", "name": "Zentrobin", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_272", "category": "unknown", "name": "Veloxa 100", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_273", "category": "unknown", "name": "Fictoral 50", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_274", "category": "unknown", "name": "Pharmaxon", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_275", "category": "unknown", "name": "Luminex 10", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_276", "category": "unknown", "name": "Torvalex", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_277", "category": "unknown", "name": "Dexorin 5", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
-{"id": "dm_278", "category": "unknown", "name": "Yellowpill", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_255", "category": "form_in_name", "name": "Dolo 650 syrup", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_256", "category": "form_in_name", "name": "Azithral 500 injection", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_257", "category": "form_in_name", "name": "Atorva 10 eye drops", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_258", "category": "form_in_name", "name": "Dolo 650 chewable tablet", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_259", "category": "form_in_name", "name": "Omez tablets", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_260", "category": "strength_unverified", "name": "Cetzine", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_261", "category": "strength_unverified", "name": "Atorva", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_262", "category": "strength_unverified", "name": "Telma-AM", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_263", "category": "strength_unverified", "name": "Amaryl", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_264", "category": "strength_unverified", "name": "Glycomet", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_265", "category": "strength_unverified", "name": "Dolo", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_266", "category": "strength_unverified", "name": "डोलो", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_267", "category": "release", "name": "Glycomet 500", "strength": null, "form": null, "gold": {"salt_key": "metformin", "strength_key": "500mg", "form_key": "tablet", "release_type": "ir"}, "excluded": false, "forbid_suggestion": false, "expect_suggestion": true}
+{"id": "dm_268", "category": "release", "name": "Glycomet SR 500", "strength": null, "form": null, "gold": {"salt_key": "metformin", "strength_key": "500mg", "form_key": "tablet", "release_type": "sr"}, "excluded": true, "forbid_suggestion": false, "expect_suggestion": false}
+{"id": "dm_269", "category": "unknown", "name": "Zzxq 10", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_270", "category": "unknown", "name": "Qwertyuiop", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_271", "category": "unknown", "name": "Mediplex Forte", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_272", "category": "unknown", "name": "Xylofen 200", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_273", "category": "unknown", "name": "Brandnotreal 5", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_274", "category": "unknown", "name": "Nuvaxin", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_275", "category": "unknown", "name": "Kolopril 25", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_276", "category": "unknown", "name": "Zentrobin", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_277", "category": "unknown", "name": "Veloxa 100", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_278", "category": "unknown", "name": "Fictoral 50", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_279", "category": "unknown", "name": "Pharmaxon", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_280", "category": "unknown", "name": "Luminex 10", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_281", "category": "unknown", "name": "Torvalex", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_282", "category": "unknown", "name": "Dexorin 5", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}
+{"id": "dm_283", "category": "unknown", "name": "Yellowpill", "strength": null, "form": null, "gold": null, "excluded": false, "forbid_suggestion": true, "expect_suggestion": false}

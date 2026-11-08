@@ -12,7 +12,7 @@ GATEWAY_DIR := apps/gateway
 # Real environment variables already set in your shell are overridden by .env, so unset them if needed.
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
-.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher embed \
+.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher embed graph \
         up down migrate seed eval
 
 help: ## Show available targets
@@ -89,6 +89,9 @@ webhook: ## Send a signed sample webhook to the local gateway: make webhook FIXT
 	$(WITH_ENV) cd $(GATEWAY_DIR) && pnpm exec ts-node scripts/send-test-webhook.ts $(FIXTURE)
 
 # ---- contract between the gateway and the AI service (M5) ----
+graph: ## Write the LangGraph diagram to docs/architecture/graph.mmd (GRAPH_PNG=1 also renders graph.png via mermaid.ink: sends node names only)
+	cd $(AI_DIR) && uv run python -m scripts.export_graph $(if $(GRAPH_PNG),--png)
+
 contracts: ## Re-export the AI service OpenAPI contract and regenerate the gateway's TypeScript types
 	cd $(AI_DIR) && uv run python -m scripts.export_openapi ../../packages/contracts/openapi/ai-service.json
 	pnpm --filter @dawai/gateway run contracts:types

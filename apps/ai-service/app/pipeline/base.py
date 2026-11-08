@@ -15,7 +15,14 @@ from app.prompts.registry import PromptRegistry, TemplateStore
 from app.safety.emergency_guard import EmergencyGuard
 from app.safety.redaction import Redactor, get_redactor
 from app.schemas.prescription import PrescriptionExtraction
-from app.schemas.process import EmergencyCategory, Intent, ProcessRequest, Reply, Warning
+from app.schemas.process import (
+    EmergencyCategory,
+    Intent,
+    ProcessRequest,
+    Reply,
+    TraceEntry,
+    Warning,
+)
 
 
 @dataclass(slots=True)
@@ -28,9 +35,13 @@ class RequestUsage:
     provider: str | None = None
     fallback_used: bool = False
     prompt_versions: list[str] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
 
     def add(self, result: LLMResult, prompt_version: str | None) -> None:
         self.cost_usd += result.cost_usd
+        self.input_tokens += result.input_tokens
+        self.output_tokens += result.output_tokens
         self.latency_ms += result.latency_ms
         self.model = result.model
         self.provider = result.provider
@@ -65,6 +76,8 @@ class PipelineOutput:
     warnings: list[Warning] = field(default_factory=list)
     emergency_category: EmergencyCategory | None = None
     extraction: PrescriptionExtraction | None = None
+    # Per-node timings (no text, no values). Set by the graph; returned only to the demo client.
+    debug_trace: list[TraceEntry] | None = None
 
 
 class Pipeline(Protocol):

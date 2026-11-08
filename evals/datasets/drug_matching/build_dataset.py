@@ -149,6 +149,10 @@ def build() -> list[dict]:
     for name, form in (("Dolo 650", "syrup"), ("Azithral 500", "injection"), ("Omez", "tablet"), ("Atorva 10", "syrup")):
         rows.append(case("wrong_form", name, None, form, None, forbid=True))
 
+    # The form is written inside the name (typed questions, abbreviations): same rule.
+    for name in ("Dolo 650 syrup", "Azithral 500 injection", "Atorva 10 eye drops", "Dolo 650 chewable tablet", "Omez tablets"):
+        rows.append(case("form_in_name", name, None, None, None, forbid=True))
+
     # Numberless brand and no strength written, or two strengths fit: unsafe to compare.
     for name in ("Cetzine", "Atorva", "Telma-AM", "Amaryl", "Glycomet", "Dolo", "डोलो"):
         rows.append(case("strength_unverified", name, None, None, None, forbid=True))

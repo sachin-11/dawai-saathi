@@ -26,7 +26,9 @@ PIPELINE = RxPipeline(MinimalPipeline())
 
 @pytest.fixture(autouse=True)
 def _jpeg(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg"))
+    monkeypatch.setattr(
+        "app.tools.image_input.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg")
+    )
 
 
 def lines_for(*medicines: dict[str, Any], language_hi: bool = False) -> dict[str, Any]:
@@ -188,7 +190,9 @@ class TestPhiAndFakeMode:
         assert "9876543210" not in output.reply.text
 
     async def test_default_fake_mode_returns_the_sample_prescription(self, client, monkeypatch):
-        monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg"))
+        monkeypatch.setattr(
+            "app.tools.image_input.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg")
+        )
         body = {
             "request_id": "wamid.fake-mode",
             "user": {"language": "hi", "age": None, "sex": None},

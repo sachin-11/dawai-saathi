@@ -23,6 +23,7 @@ from decimal import Decimal
 from app.catalog.normalise import (
     brand_key,
     build_keys,
+    explicit_form,
     find_strengths,
     parse_form,
     parse_release,
@@ -58,11 +59,24 @@ _COMPATIBLE_FORMS = {frozenset({"syrup", "suspension"})}
 
 
 def _form_conflict(rx_form: str | None, row_form: str) -> bool:
-    if rx_form is None or rx_form in {"other", "powder"}:
+    """Does the written form contradict the product's? `other` is an explicitly non-substitutable form
+    (eye drops, chewable ...): it conflicts with any product that is not itself `other`."""
+    if rx_form is None or rx_form == "powder":
         return False
     if rx_form == row_form:
         return False
     return frozenset({rx_form, row_form}) not in _COMPATIBLE_FORMS
+
+
+def _written_form(name: str, form_field: str | None) -> str | None:
+    """The form the prescription or the typed question states. The `form` FIELD (the model's reading of
+    a prescription) says "other" for "unknown" and is then ignored; a form WORD in the name itself
+    ("Dolo 650 syrup", "... eye drops") is taken at its word, so a syrup question never gets a tablet
+    generic."""
+    field = parse_form(form_field)[0] if form_field else None
+    if field is not None and field != "other":
+        return field
+    return explicit_form(name)
 
 
 def _strength_relation(rx_key: str | None, row_key: str) -> tuple[bool, bool]:
@@ -211,8 +225,7 @@ async def _match_salt_written(
     rows = await repo.by_salt(salt, strength)
     if not rows:
         return None
-    form_key, _ = parse_form(form_text) if form_text else ("other", "na")
-    wanted_form = form_key if form_key != "other" else None
+    wanted_form = _written_form(name, form_text)
     candidates = [r for r in rows if wanted_form is None or r.form_key == wanted_form]
     if not candidates:
         return None
@@ -262,7 +275,7 @@ async def match_drug(
     written = find_strengths(strength or "") or find_strengths(name)
     rx_strength = written[0][0] if len(written) == 1 else None
     rx_key = rx_strength.canon() if rx_strength else None
-    rx_form = parse_form(form)[0] if form else None  # "other" = unknown: never a conflict
+    rx_form = _written_form(name, form)
     rx_modified = parse_release(f"{name} {form or ''}") not in {"ir", "na"}
 
     # 1. exact brand (also "dolo" + written 650 mg -> dolo650)

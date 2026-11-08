@@ -114,7 +114,7 @@ class TestPipelineSkipsTheModelForHopelessPhotos:
         ],
     )
     async def test_no_llm_call_and_a_tip_is_returned(self, monkeypatch, image, expected):
-        monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(image, "image/jpeg"))
+        monkeypatch.setattr("app.tools.image_input.fetch_media", fake_fetch(image, "image/jpeg"))
         provider = FakeProvider()
         output = await RxPipeline(MinimalPipeline()).run(image_request("en"), make_ctx(provider))
         assert provider.calls == []
@@ -163,14 +163,14 @@ class TestPdf:
         request = request.model_copy(update={"input": pdf_input})
 
         monkeypatch.setattr(
-            "app.pipeline.rx.fetch_media",
+            "app.tools.image_input.fetch_media",
             fake_fetch(blank_pdf(MAX_PDF_PAGES + 1), "application/pdf"),
         )
         long_output = await RxPipeline(MinimalPipeline()).run(request, make_ctx(provider))
         assert "too many pages" in long_output.reply.text
 
         monkeypatch.setattr(
-            "app.pipeline.rx.fetch_media", fake_fetch(b"%PDF-garbage", "application/pdf")
+            "app.tools.image_input.fetch_media", fake_fetch(b"%PDF-garbage", "application/pdf")
         )
         bad_output = await RxPipeline(MinimalPipeline()).run(request, make_ctx(provider))
         assert "could not open this file" in bad_output.reply.text

@@ -90,6 +90,7 @@ jobs:
           uv run python ../../evals/run_rx_eval.py --mode fake
           uv run python ../../evals/run_rx_eval.py --mode fake-noisy
           uv run python ../../evals/run_matcher_eval.py
+          uv run python ../../evals/run_pipeline_comparison.py --no-report
 
       - uses: actions/upload-artifact@v4
         if: always()

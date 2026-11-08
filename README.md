@@ -166,6 +166,72 @@ Three guards run before any medical work (CLAUDE.md §2):
 
 The emergency phrases live in ONE file, `packages/contracts/safety/emergency-keywords.json`. After editing it run `make safety-data` (or `make contracts`); a test in each app fails if its copy is stale. `make eval-emergency` runs the emergency eval set (`evals/datasets/emergency/`), writes a report to `evals/reports/` and fails when recall drops below 100%; `make eval-emergency MODE=real` does the manual run with your real model keys.
 
+## LangGraph pipeline (M9)
+
+The AI service runs a LangGraph state machine (`apps/ai-service/app/graph/`). `PIPELINE=graph` is the default; `PIPELINE=minimal` is the pre-graph rollback switch. `make graph` regenerates the diagram below (`docs/architecture/graph.mmd`; `GRAPH_PNG=1` also renders a PNG through mermaid.ink, which receives node names only). Per-node limits: `NODE_TIMEOUT_*_S`, `GRAPH_RECURSION_LIMIT`. `DEMO_SERVICE_TOKEN` (optional, at least 16 characters, different from `SERVICE_TOKEN`) lets the web demo send `options.include_trace` to `/v1/process` and receive a `debug_trace`; no other caller gets it. Regression check against the minimal pipeline: `uv run --project apps/ai-service python evals/run_pipeline_comparison.py`.
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	emergency_guard(emergency_guard)
+	redact(redact)
+	emergency_classifier(emergency_classifier)
+	transcribe(transcribe)
+	prepare_image(prepare_image)
+	classify(classify)
+	vision_extract_rx(vision_extract_rx)
+	validate_rx(validate_rx)
+	normalize_drugs(normalize_drugs)
+	generic_finder(generic_finder)
+	confidence_gate(confidence_gate)
+	extract_query(extract_query)
+	composer(composer)
+	verifier(verifier)
+	templates(templates)
+	rx_fallback(rx_fallback)
+	__end__([<p>__end__</p>]):::last
+	__start__ -.-> emergency_guard;
+	__start__ -.-> prepare_image;
+	__start__ -.-> transcribe;
+	classify -.-> extract_query;
+	classify -.-> templates;
+	classify -.-> vision_extract_rx;
+	composer --> verifier;
+	confidence_gate -.-> composer;
+	confidence_gate -.-> templates;
+	emergency_classifier -.-> classify;
+	emergency_classifier -.-> templates;
+	emergency_guard -.-> redact;
+	emergency_guard -.-> templates;
+	extract_query -.-> normalize_drugs;
+	extract_query -.-> templates;
+	generic_finder -.-> composer;
+	generic_finder -.-> confidence_gate;
+	generic_finder -.-> templates;
+	normalize_drugs -.-> generic_finder;
+	normalize_drugs -.-> templates;
+	prepare_image -.-> classify;
+	prepare_image -.-> templates;
+	redact --> emergency_classifier;
+	transcribe --> templates;
+	validate_rx --> normalize_drugs;
+	verifier -.-> __end__;
+	verifier -.-> rx_fallback;
+	vision_extract_rx -.-> templates;
+	vision_extract_rx -.-> validate_rx;
+	rx_fallback --> __end__;
+	templates --> __end__;
+	vision_extract_rx -.-> vision_extract_rx;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
 ## Prescriptions (M7): try it
 
 Send a photo (or PDF) of a prescription to the bot after you have finished onboarding. The reply lists every medicine with dose, timing, food relation and duration, flags anything it could not read clearly (and asks you to confirm it with your pharmacist), and shows three buttons: **Set reminders** ("coming soon": M10) and **Generic medicines** (M8) and **Something is wrong** (marks the document for review and switches its medicines off). `MEDS` lists the saved medicines.

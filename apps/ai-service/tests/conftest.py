@@ -34,6 +34,14 @@ _ENV_KEYS = (
     "EMERGENCY_MIN_CONFIDENCE",
     "EMERGENCY_CLASSIFIER_TIMEOUT_S",
     "REDACTION_ENABLED",
+    "PIPELINE",
+    "NODE_TIMEOUT_VISION_S",
+    "NODE_TIMEOUT_CHEAP_S",
+    "NODE_TIMEOUT_COMPOSER_S",
+    "NODE_TIMEOUT_IO_S",
+    "NODE_TIMEOUT_FAST_S",
+    "GRAPH_RECURSION_LIMIT",
+    "DEMO_SERVICE_TOKEN",
 )
 
 # Nothing listens here: unit tests must never need (or accidentally reach) a real database.

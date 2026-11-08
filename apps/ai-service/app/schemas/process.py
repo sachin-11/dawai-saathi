@@ -110,11 +110,18 @@ class RequestContext(_Strict):
     active_medications: list[ActiveMedication] = Field(default_factory=list, max_length=50)
 
 
+class RequestOptions(_Strict):
+    # Ask for `debug_trace` in the response. Honoured ONLY for the demo client (DEMO_SERVICE_TOKEN);
+    # the gateway never sets it, and for any other caller it is ignored.
+    include_trace: bool = False
+
+
 class ProcessRequest(_Strict):
     request_id: RequestId
     user: UserContext
     input: InputPayload
     context: RequestContext = Field(default_factory=RequestContext)
+    options: RequestOptions = Field(default_factory=RequestOptions)
 
 
 # ------------------------------------------------------------------ response
@@ -152,6 +159,19 @@ class Meta(BaseModel):
     fallback_used: bool = False
 
 
+class TraceEntry(BaseModel):
+    """One graph node as the demo's trace view shows it. NEVER any text, extraction value or PHI."""
+
+    node: str
+    latency_ms: int = Field(ge=0)
+    status: Literal["ok", "error", "timeout", "fallback"]
+    model: str | None = None
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+    cost_usd: float | None = None
+    prompt_version: str | None = None
+
+
 class ProcessResponse(BaseModel):
     request_id: RequestId
     intent: Intent
@@ -162,3 +182,5 @@ class ProcessResponse(BaseModel):
     warnings: list[Warning] = Field(default_factory=list)
     reply: Reply
     meta: Meta
+    # Per-node trace for the web demo: present only for the demo client that asked for it.
+    debug_trace: list[TraceEntry] | None = None
