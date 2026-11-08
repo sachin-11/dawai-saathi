@@ -14,6 +14,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydField
 
+from app.schemas.catalog import DrugMatch, GenericSuggestion
+
 MAX_MEDICINES = 20
 MAX_NOTES = 5
 
@@ -72,6 +74,9 @@ class Medicine(_Model):
     # Set by OUR validators, never by the model (a model-supplied value is overwritten).
     low_confidence: bool = False
     validation_notes: list[str] = PydField(default_factory=list, max_length=10)
+    # M8: catalog match and generic suggestion, set by deterministic code (a model value is overwritten).
+    match: DrugMatch | None = None
+    generic: GenericSuggestion | None = None
 
 
 class PrescriptionExtraction(_Model):

@@ -3,6 +3,7 @@ import {
   endDateFor,
   type ExtractedMedicine,
   mapMedications,
+  matchFields,
   medicineConfidence,
   type PrescriptionExtraction,
   todayInIndia,
@@ -119,6 +120,14 @@ describe('mapMedications', () => {
       endDate: new Date('2026-11-13T00:00:00.000Z'),
       confidence: 0.95,
       active: true,
+      drugId: null,
+      salt: null,
+      saltKey: null,
+      strengthKey: null,
+      formKey: null,
+      releaseType: null,
+      matchScore: null,
+      matchMethod: null,
     });
   });
 
@@ -161,14 +170,106 @@ describe('mapMedications', () => {
     });
   });
 
-  it('never fills salt or drug (M8 does that)', () => {
-    const [row] = mapMedications(extraction(medicine()), CLOCK, NOW);
-    expect(row).not.toHaveProperty('salt');
-    expect(row).not.toHaveProperty('drugId');
+  it('stores the catalog match on the row (M8)', () => {
+    const matched = medicine({
+      match: { ...MATCH },
+    });
+    const [row] = mapMedications(extraction(matched), CLOCK, NOW);
+    expect(row).toMatchObject({
+      drugId: DRUG,
+      salt: 'paracetamol',
+      saltKey: 'paracetamol',
+      strengthKey: '650mg',
+      formKey: 'tablet',
+      releaseType: 'ir',
+      matchScore: 1,
+      matchMethod: 'exact',
+    });
   });
 
   it('copes with a response that omits the medicines list', () => {
     const empty = { ...extraction(), medicines: undefined } as unknown as PrescriptionExtraction;
     expect(mapMedications(empty, CLOCK, NOW)).toEqual([]);
+  });
+});
+
+const DRUG = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';
+const MATCH = {
+  drug_id: DRUG,
+  brand_name: 'Dolo 650',
+  salt_key: 'paracetamol',
+  strength_key: '650mg',
+  form_key: 'tablet',
+  release_type: 'ir',
+  score: 1,
+  method: 'exact',
+  candidates: [],
+  strength_basis: 'brand_name',
+  strength_conflict: false,
+  form_conflict: false,
+  ambiguous: false,
+} as unknown as NonNullable<ExtractedMedicine['match']>;
+
+describe('matchFields', () => {
+  it('no match at all -> everything null', () => {
+    expect(matchFields(null)).toMatchObject({ salt: null, matchMethod: null, drugId: null });
+    expect(matchFields(undefined)).toMatchObject({ saltKey: null });
+  });
+
+  it('method none keeps the method and score but invents no keys', () => {
+    const none = { ...MATCH, method: 'none', salt_key: null, drug_id: null, score: 0 };
+    expect(matchFields(none as typeof MATCH)).toMatchObject({
+      matchMethod: 'none',
+      matchScore: 0,
+      salt: null,
+      saltKey: null,
+      drugId: null,
+    });
+  });
+
+  it('an ambiguous match keeps the salt the matcher stated but no product keys', () => {
+    expect(matchFields({ ...MATCH, ambiguous: true })).toMatchObject({
+      salt: 'paracetamol',
+      strengthKey: null,
+      formKey: null,
+      releaseType: null,
+      drugId: null,
+      matchMethod: 'exact',
+    });
+  });
+
+  it('an ambiguous match with no common salt stores none', () => {
+    expect(matchFields({ ...MATCH, ambiguous: true, salt_key: null })).toMatchObject({
+      salt: null,
+      saltKey: null,
+    });
+  });
+
+  it('a conflict keeps the salt but not the catalog strength, form, release or product', () => {
+    expect(matchFields({ ...MATCH, strength_conflict: true })).toMatchObject({
+      salt: 'paracetamol',
+      strengthKey: null,
+      formKey: null,
+      releaseType: null,
+      drugId: null,
+    });
+    expect(matchFields({ ...MATCH, form_conflict: true })).toMatchObject({ strengthKey: null });
+  });
+
+  it('a salt-written match has no product id', () => {
+    const written = { ...MATCH, method: 'salt_written', drug_id: null, brand_name: null };
+    expect(matchFields(written as typeof MATCH)).toMatchObject({
+      drugId: null,
+      saltKey: 'paracetamol',
+      matchMethod: 'salt_written',
+    });
+  });
+
+  it('a product id that is not a uuid is never sent to the database', () => {
+    expect(matchFields({ ...MATCH, drug_id: 'id-3' })).toMatchObject({ drugId: null });
+  });
+
+  it('an unknown release type is dropped rather than stored', () => {
+    expect(matchFields({ ...MATCH, release_type: 'weird' })).toMatchObject({ releaseType: null });
   });
 });

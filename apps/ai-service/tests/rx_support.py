@@ -112,7 +112,9 @@ def image_request(language: str = "en") -> ProcessRequest:
     )
 
 
-def make_ctx(provider: FakeProvider, settings: Settings | None = None) -> PipelineContext:
+def make_ctx(
+    provider: FakeProvider, settings: Settings | None = None, catalog: Any = None
+) -> PipelineContext:
     config = settings or make_settings()
     return PipelineContext(
         settings=config,
@@ -123,4 +125,5 @@ def make_ctx(provider: FakeProvider, settings: Settings | None = None) -> Pipeli
         usage=RequestUsage(),
         guard=EmergencyGuard(),
         redactor=Redactor(enabled=True),
+        catalog=catalog,
     )

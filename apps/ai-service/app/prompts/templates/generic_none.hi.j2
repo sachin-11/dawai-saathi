@@ -1,0 +1,7 @@
+{#- No generic to suggest (Hindi): says WHY for each medicine. No LLM. -#}
+ℹ️ इनके लिए मैं सस्ती जेनेरिक दवाई नहीं सुझा सका:
+
+{% for it in missing -%}
+{{ it.number }}. {{ it.name }}: {{ it.reason }}
+{% endfor %}
+उसी साल्ट के सस्ते विकल्प के बारे में आप अपने फ़ार्मासिस्ट से पूछ सकते हैं।

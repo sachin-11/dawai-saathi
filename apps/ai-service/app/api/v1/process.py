@@ -73,6 +73,7 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         usage=usage,
         guard=state.guard,
         redactor=state.redactor,
+        catalog=state.catalog,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):

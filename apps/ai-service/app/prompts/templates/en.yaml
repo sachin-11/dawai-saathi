@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v3
+version: reply_templates_v4
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -64,3 +64,7 @@ texts:
     I could not open this file. Please send a clear photo (JPG or PNG) or a normal PDF of the prescription.
   rx.pdf_too_long: |-
     This PDF has too many pages for a prescription. Please send only the prescription page as a photo or a short PDF.
+  generic_query_ask_name: |-
+    Which medicine do you want a generic for? Send its name, for example: "Dolo 650 ka generic batao".
+  generic_query_unavailable: |-
+    I cannot check my medicine list right now. Please try again in a little while.

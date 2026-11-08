@@ -244,6 +244,13 @@ model Medication {
   /// Null for as-needed (SOS) medicines (M7).
   frequencyPerDay Int?           @map("frequency_per_day")
   asNeeded        Boolean        @default(false) @map("as_needed")
+  /// M8 catalog match (null before the match ran or when the AI service had no catalog).
+  saltKey         String?        @map("salt_key")
+  strengthKey     String?        @map("strength_key")
+  formKey         String?        @map("form_key")
+  releaseType     ReleaseType?   @map("release_type")
+  matchScore      Decimal?       @map("match_score") @db.Decimal(4, 3)
+  matchMethod     MatchMethod?   @map("match_method")
   /// e.g. ["08:00", "20:00"], Asia/Kolkata wall-clock.
   timings         String[]
   relationToFood  RelationToFood @default(any) @map("relation_to_food")
@@ -288,23 +295,73 @@ model Reminder {
 model Drug {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   brandName       String   @map("brand_name")
-  /// Normalised: sorted, lowercase salts joined with " + ". Exact-match key for the generic finder.
+  /// Normalised, lowercase alphanumerics only ("dolo650"): the lookup key for brand matching (M8).
+  brandKey        String?  @map("brand_key")
+  /// Normalised: sorted, lowercase salts joined with " + ". Kept from M1; `saltKey` is the matching key.
   saltComposition String   @map("salt_composition")
   strength        String
   form            String
+  /// M8 canonical keys. A generic is only ever suggested when ALL FOUR are equal (CLAUDE.md §2.4).
+  saltKey         String?  @map("salt_key")
+  strengthKey     String?  @map("strength_key")
+  formKey         String?  @map("form_key")
+  releaseType     ReleaseType @default(na) @map("release_type")
   packSize        String?  @map("pack_size")
+  packQty         Decimal? @map("pack_qty") @db.Decimal(10, 2)
+  packUnit        String?  @map("pack_unit")
   mrp             Decimal? @db.Decimal(10, 2)
+  /// mrp / pack_qty. Null when the price or pack size is unknown (then no savings are ever shown).
+  pricePerUnit    Decimal? @map("price_per_unit") @db.Decimal(12, 4)
+  priceSourceDate DateTime? @map("price_source_date") @db.Date
   manufacturer    String?
   isGeneric       Boolean  @default(false) @map("is_generic")
+  isJanaushadhi   Boolean  @default(false) @map("is_janaushadhi")
   janaushadhiCode String?  @map("janaushadhi_code")
   /// Dataset + licence the row came from (CLAUDE.md M8: always record the source).
   source          String
+  /// Id of the row inside its source (drug code, or a catalog key): upsert key together with `source`.
+  sourceRef       String?  @map("source_ref")
 
   medications Medication[]
 
-  // The GIN trigram index on brand_name (gin_trgm_ops) is created in the migration SQL.
+  // GIN trigram indexes (brand_key, salt_key) are created in the migration SQL: Prisma cannot model them.
+  @@unique([source, sourceRef])
   @@index([saltComposition, strength, form])
+  @@index([saltKey, strengthKey, formKey, releaseType])
+  @@index([brandKey])
   @@map("drugs")
+}
+
+/// Different names for the same ingredient ("acetaminophen" -> "paracetamol"). Mirror of the in-repo
+/// dictionary `apps/ai-service/app/catalog/salt_aliases.py`, written by `make seed`.
+model SaltAlias {
+  alias     String @id
+  canonical String
+
+  @@map("salt_aliases")
+}
+
+enum ReleaseType {
+  ir
+  sr
+  er
+  xr
+  cr
+  mr
+  dr
+  na
+
+  @@map("release_type")
+}
+
+enum MatchMethod {
+  exact
+  trgm
+  vector
+  salt_written
+  none
+
+  @@map("match_method")
 }
 
 model Interaction {

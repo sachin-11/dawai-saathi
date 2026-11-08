@@ -81,6 +81,40 @@ _EMERGENCY_HINTS: tuple[str, ...] = (
 )
 
 
+_QUERY_FILLER = frozenset(
+    {
+        "ka", "ki", "ke", "ko", "का", "की", "के", "को", "generic", "generics", "batao", "bataiye", "bataye", "btao", "alternative",
+        "sasta", "saste", "cheaper", "cheap", "of", "for", "tell", "me", "about", "what", "is", "the", "a",
+        "an", "medicine", "dawai", "dawa", "tablet", "tab", "please", "pls", "hai", "kya", "koi", "option",
+        "vikalp", "to", "any", "version",
+    }
+)  # fmt: skip
+
+
+def _fake_generic_extract(messages: Sequence[Message]) -> dict[str, Any]:
+    """Offline stand-in for `generic_query_extract_v1`: copies the words that are not filler."""
+    last = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    text = last.replace("<message>", " ").replace("</message>", " ")
+    words = [
+        w
+        for w in text.replace("?", " ").replace(",", " ").split()
+        if w.lower() not in _QUERY_FILLER
+    ]
+    strength = None
+    for index, word in enumerate(words):
+        if (
+            word.lower() in {"mg", "mcg", "ml", "g"}
+            and index > 0
+            and words[index - 1].replace(".", "").isdigit()
+        ):
+            strength = f"{words[index - 1]} {word}"
+    kept = [w for w in words if w.lower() not in {"mg", "mcg", "ml", "g"}]
+    if strength:
+        kept = [w for w in kept if w != strength.split()[0]]
+    name = " ".join(kept) or None
+    return {"medicine_name": name, "strength": strength, "confidence": 0.9 if name else 0.2}
+
+
 @dataclass(frozen=True, slots=True)
 class FakeRule:
     """If `match` (case-insensitive) occurs in the last user message, answer with `response`."""
@@ -108,6 +142,8 @@ def default_fake_response(
     if "items" in fields:
         raw_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
         return fake_compose([m.content for m in messages], raw_user)
+    if "medicine_name" in fields:
+        return json.dumps(_fake_generic_extract(messages))
     if "is_emergency" in response_model.model_fields:
         hit = any(hint in last_user for hint in _EMERGENCY_HINTS)
         return json.dumps(

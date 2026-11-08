@@ -1,5 +1,5 @@
 # Static reply texts (Hindi). Keep in sync with en.yaml (same keys, same version).
-version: reply_templates_v3
+version: reply_templates_v4
 texts:
   help: |-
     मैं दवाई साथी हूँ 💊
@@ -64,3 +64,7 @@ texts:
     मैं यह फ़ाइल खोल नहीं पाया। कृपया पर्ची की साफ़ फ़ोटो (JPG या PNG) या सामान्य PDF भेजें।
   rx.pdf_too_long: |-
     इस PDF में पर्ची के लिए बहुत ज़्यादा पन्ने हैं। कृपया सिर्फ़ पर्ची वाला पन्ना फ़ोटो या छोटी PDF में भेजें।
+  generic_query_ask_name: |-
+    आप किस दवाई का जेनेरिक जानना चाहते हैं? उसका नाम भेजें, जैसे: "Dolo 650 ka generic batao"।
+  generic_query_unavailable: |-
+    अभी मैं दवाइयों की सूची नहीं देख पा रहा। कृपया थोड़ी देर बाद फिर कोशिश करें।

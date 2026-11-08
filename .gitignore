@@ -52,3 +52,5 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# generated catalog CSV: may contain data from a licensed/local brand list (M8)
+data/seed/drugs.csv

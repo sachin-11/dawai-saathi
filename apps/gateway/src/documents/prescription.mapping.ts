@@ -24,6 +24,79 @@ export interface MedicationRow {
   confidence: number;
   /** Only a medicine that passed the confidence gate is active (CLAUDE.md §2.3). */
   active: boolean;
+  /** M8: what the catalog match found (all null when nothing was matched). */
+  drugId: string | null;
+  salt: string | null;
+  saltKey: string | null;
+  strengthKey: string | null;
+  formKey: string | null;
+  releaseType: ReleaseTypeValue | null;
+  matchScore: number | null;
+  matchMethod: MatchMethodValue | null;
+}
+
+export type ReleaseTypeValue = 'ir' | 'sr' | 'er' | 'xr' | 'cr' | 'mr' | 'dr' | 'na';
+export type MatchMethodValue = 'exact' | 'trgm' | 'vector' | 'salt_written' | 'none';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const RELEASE_TYPES: ReadonlySet<string> = new Set([
+  'ir',
+  'sr',
+  'er',
+  'xr',
+  'cr',
+  'mr',
+  'dr',
+  'na',
+]);
+
+/**
+ * The catalog's keys for one medicine. The SALT is kept whenever the matcher stated one, even for an
+ * ambiguous or conflicting match (it is what the interaction checker needs, M11). Strength / form / release are the CATALOG product's, so
+ * when the prescription contradicted them they are NOT stored: what is written wins (CLAUDE.md M8 §4).
+ */
+export function matchFields(
+  match: ExtractedMedicine['match'],
+): Pick<
+  MedicationRow,
+  | 'drugId'
+  | 'salt'
+  | 'saltKey'
+  | 'strengthKey'
+  | 'formKey'
+  | 'releaseType'
+  | 'matchScore'
+  | 'matchMethod'
+> {
+  const empty = {
+    drugId: null,
+    salt: null,
+    saltKey: null,
+    strengthKey: null,
+    formKey: null,
+    releaseType: null,
+    matchScore: null,
+    matchMethod: null,
+  } as const;
+  if (!match) return empty;
+  const method = match.method;
+  if (method === 'none' || !match.salt_key) {
+    return { ...empty, matchScore: match.score, matchMethod: method };
+  }
+  // A conflict or an ambiguity means the catalog PRODUCT is not certain: keep the salt (if any), no product keys.
+  const conflict = match.strength_conflict || match.form_conflict || match.ambiguous;
+  const release = match.release_type;
+  return {
+    // The product itself is only recorded when nothing contradicts it and the id is a real uuid.
+    drugId: !conflict && match.drug_id && UUID.test(match.drug_id) ? match.drug_id : null,
+    salt: match.salt_key,
+    saltKey: match.salt_key,
+    strengthKey: conflict ? null : (match.strength_key ?? null),
+    formKey: conflict ? null : (match.form_key ?? null),
+    releaseType:
+      !conflict && release && RELEASE_TYPES.has(release) ? (release as ReleaseTypeValue) : null,
+    matchScore: match.score,
+    matchMethod: method,
+  };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -93,6 +166,7 @@ export function mapMedications(
       endDate: endDateFor(start, durationDays),
       confidence: medicineConfidence(medicine),
       active: !medicine.low_confidence,
+      ...matchFields(medicine.match),
     };
   });
 }

@@ -1,0 +1,19 @@
+{#- Generic alternatives (Hindi). Built only from the matcher / finder data; no LLM. -#}
+💊 उसी साल्ट के विकल्प:
+
+{% for it in found -%}
+{{ it.number }}. {{ it.name }}
+{% for a in it.alts -%}
+   • {{ a.brand }}{% if a.tag %} 🏷️ Jan Aushadhi{% endif %} — {{ a.price }}{% if a.saving %}
+     {{ a.saving }}{% endif %}
+{% endfor %}
+{% endfor -%}
+{%- if missing %}
+इनके लिए सुझाव नहीं:
+{% for it in missing -%}
+{{ it.number }}. {{ it.name }}: {{ it.reason }}
+{% endfor %}
+{% endif -%}
+ℹ️ कीमतें लगभग MRP के हिसाब से हैं{% if price_date %} ({{ price_date }} तक की){% endif %} और बदल सकती हैं।
+
+वही साल्ट, वही स्ट्रेंथ। बदलने से पहले अपने डॉक्टर या फ़ार्मासिस्ट से ज़रूर पूछें।

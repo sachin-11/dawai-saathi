@@ -1,0 +1,55 @@
+# Medicines for which the bot NEVER suggests a generic alternative (CLAUDE.md §2.4, M8 §5).
+#
+# !!! THIS FILE MUST BE REVIEWED BY A PHARMACIST / CLINICIAN BEFORE LAUNCH !!!
+# It was written from general knowledge. Adding an entry is always safe (a suggestion is lost);
+# removing one is a clinical decision. A salt matches when ANY of the salts of the product starts
+# with one of the words below (so "levothyroxine sodium" and a combination containing it are caught).
+version: no_substitute_v1
+
+# Narrow therapeutic index: small differences between products can change the effect.
+narrow_therapeutic_index_salts:
+  - levothyroxine
+  - liothyronine
+  - warfarin
+  - acenocoumarol
+  - phenytoin
+  - carbamazepine
+  - lithium
+  - valpro # valproate / valproic acid / sodium valproate
+  - theophylline
+  - digoxin
+  - tacrolimus
+  - cyclosporin # ciclosporin / cyclosporine
+  - ciclosporin
+  - sirolimus
+  - everolimus
+  - mycophenol
+  - amiodarone
+  - clozapine
+
+# Insulins and biologics are never swapped by a bot.
+biologic_or_insulin_words:
+  - insulin
+  - glargine
+  - lispro
+  - aspart
+  - detemir
+  - degludec
+  - epoetin
+  - erythropoietin
+  - filgrastim
+  - enoxaparin
+  - interferon
+  - botulinum
+  - semaglutide
+  - liraglutide
+  - dulaglutide
+# plus any salt ending in "mab" (monoclonal antibodies), see the code
+
+# Only these release types may be swapped. Everything modified-release (sr, er, xr, cr, mr) and, until
+# a pharmacist agrees otherwise, delayed-release (dr, e.g. gastro-resistant pantoprazole) is excluded.
+substitutable_release_types: [ir, na]
+
+# Only these forms may be swapped. Inhalers and devices, and every form we could not classify
+# ("other": eye/ear drops, chewable tablets, ointments ...), are excluded.
+substitutable_forms: [tablet, capsule, syrup, suspension, injection, drops, cream, gel]

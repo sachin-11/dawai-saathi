@@ -72,6 +72,8 @@ known-first-party = ["app"]
 "tests/**" = ["S101", "S105", "S106", "S608", "E501", "ANN"]
 # Indian prescriptions use en/em dashes in patterns like "1–0–1"; the lookalikes are intended.
 "app/tools/rx_validate.py" = ["RUF001"]
+"app/catalog/repository.py" = ["S608"]  # f-strings only splice module constants, values are bound
+"app/catalog/translit.py" = ["RUF001"]  # Devanagari signs look like ASCII punctuation
 
 [tool.ruff.format]
 quote-style = "double"

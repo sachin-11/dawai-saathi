@@ -15,6 +15,7 @@
 | PHI leakage (fake names / phones in extraction or reply) | 0 case(s) |
 | Hallucination rate (readable medicines not in the gold label) | 0/68 (0.0%) |
 | Groundedness (readable names present in the reply) | 68/68 (100.0%) |
+| Unsafe generic suggestions (wrong keys, excluded, unknown or unreadable medicine) | 0 (of 25 medicines with a suggestion) |
 
 ## Medicine-level (readable medicines)
 
@@ -23,6 +24,8 @@
 | Precision | 1.000 |
 | Recall | 0.810 |
 | F1 | 0.895 |
+
+A readable medicine that the bot flags for confirmation instead of showing (for example a cream whose dose is not written) counts as a miss here. That is the safe direction: the user is told to confirm it with the pharmacist, nothing is guessed.
 
 ## Per-field accuracy (over matched medicines)
 
@@ -43,8 +46,8 @@
 | Metric | Value |
 |---|---|
 | Cost per document (mean) | $0.00000 |
-| Latency p50 | 90 ms |
-| Latency p95 | 140 ms |
+| Latency p50 | 115 ms |
+| Latency p95 | 202 ms |
 
 ## Hallucinated medicines (shown as readable, not in gold)
 

@@ -7,7 +7,12 @@ import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
 import { computeBackoffMs, fetchErrorCode } from '../messaging/whatsapp.retry';
 import { AiServiceError } from './ai-client.errors';
-import type { ProcessRequest, ProcessResponse } from './types';
+import type {
+  GenericDetailsRequest,
+  GenericDetailsResponse,
+  ProcessRequest,
+  ProcessResponse,
+} from './types';
 
 export interface AiRetryPolicy {
   maxAttempts: number;
@@ -34,6 +39,14 @@ const REQUEST_ID_UNSAFE = /[^A-Za-z0-9._=+/-]/g;
 export function toRequestId(value: string): string {
   const cleaned = value.replace(REQUEST_ID_UNSAFE, '_').slice(0, 200);
   return cleaned.length > 0 ? cleaned : 'unknown';
+}
+
+function isGenericDetailsResponse(value: unknown): value is GenericDetailsResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const body = value as { reply?: { text?: unknown } | null };
+  return (
+    typeof body.reply === 'object' && body.reply !== null && typeof body.reply.text === 'string'
+  );
 }
 
 function isProcessResponse(value: unknown): value is ProcessResponse {
@@ -69,8 +82,27 @@ export class AiClient {
   }
 
   async process(request: ProcessRequest): Promise<ProcessResponse> {
+    return this.post('/v1/process', 'ai.process', request, isProcessResponse);
+  }
+
+  /** The "Generic medicines" button: render the stored suggestions (no model call on the AI side). */
+  async genericDetails(request: GenericDetailsRequest): Promise<GenericDetailsResponse> {
+    return this.post(
+      '/v1/generic-details',
+      'ai.generic_details',
+      request,
+      isGenericDetailsResponse,
+    );
+  }
+
+  private async post<Res>(
+    path: string,
+    operation: string,
+    request: { request_id: string },
+    isValid: (value: unknown) => value is Res,
+  ): Promise<Res> {
     const policy = this.retryPolicy;
-    const url = `${this.env.AI_SERVICE_URL.replace(/\/+$/, '')}/v1/process`;
+    const url = `${this.env.AI_SERVICE_URL.replace(/\/+$/, '')}${path}`;
     const body = JSON.stringify(request);
 
     for (let attempt = 1; ; attempt++) {
@@ -94,7 +126,7 @@ export class AiClient {
         const failure = timedOut
           ? new AiServiceError('timeout', undefined, undefined)
           : new AiServiceError('connection', undefined, undefined);
-        this.log(request, attempt, startedAt, {
+        this.log(operation, request, attempt, startedAt, {
           outcome: failure.kind,
           error_code: fetchErrorCode(error) ?? (error instanceof Error ? error.name : 'unknown'),
         });
@@ -105,11 +137,14 @@ export class AiClient {
 
       if (response.ok) {
         const parsed: unknown = await response.json().catch(() => null);
-        if (!isProcessResponse(parsed)) {
-          this.log(request, attempt, startedAt, { status: response.status, outcome: 'invalid' });
+        if (!isValid(parsed)) {
+          this.log(operation, request, attempt, startedAt, {
+            status: response.status,
+            outcome: 'invalid',
+          });
           throw new AiServiceError('invalid_response', response.status, undefined);
         }
-        this.log(request, attempt, startedAt, { status: response.status });
+        this.log(operation, request, attempt, startedAt, { status: response.status });
         return parsed;
       }
 
@@ -121,7 +156,10 @@ export class AiClient {
         response.status,
         errorCode,
       );
-      this.log(request, attempt, startedAt, { status: response.status, ai_error_code: errorCode });
+      this.log(operation, request, attempt, startedAt, {
+        status: response.status,
+        ai_error_code: errorCode,
+      });
 
       const retryable = response.status >= 500 && response.status !== 504;
       if (!retryable || attempt >= policy.maxAttempts) throw failure;
@@ -130,14 +168,15 @@ export class AiClient {
   }
 
   private log(
-    request: ProcessRequest,
+    operation: string,
+    request: { request_id: string },
     attempt: number,
     startedAt: number,
     fields: Record<string, unknown>,
   ): void {
     this.logger.info(
       {
-        operation: 'ai.process',
+        operation,
         request_id: toRequestId(request.request_id),
         attempt,
         latency_ms: Math.round(performance.now() - startedAt),

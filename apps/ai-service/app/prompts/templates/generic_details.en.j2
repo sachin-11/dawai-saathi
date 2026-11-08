@@ -1,0 +1,19 @@
+{#- Generic alternatives (English). Built only from the matcher / finder data; no LLM. -#}
+💊 Options with the same salt:
+
+{% for it in found -%}
+{{ it.number }}. {{ it.name }}
+{% for a in it.alts -%}
+   • {{ a.brand }}{% if a.tag %} 🏷️ Jan Aushadhi{% endif %} — {{ a.price }}{% if a.saving %}
+     {{ a.saving }}{% endif %}
+{% endfor %}
+{% endfor -%}
+{%- if missing %}
+Not suggested:
+{% for it in missing -%}
+{{ it.number }}. {{ it.name }}: {{ it.reason }}
+{% endfor %}
+{% endif -%}
+ℹ️ Prices are approximate MRP{% if price_date %} as of {{ price_date }}{% endif %} and can vary.
+
+Same salt, same strength. Please ask your doctor or pharmacist before switching.

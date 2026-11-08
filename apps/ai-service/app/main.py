@@ -16,6 +16,7 @@ from app.api import health
 from app.api.errors import ApiError
 from app.api.limits import BodySizeLimitMiddleware
 from app.api.v1 import router as v1_router
+from app.catalog.service import CatalogService
 from app.config import Settings, get_settings
 from app.db.session import Database
 from app.llm.factory import build_llm_router
@@ -51,6 +52,7 @@ def create_app(
     llm_router: LLMRouter | None = None,
     tracer: Tracer | None = None,
     pipeline: Pipeline | None = None,
+    catalog: CatalogService | None = None,
 ) -> FastAPI:
     """Build the app. The keyword arguments let tests inject fakes; production uses the defaults."""
     settings = settings or get_settings()
@@ -74,6 +76,9 @@ def create_app(
     app.state.tracer = tracer or build_tracer(settings)
     app.state.prompts = PromptRegistry()
     app.state.templates = TemplateStore()
+    app.state.catalog = catalog or CatalogService.from_settings(
+        settings, app.state.db.session_factory
+    )
     app.state.pipeline = pipeline or RxPipeline(MinimalPipeline())
     app.state.llm_router = llm_router or _default_llm_router(settings)
 

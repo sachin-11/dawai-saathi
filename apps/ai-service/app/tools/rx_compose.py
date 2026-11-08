@@ -53,6 +53,8 @@ class _Phrases:
     as_needed: str
     unclear: dict[str, str]
     unclear_joiner: str
+    generic_saving: str
+    generic_available: str
 
 
 _PHRASES: Final[dict[Language, _Phrases]] = {
@@ -79,6 +81,8 @@ _PHRASES: Final[dict[Language, _Phrases]] = {
         as_needed="only when needed",
         unclear={"name": "name", "dose": "dose", "frequency": "timing"},
         unclear_joiner=", ",
+        generic_saving="💰 A cheaper option with the same salt is available.",
+        generic_available="💰 A generic with the same salt is available.",
     ),
     Language.hi: _Phrases(
         forms={
@@ -98,6 +102,8 @@ _PHRASES: Final[dict[Language, _Phrases]] = {
         as_needed="ज़रूरत पड़ने पर",
         unclear={"name": "नाम", "dose": "खुराक", "frequency": "समय"},
         unclear_joiner=", ",
+        generic_saving="💰 उसी साल्ट का सस्ता विकल्प उपलब्ध है।",
+        generic_available="💰 उसी साल्ट की जेनेरिक दवाई उपलब्ध है।",
     ),
 }
 
@@ -139,6 +145,8 @@ class MedicineView:
     as_needed: bool
     instructions: str | None
     unclear: list[str] = field(default_factory=list)
+    # "saving" (a cheaper option with the same salt), "available" (generic exists, saving unknown), None.
+    generic: str | None = None
 
 
 def build_views(extraction: PrescriptionExtraction, min_confidence: float) -> list[MedicineView]:
@@ -163,9 +171,19 @@ def build_views(extraction: PrescriptionExtraction, min_confidence: float) -> li
                 as_needed=medicine.as_needed,
                 instructions=medicine.instructions.value,
                 unclear=unclear,
+                generic=_generic_kind(medicine),
             )
         )
     return views
+
+
+def _generic_kind(medicine: Medicine) -> str | None:
+    """Only a LOW-CONFIDENCE-free medicine with a real alternative gets a line; a claim of "cheaper"
+    only when a saving was established from known prices."""
+    suggestion = medicine.generic
+    if suggestion is None or not suggestion.alternatives or medicine.low_confidence:
+        return None
+    return "saving" if suggestion.savings_known else "available"
 
 
 def _food(medicine: Medicine) -> str | None:
@@ -232,6 +250,10 @@ def _template_rows(
                 "parts": parts,
                 "unclear_text": phrases.unclear_joiner.join(phrases.unclear[u] for u in v.unclear),
                 "llm_line": (llm_lines or {}).get(v.number),
+                "generic_line": {
+                    "saving": phrases.generic_saving,
+                    "available": phrases.generic_available,
+                }.get(v.generic or ""),
             }
         )
     return rows

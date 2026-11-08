@@ -12,3 +12,6 @@ export type ProcessReplyButton = components['schemas']['ReplyButton'];
 export type ProcessMeta = components['schemas']['Meta'];
 export type ProcessIntent = components['schemas']['Intent'];
 export type ProcessInputType = components['schemas']['InputType'];
+export type GenericDetailsRequest = components['schemas']['GenericDetailsRequest'];
+export type GenericDetailsResponse = components['schemas']['GenericDetailsResponse'];
+export type GenericSuggestion = components['schemas']['GenericSuggestion'];

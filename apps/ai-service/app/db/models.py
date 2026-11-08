@@ -12,9 +12,10 @@ The gateway's Prisma schema is the source of truth for the columns; keep these i
 
 import enum
 import uuid
+from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Enum, Integer, Numeric, Text
+from sqlalchemy import Boolean, Date, Enum, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -40,16 +41,35 @@ class Drug(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     brand_name: Mapped[str] = mapped_column(Text)
-    # Normalised: sorted, lowercase salts joined with " + ". Exact-match key for the generic finder.
+    brand_key: Mapped[str | None] = mapped_column(Text)
+    # Normalised: sorted, lowercase salts joined with " + ".
     salt_composition: Mapped[str] = mapped_column(Text)
     strength: Mapped[str] = mapped_column(Text)
     form: Mapped[str] = mapped_column(Text)
+    # M8 canonical keys: a generic is suggested only when all four are equal.
+    salt_key: Mapped[str | None] = mapped_column(Text)
+    strength_key: Mapped[str | None] = mapped_column(Text)
+    form_key: Mapped[str | None] = mapped_column(Text)
+    release_type: Mapped[str] = mapped_column(Text)
     pack_size: Mapped[str | None] = mapped_column(Text)
+    pack_qty: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    pack_unit: Mapped[str | None] = mapped_column(Text)
     mrp: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    price_per_unit: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    price_source_date: Mapped[date | None] = mapped_column(Date)
     manufacturer: Mapped[str | None] = mapped_column(Text)
     is_generic: Mapped[bool] = mapped_column(Boolean)
+    is_janaushadhi: Mapped[bool] = mapped_column(Boolean)
     janaushadhi_code: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(Text)
+    source_ref: Mapped[str | None] = mapped_column(Text)
+
+
+class SaltAlias(Base):
+    __tablename__ = "salt_aliases"
+
+    alias: Mapped[str] = mapped_column(Text, primary_key=True)
+    canonical: Mapped[str] = mapped_column(Text)
 
 
 class Interaction(Base):

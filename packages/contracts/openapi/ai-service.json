@@ -47,6 +47,156 @@
         "title": "DateField",
         "type": "object"
       },
+      "DrugCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "brand_name": {
+            "maxLength": 200,
+            "title": "Brand Name",
+            "type": "string"
+          },
+          "drug_id": {
+            "title": "Drug Id",
+            "type": "string"
+          },
+          "score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": ["drug_id", "brand_name", "score"],
+        "title": "DrugCandidate",
+        "type": "object"
+      },
+      "DrugMatch": {
+        "additionalProperties": false,
+        "description": "What the catalog says about one prescribed medicine.",
+        "properties": {
+          "ambiguous": {
+            "default": false,
+            "title": "Ambiguous",
+            "type": "boolean"
+          },
+          "brand_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Name"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DrugCandidate"
+            },
+            "maxItems": 3,
+            "title": "Candidates",
+            "type": "array"
+          },
+          "drug_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drug Id"
+          },
+          "form_conflict": {
+            "default": false,
+            "title": "Form Conflict",
+            "type": "boolean"
+          },
+          "form_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Key"
+          },
+          "method": {
+            "$ref": "#/components/schemas/MatchMethod",
+            "default": "none"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "release_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Type"
+          },
+          "salt_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salt Key"
+          },
+          "score": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "strength_basis": {
+            "default": "none",
+            "enum": ["prescription", "brand_name", "none"],
+            "title": "Strength Basis",
+            "type": "string"
+          },
+          "strength_conflict": {
+            "default": false,
+            "title": "Strength Conflict",
+            "type": "boolean"
+          },
+          "strength_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength Key"
+          }
+        },
+        "title": "DrugMatch",
+        "type": "object"
+      },
       "EmergencyCategory": {
         "description": "Why a message was treated as an emergency (shared with the keyword file's categories).",
         "enum": [
@@ -123,6 +273,211 @@
           }
         },
         "title": "FormField",
+        "type": "object"
+      },
+      "GenericAlternative": {
+        "additionalProperties": false,
+        "properties": {
+          "approx_savings": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approx Savings"
+          },
+          "brand_name": {
+            "maxLength": 200,
+            "title": "Brand Name",
+            "type": "string"
+          },
+          "drug_id": {
+            "title": "Drug Id",
+            "type": "string"
+          },
+          "is_janaushadhi": {
+            "title": "Is Janaushadhi",
+            "type": "boolean"
+          },
+          "pack_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Label"
+          },
+          "pack_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Price"
+          },
+          "price_per_unit": {
+            "minimum": 0.0,
+            "title": "Price Per Unit",
+            "type": "number"
+          },
+          "savings_basis": {
+            "anyOf": [
+              {
+                "enum": ["course", "pack"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Basis"
+          }
+        },
+        "required": ["drug_id", "brand_name", "is_janaushadhi", "price_per_unit"],
+        "title": "GenericAlternative",
+        "type": "object"
+      },
+      "GenericDetailsItem": {
+        "additionalProperties": false,
+        "properties": {
+          "generic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenericSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength"
+          }
+        },
+        "required": ["name"],
+        "title": "GenericDetailsItem",
+        "type": "object"
+      },
+      "GenericDetailsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "medicines": {
+            "items": {
+              "$ref": "#/components/schemas/GenericDetailsItem"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Medicines",
+            "type": "array"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "language", "medicines"],
+        "title": "GenericDetailsRequest",
+        "type": "object"
+      },
+      "GenericDetailsResponse": {
+        "properties": {
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "reply"],
+        "title": "GenericDetailsResponse",
+        "type": "object"
+      },
+      "GenericSuggestion": {
+        "additionalProperties": false,
+        "properties": {
+          "alternatives": {
+            "items": {
+              "$ref": "#/components/schemas/GenericAlternative"
+            },
+            "maxItems": 2,
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "price_source_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Source Date"
+          },
+          "reason_if_none": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low_confidence",
+                  "no_match",
+                  "weak_match",
+                  "strength_mismatch",
+                  "form_mismatch",
+                  "strength_unverified",
+                  "ambiguous",
+                  "not_substitutable",
+                  "no_exact_alternative",
+                  "no_cheaper_option"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason If None"
+          },
+          "savings_known": {
+            "default": false,
+            "title": "Savings Known",
+            "type": "boolean"
+          }
+        },
+        "title": "GenericSuggestion",
         "type": "object"
       },
       "InputPayload": {
@@ -234,6 +589,11 @@
         "title": "LivenessResponse",
         "type": "object"
       },
+      "MatchMethod": {
+        "enum": ["exact", "trgm", "vector", "salt_written", "none"],
+        "title": "MatchMethod",
+        "type": "string"
+      },
       "Medicine": {
         "additionalProperties": false,
         "properties": {
@@ -257,6 +617,16 @@
           "frequency_per_day": {
             "$ref": "#/components/schemas/IntField"
           },
+          "generic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenericSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "instructions": {
             "$ref": "#/components/schemas/TextField"
           },
@@ -264,6 +634,16 @@
             "default": false,
             "title": "Low Confidence",
             "type": "boolean"
+          },
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DrugMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "$ref": "#/components/schemas/TextField"
@@ -750,6 +1130,60 @@
         },
         "summary": "Ready",
         "tags": ["health"]
+      }
+    },
+    "/v1/generic-details": {
+      "post": {
+        "description": "The details message for a saved prescription, from the stored (structured) suggestions only.",
+        "operationId": "generic_details_v1_generic_details_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericDetailsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericDetailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or wrong X-Service-Token"
+          },
+          "422": {
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Generic Details",
+        "tags": ["generic"]
       }
     },
     "/v1/process": {
