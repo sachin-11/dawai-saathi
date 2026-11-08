@@ -105,8 +105,22 @@ describe('infrastructure (integration)', () => {
           confidence: 0.9,
         },
       });
+      const schedule = await prisma.reminderSchedule.create({
+        data: {
+          userId,
+          medicationId: medication.id,
+          times: ['08:00', '20:00'],
+          startDate: new Date('2026-11-07'),
+        },
+      });
       await prisma.reminder.create({
-        data: { medicationId: medication.id, userId, scheduledAt: new Date() },
+        data: {
+          scheduleId: schedule.id,
+          medicationId: medication.id,
+          userId,
+          scheduledAt: new Date(),
+          jobId: 'rem_test',
+        },
       });
       await prisma.caregiver.create({
         data: { userId, waPhoneEnc: 'enc', waPhoneHash: `cg-${randomUUID()}`, relation: 'son' },

@@ -1,4 +1,9 @@
-import { type JobLike, type QueueLike, removeJobsForUser } from './queue-cleanup.service';
+import {
+  type JobLike,
+  type QueueLike,
+  removeJobsForUser,
+  USER_JOB_QUEUES,
+} from './queue-cleanup.service';
 
 const USER = 'user-1';
 
@@ -80,5 +85,22 @@ describe('removeJobsForUser', () => {
 
   it('returns 0 for an empty queue', async () => {
     await expect(removeJobsForUser(fakeQueue([]), USER)).resolves.toBe(0);
+  });
+});
+
+describe('USER_JOB_QUEUES (M10)', () => {
+  it('includes the reminders queue, so DELETE removes slot, missed, snooze and alert jobs', () => {
+    expect(USER_JOB_QUEUES).toEqual(expect.arrayContaining(['inbound', 'outbound', 'reminders']));
+  });
+
+  it('removes reminder jobs by the userId every one of them carries', async () => {
+    const slot = fakeJob(USER);
+    const alert = fakeJob(USER);
+    const planner = fakeJob(undefined); // the repeatable planner has no user
+    const other = fakeJob('user-2');
+    const queue = fakeQueue([slot, planner, alert, other]);
+    await expect(removeJobsForUser(queue, USER)).resolves.toBe(2);
+    expect(planner.removed).toBe(false);
+    expect(other.removed).toBe(false);
   });
 });

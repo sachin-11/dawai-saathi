@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service';
+import { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import {
   type ActiveMedicationLine,
   type UserLanguage,
@@ -16,6 +17,7 @@ export class CommandHandlersService {
   constructor(
     private readonly users: UsersService,
     private readonly audit: AuditService,
+    private readonly schedules: ReminderScheduleService,
   ) {}
 
   help(session: ReplySession): Promise<void> {
@@ -43,11 +45,16 @@ export class CommandHandlersService {
   }
 
   /**
-   * STOP REMINDERS / START REMINDERS. Only sets the flag: the reminder scheduler (M10) must respect
-   * `users.reminders_enabled`.
+   * STOP REMINDERS / START REMINDERS. Sets `users.reminders_enabled`, then cancels what is queued
+   * (STOP) or plans the next hours again (START). The schedules themselves stay.
    */
   async setReminders(user: UserState, enabled: boolean, session: ReplySession): Promise<void> {
     await this.users.setRemindersEnabled(user.id, enabled);
+    if (enabled) {
+      await this.schedules.resumeAll(user.id);
+    } else {
+      await this.schedules.suspendAll(user.id);
+    }
     if (user.remindersEnabled !== enabled) {
       await this.audit.log({
         actor: 'user',
@@ -65,6 +72,7 @@ export class CommandHandlersService {
       await session.text('meds.none');
       return;
     }
+    const today = await this.schedules.todayStatus(user.id);
     // One message: separate replies could arrive out of order.
     await session.textLines(
       'meds.list_header',
@@ -72,10 +80,29 @@ export class CommandHandlersService {
         key: 'meds.item' as const,
         params: {
           name: medication.name,
-          timings: this.describeSchedule(medication, session),
+          timings:
+            this.describeToday(today.get(medication.id)) ??
+            this.describeSchedule(medication, session),
         },
       })),
     );
+  }
+
+  /** "08:00 ✅, 21:00 ⏳" for the doses scheduled today, or null when there are none. */
+  private describeToday(
+    entries: readonly { time: string; status: string }[] | undefined,
+  ): string | null {
+    const shown = (entries ?? []).filter((entry) => entry.status !== 'cancelled');
+    if (shown.length === 0) return null;
+    const icon: Record<string, string> = {
+      taken: '✅',
+      skipped: '⏭️',
+      missed: '❌',
+      pending: '⏳',
+      sent: '⏳',
+      snoozed: '⏳',
+    };
+    return shown.map((entry) => `${entry.time} ${icon[entry.status] ?? ''}`.trim()).join(', ');
   }
 
   /** Clock times when saved, otherwise "only when needed" / "N times a day", otherwise a dash. */

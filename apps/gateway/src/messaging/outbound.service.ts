@@ -52,14 +52,24 @@ export class OutboundService {
    * and there is no template fallback (checked again at send time, since the job may wait).
    */
   async enqueue(userId: string, request: OutboundRequest): Promise<void> {
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { lastInboundAt: true },
-    });
+    const caregiverId = request.recipient?.caregiverId;
+    const lastInboundAt = caregiverId
+      ? (
+          await this.prisma.caregiver.findUniqueOrThrow({
+            where: { id: caregiverId },
+            select: { lastInboundAt: true },
+          })
+        ).lastInboundAt
+      : (
+          await this.prisma.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { lastInboundAt: true },
+          })
+        ).lastInboundAt;
     if (
       request.content.kind !== 'template' &&
       !request.templateFallback &&
-      !isWithinWindow(user.lastInboundAt)
+      !isWithinWindow(lastInboundAt)
     ) {
       throw new WindowClosedError();
     }
@@ -72,6 +82,7 @@ export class OutboundService {
       {
         userId,
         payload: this.crypto.encrypt(JSON.stringify(payload)),
+        ...(caregiverId ? { caregiverId } : {}),
         sourceMessageId: request.sourceMessageId,
         replyIndex: request.replyIndex,
         requestId: request.requestId ?? '',
@@ -92,13 +103,19 @@ export class OutboundService {
     const { userId, requestId } = job.data;
     const stored = JSON.parse(this.crypto.decrypt(job.data.payload)) as StoredPayload;
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { waPhoneEnc: true, lastInboundAt: true },
-    });
+    const caregiverId = job.data.caregiverId;
+    const user = caregiverId
+      ? await this.prisma.caregiver.findUnique({
+          where: { id: caregiverId },
+          select: { waPhoneEnc: true, lastInboundAt: true },
+        })
+      : await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { waPhoneEnc: true, lastInboundAt: true },
+        });
     if (!user) {
-      // The user was deleted (DELETE command) while the job waited.
-      throw new UnrecoverableError('user no longer exists');
+      // The user (or caregiver) was deleted while the job waited.
+      throw new UnrecoverableError('recipient no longer exists');
     }
 
     let content: OutboundContent = stored.content;
@@ -130,7 +147,9 @@ export class OutboundService {
         // Persist progress BEFORE the DB insert: if the insert fails, the retry will not resend.
         await job.updateData({ ...job.data, sentWaIds: [...sent] });
       }
-      await this.messages.saveOutbound({ userId, waMessageId, type, bodyRedacted });
+      if (!caregiverId) {
+        await this.messages.saveOutbound({ userId, waMessageId, type, bodyRedacted });
+      }
     };
 
     switch (content.kind) {

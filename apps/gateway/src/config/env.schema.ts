@@ -101,6 +101,25 @@ export const envSchema = z
     MED_TIME_AFTERNOON: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('14:00'),
     MED_TIME_EVENING: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('18:00'),
     MED_TIME_NIGHT: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('21:00'),
+    // --- M10: reminders + caregivers
+    /** A slot is a delayed job; the planner (every 15 min) materialises this many hours ahead. */
+    REMINDER_HORIZON_HOURS: z.coerce.number().int().min(2).max(168).default(36),
+    /** Prescriptions without a written duration get reminders for this many days, then a renewal ask. */
+    REMINDER_OPEN_ENDED_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    SNOOZE_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+    /** Minutes after a sent reminder without an answer before the dose counts as missed. */
+    REMINDER_ACK_TIMEOUT_MIN: z.coerce.number().int().min(5).max(600).default(60),
+    /** This many missed slots in a row trigger the caregiver alert. */
+    CAREGIVER_ALERT_AFTER_MISSES: z.coerce.number().int().min(1).max(20).default(2),
+    DAILY_SUMMARY_ENABLED: z.stringbool().default(false),
+    /**
+     * DEV ONLY: when set, `rem:test` shifts every slot to "now + N minutes" for manual testing.
+     * Refused when NODE_ENV=production.
+     */
+    REMINDER_TEST_OFFSET_MIN: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().min(1).max(60).optional(),
+    ),
     /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
     S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })
@@ -118,6 +137,13 @@ export const envSchema = z
         code: 'custom',
         path: ['DEV_ECHO_BOT'],
         message: 'the dev echo bot must not be enabled in production',
+      });
+    }
+    if (env.NODE_ENV === 'production' && env.REMINDER_TEST_OFFSET_MIN !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['REMINDER_TEST_OFFSET_MIN'],
+        message: 'the reminder test offset must not be set in production',
       });
     }
     if (env.NODE_ENV === 'production') {

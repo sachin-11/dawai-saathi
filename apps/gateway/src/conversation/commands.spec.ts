@@ -1,5 +1,12 @@
 import type { InboundMessage } from '../webhook/inbound-message';
-import { BUTTON_ID, type CommandName, parseCommand } from './commands';
+import {
+  BUTTON_ID,
+  type CaregiverReply,
+  type CommandName,
+  parseCaregiverAddNumber,
+  parseCaregiverReply,
+  parseCommand,
+} from './commands';
 import { classifyInbound } from './signals';
 
 describe('parseCommand', () => {
@@ -71,7 +78,55 @@ describe('BUTTON_ID', () => {
       consentNo: 'consent:no',
       deleteConfirm: 'delete:confirm',
       deleteCancel: 'delete:cancel',
+      renewYes: 'rem:renew:yes',
+      renewNo: 'rem:renew:no',
     });
+  });
+});
+
+describe('M10 commands', () => {
+  it.each<[string, CommandName]>([
+    ['reminders', 'reminders'],
+    ['REMINDERS', 'reminders'],
+    ['caregiver', 'caregiver_add'],
+    ['parivar jodo', 'caregiver_add'],
+    ['caregiver remove', 'caregiver_remove'],
+    ['Caregiver hatao', 'caregiver_remove'],
+  ])('%p -> %s', (text, expected) => {
+    expect(parseCommand(text)).toBe(expected);
+  });
+
+  it.each([
+    ['CAREGIVER +91 98765 43210', '+91 98765 43210'],
+    ['caregiver add 9876543210', '9876543210'],
+    ['Parivar jodo +91-98765-43210', '+91-98765-43210'],
+  ])('reads the number from %p', (text, expected) => {
+    expect(parseCaregiverAddNumber(text)).toBe(expected);
+  });
+
+  it.each([
+    'caregiver',
+    'caregiver remove',
+    'caregiver papa',
+    'my caregiver 9876543210',
+    'caregiver 12',
+  ])('reads no number from %p', (text) => {
+    expect(parseCaregiverAddNumber(text)).toBeNull();
+  });
+
+  it.each<[string, CaregiverReply | null]>([
+    ['YES', 'yes'],
+    ['Haan', 'yes'],
+    ['haan!', 'yes'],
+    ['no', 'no'],
+    ['Nahi', 'no'],
+    ['STOP ALERTS', 'stop_alerts'],
+    ['stop alert', 'stop_alerts'],
+    ['yes please send me everything', null],
+    ['stop', null],
+    ['', null],
+  ])('caregiver reply %p -> %s', (text, expected) => {
+    expect(parseCaregiverReply(text)).toBe(expected);
   });
 });
 
@@ -121,6 +176,14 @@ describe('classifyInbound', () => {
         msg({ type: 'button', text: 'delete', button: { id: 'x', title: 'delete' } }),
       ),
     ).toEqual({});
+  });
+
+  it('adds an ack signal for a reminder answer and a caregiver_add command for a number', () => {
+    expect(classifyInbound(msg({ type: 'text', text: 'le li' }))).toEqual({ ack: 'taken' });
+    expect(classifyInbound(msg({ type: 'text', text: 'baad me' }))).toEqual({ ack: 'snooze' });
+    expect(classifyInbound(msg({ type: 'text', text: 'CAREGIVER 9876543210' }))).toEqual({
+      command: 'caregiver_add',
+    });
   });
 
   it('returns no signals for media without text and for unsupported types', () => {

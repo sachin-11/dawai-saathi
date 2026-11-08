@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 
 import { EchoBotService } from '../dev/echo-bot.service';
+import { ReminderAckService } from '../reminders/reminder-ack.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import { type UserState, UsersService } from '../users/users.service';
 import { AiProcessor } from './ai-processor.service';
@@ -9,6 +10,9 @@ import { CommandHandlersService } from './command-handlers.service';
 import { BUTTON_ID } from './commands';
 import { DeletionFlowService } from './deletion-flow.service';
 import { OnboardingService } from './onboarding.service';
+import { CaregiverFlowService } from './caregiver-flow.service';
+import { PendingInputService } from './pending-input.service';
+import { ReminderFlowService } from './reminder-flow.service';
 import { parseRxButton, RxActionsService } from './rx-actions.service';
 import { RepliesService, type ReplySession } from './replies.service';
 
@@ -34,7 +38,12 @@ export type RouteOutcome =
   | 'reminders_started'
   | 'meds'
   | 'rx_wrong'
-  | 'rx_coming_soon'
+  | 'rx_reminders'
+  | 'reminder_ack_text'
+  | 'reminders_list'
+  | 'input_handled'
+  | 'caregiver'
+  | 'reminder_flow'
   | 'rx_not_found'
   | 'rx_generic_details'
   | 'rx_generic_unavailable'
@@ -66,6 +75,10 @@ export class InboundRouter {
     private readonly commands: CommandHandlersService,
     private readonly deletion: DeletionFlowService,
     private readonly rxActions: RxActionsService,
+    private readonly reminderFlow: ReminderFlowService,
+    private readonly caregiverFlow: CaregiverFlowService,
+    private readonly pendingInput: PendingInputService,
+    private readonly acks: ReminderAckService,
     private readonly echoBot: EchoBotService,
     private readonly aiProcessor: AiProcessor,
     private readonly logger: PinoLogger,
@@ -156,6 +169,33 @@ export class InboundRouter {
     if (command === 'meds') {
       await this.commands.meds(user, session);
       return 'meds';
+    }
+
+    // M10: the answer to a question we asked (times, caregiver label) beats everything below it.
+    if (job.signals?.input) {
+      const handled = await this.pendingInput.handle(user, session);
+      if (handled) return 'input_handled';
+    }
+    if (command === 'reminders') {
+      await this.reminderFlow.list(user, session);
+      return 'reminders_list';
+    }
+    if (command === 'caregiver_add') {
+      await this.caregiverFlow.startAdd(user, session);
+      return 'caregiver';
+    }
+    if (command === 'caregiver_remove') {
+      await this.caregiverFlow.remove(user, session);
+      return 'caregiver';
+    }
+    if (buttonId && ReminderFlowService.isReminderButton(buttonId)) {
+      await this.reminderFlow.handleButton(user, buttonId, session);
+      return 'reminder_flow';
+    }
+    // "le li" / "baad me" / "skip" as text: only an answer while a reminder is open (last 2 hours).
+    if (job.signals?.ack) {
+      const outcome = await this.acks.handleText(user.id, job.signals.ack, session);
+      if (outcome !== null) return 'reminder_ack_text';
     }
 
     // Prescription buttons (`rx:wrong:<document id>` ...): matched by id, never by title.

@@ -4,8 +4,8 @@ import { PinoLogger } from 'nestjs-pino';
 
 import { RedisService } from '../common/redis/redis.service';
 
-/** The queues that may hold jobs referencing a user. `reminders` joins in M10. */
-export const USER_JOB_QUEUES: readonly string[] = ['inbound', 'outbound'];
+/** The queues that may hold jobs referencing a user (every job carries `userId`). */
+export const USER_JOB_QUEUES: readonly string[] = ['inbound', 'outbound', 'reminders'];
 
 /** Every state in which a job can be removed. Active jobs are locked by a worker and cannot be. */
 const REMOVABLE_STATES = [

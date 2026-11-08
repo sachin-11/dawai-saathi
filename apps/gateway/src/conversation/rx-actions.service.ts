@@ -3,8 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { AiClient, toRequestId } from '../ai-client/ai-client';
 import { AuditService } from '../audit/audit.service';
 import { PrescriptionService } from '../documents/prescription.service';
+import { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import type { UserState } from '../users/users.service';
 import { AI_ERROR_REPLY_INDEX } from './ai-processor.service';
+import { ReminderFlowService } from './reminder-flow.service';
 import type { ReplySession } from './replies.service';
 
 export type RxAction = 'reminders' | 'generic' | 'wrong';
@@ -23,11 +25,11 @@ export function parseRxButton(buttonId: string): RxButton | null {
 }
 
 export type RxOutcome =
-  'rx_wrong' | 'rx_coming_soon' | 'rx_not_found' | 'rx_generic_details' | 'rx_generic_unavailable';
+  'rx_wrong' | 'rx_reminders' | 'rx_not_found' | 'rx_generic_details' | 'rx_generic_unavailable';
 
 /**
  * The three buttons under a prescription reply (CLAUDE.md §7.2 step 4):
- *   Set reminders      -> "coming soon" until M10
+ *   Set reminders      -> the reminder set-up flow (M10): summary, confirm, change times
  *   Generic medicines  -> the stored suggestions, rendered by the AI service (M8)
  *   Something is wrong -> the document needs review, its medicines are switched off, audited
  */
@@ -37,12 +39,14 @@ export class RxActionsService {
     private readonly prescriptions: PrescriptionService,
     private readonly audit: AuditService,
     private readonly ai: AiClient,
+    private readonly reminderFlow: ReminderFlowService,
+    private readonly schedules: ReminderScheduleService,
   ) {}
 
   async handle(user: UserState, button: RxButton, session: ReplySession): Promise<RxOutcome> {
     if (button.action === 'reminders') {
-      await session.text('rx.reminders_soon');
-      return 'rx_coming_soon';
+      await this.reminderFlow.start(user, button.documentId, session);
+      return 'rx_reminders';
     }
     if (button.action === 'generic') {
       return this.genericDetails(user, button.documentId, session);
@@ -54,6 +58,8 @@ export class RxActionsService {
       await session.text('rx.not_found');
       return 'rx_not_found';
     }
+    // The prescription is "wrong": its reminders must stop too (queued jobs included).
+    await this.schedules.cancelForDocument(user.id, button.documentId);
     // Counts only: the audit log never carries ids of documents or any text (CLAUDE.md §12).
     await this.audit.log({
       actor: 'user',

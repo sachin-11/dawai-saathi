@@ -14,6 +14,12 @@ export type AuditAction =
   | 'delete_requested'
   | 'emergency_detected'
   | 'rx_reported_wrong'
+  | 'reminders_scheduled'
+  | 'caregiver_invited'
+  | 'caregiver_verified'
+  | 'caregiver_declined'
+  | 'caregiver_removed'
+  | 'caregiver_alert_sent'
   | 'user_deleted';
 
 export type AuditValue =

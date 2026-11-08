@@ -1,3 +1,4 @@
+import type { ReminderAckService } from '../reminders/reminder-ack.service';
 import type { PinoLogger } from 'nestjs-pino';
 
 import type { EchoBotService } from '../dev/echo-bot.service';
@@ -8,6 +9,9 @@ import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
 import type { OnboardingService } from './onboarding.service';
+import type { CaregiverFlowService } from './caregiver-flow.service';
+import type { PendingInputService } from './pending-input.service';
+import type { ReminderFlowService } from './reminder-flow.service';
 import type { RxActionsService } from './rx-actions.service';
 import type { RepliesService } from './replies.service';
 
@@ -45,6 +49,10 @@ function setup(
   echoBot: { enabled: boolean; handle: jest.Mock };
   rxActions: { handle: jest.Mock };
   ai: { handle: jest.Mock };
+  reminderFlow: { list: jest.Mock; handleButton: jest.Mock };
+  caregiverFlow: { startAdd: jest.Mock; remove: jest.Mock };
+  pendingInput: { handle: jest.Mock };
+  acks: { handleText: jest.Mock };
 } {
   const session = {
     text: jest.fn().mockResolvedValue(undefined),
@@ -72,6 +80,16 @@ function setup(
   };
   const ai = { handle: jest.fn().mockResolvedValue('ai_reply') };
   const rxActions = { handle: jest.fn().mockResolvedValue('rx_wrong') };
+  const reminderFlow = {
+    list: jest.fn().mockResolvedValue('rem_list'),
+    handleButton: jest.fn().mockResolvedValue('rem_ack'),
+  };
+  const caregiverFlow = {
+    startAdd: jest.fn().mockResolvedValue('cg_ask_label'),
+    remove: jest.fn().mockResolvedValue('cg_removed'),
+  };
+  const pendingInput = { handle: jest.fn().mockResolvedValue(null) };
+  const acks = { handleText: jest.fn().mockResolvedValue(null) };
   const logger = { setContext: jest.fn(), info: jest.fn() };
   const router = new InboundRouter(
     { getState: jest.fn().mockResolvedValue(state) } as unknown as UsersService,
@@ -80,11 +98,28 @@ function setup(
     commands as unknown as CommandHandlersService,
     deletion as unknown as DeletionFlowService,
     rxActions as unknown as RxActionsService,
+    reminderFlow as unknown as ReminderFlowService,
+    caregiverFlow as unknown as CaregiverFlowService,
+    pendingInput as unknown as PendingInputService,
+    acks as unknown as ReminderAckService,
     echoBot as unknown as EchoBotService,
     ai as unknown as AiProcessor,
     logger as unknown as PinoLogger,
   );
-  return { router, session, onboarding, commands, deletion, echoBot, ai, rxActions };
+  return {
+    router,
+    session,
+    onboarding,
+    commands,
+    deletion,
+    echoBot,
+    ai,
+    rxActions,
+    reminderFlow,
+    caregiverFlow,
+    pendingInput,
+    acks,
+  };
 }
 
 const STEPS: OnboardingStep[] = ['language', 'consent', 'done'];
@@ -385,6 +420,93 @@ describe('InboundRouter', () => {
       const s = setup(user({ onboardingStep: 'consent' }));
       await s.router.route(rxJob(`rx:wrong:${DOC}`), NOW);
       expect(s.rxActions.handle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reminders and caregivers (M10)', () => {
+    const active = (): UserState => user();
+
+    it('REMINDERS lists the reminders', async () => {
+      const s = setup(active());
+      await expect(s.router.route(job({ signals: { command: 'reminders' } }), NOW)).resolves.toBe(
+        'reminders_list',
+      );
+      expect(s.reminderFlow.list).toHaveBeenCalled();
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it('CAREGIVER <number> and CAREGIVER REMOVE go to the caregiver flow', async () => {
+      const s = setup(active());
+      await expect(
+        s.router.route(job({ signals: { command: 'caregiver_add' } }), NOW),
+      ).resolves.toBe('caregiver');
+      await expect(
+        s.router.route(job({ signals: { command: 'caregiver_remove' } }), NOW),
+      ).resolves.toBe('caregiver');
+      expect(s.caregiverFlow.startAdd).toHaveBeenCalledTimes(1);
+      expect(s.caregiverFlow.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      'rem:taken:1794277800',
+      'rem:snooze:1794277800',
+      'rem:skip:1794277800',
+      'rem:renew:yes',
+      'rem:page:1',
+    ])('routes the button %s to the reminder flow by id', async (id) => {
+      const s = setup(active());
+      await expect(
+        s.router.route(job({ type: 'button', button: { id, title: 'x' } }), NOW),
+      ).resolves.toBe('reminder_flow');
+      expect(s.reminderFlow.handleButton).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'user-1' }),
+        id,
+        s.session,
+      );
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it('a text answer to a pending question is consumed before anything else', async () => {
+      const s = setup(active());
+      s.pendingInput.handle.mockResolvedValue('rem_times_set');
+      await expect(s.router.route(job({ signals: { input: true } }), NOW)).resolves.toBe(
+        'input_handled',
+      );
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it('if the question expired meanwhile, the text takes the normal path', async () => {
+      const s = setup(active());
+      s.pendingInput.handle.mockResolvedValue(null);
+      await s.router.route(job({ signals: { input: true } }), NOW);
+      expect(s.ai.handle).toHaveBeenCalled();
+    });
+
+    it('"le li" is an ack only while a reminder is open', async () => {
+      const open = setup(active());
+      open.acks.handleText.mockResolvedValue('taken');
+      await expect(open.router.route(job({ signals: { ack: 'taken' } }), NOW)).resolves.toBe(
+        'reminder_ack_text',
+      );
+      expect(open.ai.handle).not.toHaveBeenCalled();
+
+      const none = setup(active());
+      none.acks.handleText.mockResolvedValue(null);
+      await none.router.route(job({ signals: { ack: 'taken' } }), NOW);
+      expect(none.ai.handle).toHaveBeenCalled();
+    });
+
+    it('none of this is reachable before onboarding is done or during an erasure', async () => {
+      const early = setup(user({ onboardingStep: 'consent' }));
+      await early.router.route(job({ signals: { command: 'reminders' } }), NOW);
+      await early.router.route(job({ signals: { ack: 'taken' } }), NOW);
+      expect(early.reminderFlow.list).not.toHaveBeenCalled();
+      expect(early.acks.handleText).not.toHaveBeenCalled();
+
+      const erasing = setup(user({ deletedAt: NOW }));
+      await expect(
+        erasing.router.route(job({ signals: { command: 'caregiver_add' } }), NOW),
+      ).resolves.toBe('ignored_deletion_pending');
     });
   });
 });

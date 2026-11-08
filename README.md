@@ -305,6 +305,40 @@ first message ──► choose language (हिन्दी / English) ──►
 - **`DELETE`** asks "Delete everything?" (valid for 5 minutes). On "Yes" a background job removes the photos from storage, the user's queued jobs and **all database rows**, leaves one anonymous `user_deleted` audit record, and sends a final confirmation. The same number writing again starts fresh.
 - Set `PRIVACY_POLICY_URL` for the link shown in the consent message (the real page arrives with M16).
 
+## Reminders and caregiver (M10)
+
+After a prescription is read, tap **Set reminders** under the reply:
+
+```
+[Set reminders] -> summary built from the saved medicines: Dolo 650 - 08:00, 21:00 (5 days)
+                   [Yes, set them] [Change times] [Cancel]
+[Change times]  -> "subah 7, raat 10" / "7am 10pm" / "07:00 22:00" (a fixed parser, no LLM) -> summary again
+[Yes, set them] -> reminders at each time; ONE message per time even if 3 medicines are due
+every reminder: [Le li] [Baad me] [Skip]   (text "le li", "baad me", "skip" works for 2 hours too)
+```
+
+- Medicines that are as-needed (SOS), not read clearly, or without a daily frequency get **no** reminder, and the summary says why.
+- A prescription without a written duration is scheduled for `REMINDER_OPEN_ENDED_DAYS` (30) and the bot asks the day before it ends whether to continue.
+- **Snooze** adds `SNOOZE_MINUTES` (30), at most twice per reminder, and never into quiet hours (22:30-06:30).
+- No answer for `REMINDER_ACK_TIMEOUT_MIN` (60) = **missed**. `Skip` is *skipped*, not missed. A late "Le li" within 6 hours still counts.
+- Inside the 24-hour WhatsApp window the reminder is an interactive message, outside it the approved `dose_reminder` template (texts in `docs/whatsapp-templates.md`).
+- `REMINDERS` lists the reminders with Pause / Resume buttons. `STOP REMINDERS` / `START REMINDERS` pause / resume everything. **Something is wrong** on a prescription cancels its reminders.
+
+**Caregiver (family contact):** `CAREGIVER +91XXXXXXXXXX` -> "what does this person call you?" (for example *Papa*) -> the caregiver gets an invite template and must reply **YES** within 48 hours. After `CAREGIVER_ALERT_AFTER_MISSES` (2) missed times in a row they get a short alert with the name and the time, **never a medicine name**. At most one alert per 6 hours and three per day. The caregiver can send `STOP ALERTS`, the user `CAREGIVER REMOVE`. Maximum 2 caregivers. `DELETE` removes everything.
+
+Run the planner by hand: the `reminders` worker registers a repeatable job every 15 minutes; `WORKERS_ENABLED=true` is enough.
+
+### Try it on a real number (dev helper)
+
+Set `REMINDER_TEST_OFFSET_MIN=3` in `.env` (refused when `NODE_ENV=production`) and restart. Then **Set reminders** -> **Yes, set them** schedules the first reminder 3 minutes from now (the next ones 2 minutes apart) instead of 08:00 / 21:00:
+
+1. Tap **Le li** on the first reminder, **Baad me** on the second (it comes back after `SNOOZE_MINUTES`).
+2. Add a second number: `CAREGIVER +91...` -> label -> reply **YES** from that number.
+3. Ignore two reminders in a row: after `REMINDER_ACK_TIMEOUT_MIN` minutes each is missed and the second miss sends the alert. For a faster test also set `REMINDER_ACK_TIMEOUT_MIN=5`.
+4. Remove the variable again afterwards.
+
+Tests: `make test` (unit, fake clock) and `make test-integration` (`reminders.int-spec.ts` walks a 5-day prescription through taken / snooze / skipped / missed / late / caregiver alert on a fake Asia/Kolkata clock; `reminders-flow.int-spec.ts` goes webhook -> router -> workers -> mocked Graph API).
+
 ## Common commands
 
 | Command | Description |
@@ -327,7 +361,7 @@ first message ──► choose language (हिन्दी / English) ──►
 
 ## User commands (on WhatsApp)
 
-`HELP` · `MEDS` · `STOP REMINDERS` · `CAREGIVER +91XXXXXXXXXX` · `LANGUAGE` · `DELETE`
+`HELP` · `MEDS` · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
 
 ## Privacy
 

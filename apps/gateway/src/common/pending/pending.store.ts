@@ -2,10 +2,21 @@ import { Global, Injectable, Module } from '@nestjs/common';
 
 import { RedisService } from '../redis/redis.service';
 
-export type PendingKind = 'delete';
+export type PendingKind =
+  | 'delete'
+  /** M10: "I am waiting for free text from this user" -> JSON `{kind, ref?}`. */
+  | 'input'
+  /** M10: the text that user sent while `input` was pending (stored ENCRYPTED, consumed once). */
+  | 'input_text'
+  /** M10: a caregiver phone number from `CAREGIVER +91...` (stored ENCRYPTED). */
+  | 'cg_phone'
+  /** M10: the user's own reminder times for one prescription -> JSON `{documentId, times}`. */
+  | 'rem_plan';
 
 /** How long a "really delete everything?" confirmation stays valid. */
 export const PENDING_TTL_SECONDS = 300;
+/** How long the bot waits for a free-text answer (caregiver label, new reminder times). */
+export const INPUT_TTL_SECONDS = 600;
 
 /**
  * Short-lived "waiting for the user's answer" markers in Redis: `pending:<kind>:<userId>`.
@@ -21,6 +32,20 @@ export class PendingStore {
 
   async set(kind: PendingKind, userId: string, ttlSeconds = PENDING_TTL_SECONDS): Promise<void> {
     await this.redis.client.set(PendingStore.key(kind, userId), '1', 'EX', ttlSeconds);
+  }
+
+  /** Store a value (callers encrypt anything sensitive first). */
+  async setValue(
+    kind: PendingKind,
+    userId: string,
+    value: string,
+    ttlSeconds = INPUT_TTL_SECONDS,
+  ): Promise<void> {
+    await this.redis.client.set(PendingStore.key(kind, userId), value, 'EX', ttlSeconds);
+  }
+
+  async getValue(kind: PendingKind, userId: string): Promise<string | null> {
+    return this.redis.client.get(PendingStore.key(kind, userId));
   }
 
   async exists(kind: PendingKind, userId: string): Promise<boolean> {

@@ -48,6 +48,11 @@ export class ReplySession {
     return this.ctx.requestId;
   }
 
+  /** `messages.id` of the inbound message being answered. */
+  get messageId(): string {
+    return this.ctx.messageId;
+  }
+
   /** Switch the language used for the REST of this session (e.g. right after the user changed it). */
   useLanguage(language: UserLanguage): void {
     this.language = language;
