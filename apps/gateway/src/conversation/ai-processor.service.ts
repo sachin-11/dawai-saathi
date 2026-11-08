@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { AiClient, toRequestId } from '../ai-client/ai-client';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import { StorageService } from '../common/storage/storage.service';
+import { DOCUMENT_ID_PLACEHOLDER, PrescriptionService } from '../documents/prescription.service';
 import { MediaService } from '../messaging/media.service';
 import { MessagesService } from '../messaging/messages.service';
 import { MAX_INTERACTIVE_BODY_LENGTH, WhatsAppClient } from '../messaging/whatsapp.client';
@@ -21,6 +22,12 @@ export const PRESIGNED_URL_TTL_SECONDS = 300;
  * many times the job is retried.
  */
 export const AI_ERROR_REPLY_INDEX = 99;
+
+/** What the AI service is given, plus the S3 key of the stored file (null for text). */
+interface PreparedInput {
+  input: ProcessRequest['input'];
+  s3Key: string | null;
+}
 
 export type AiOutcome = 'ai_reply' | 'ai_emergency' | 'media_rejected' | 'unsupported';
 
@@ -43,6 +50,7 @@ export class AiProcessor {
     private readonly users: UsersService,
     private readonly whatsapp: WhatsAppClient,
     private readonly audit: AuditService,
+    private readonly prescriptions: PrescriptionService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(AiProcessor.name);
@@ -62,14 +70,16 @@ export class AiProcessor {
         await this.markAsReadQuietly(job);
       }
 
-      const input = isMedia ? await this.mediaInput(user, job, session) : await this.textInput(job);
-      if (input === 'rejected') return 'media_rejected';
-      if (input === null) {
+      const prepared = isMedia
+        ? await this.mediaInput(user, job, session)
+        : await this.textInput(job);
+      if (prepared === 'rejected') return 'media_rejected';
+      if (prepared === null) {
         await session.text('common.unsupported_type');
         return 'unsupported';
       }
 
-      const request = await this.buildRequest(user, job, input);
+      const request = await this.buildRequest(user, job, prepared.input);
       const response = await this.ai.process(request);
       if (response.emergency) {
         // Highest queue priority, plain text (never buttons), and nothing else happens for this message.
@@ -78,7 +88,10 @@ export class AiProcessor {
         this.logResponse(job, response);
         return 'ai_emergency';
       }
-      await this.sendReply(response, session);
+      // Save before answering: the reply's buttons carry the document id, and a reply must never
+      // promise "saved" for something that was not.
+      const documentId = await this.savePrescription(user, job, response, prepared.s3Key);
+      await this.sendReply(response, session, documentId);
       this.logResponse(job, response);
       return 'ai_reply';
     } catch (error) {
@@ -90,19 +103,19 @@ export class AiProcessor {
 
   // ------------------------------------------------------------------ inputs
 
-  private async textInput(job: InboundJobData): Promise<ProcessRequest['input'] | null> {
+  private async textInput(job: InboundJobData): Promise<PreparedInput | null> {
     // The webhook stored the REDACTED text (phone numbers, Aadhaar-like numbers, emails, PINs
     // removed): that is what the AI service gets. The raw text exists nowhere.
     const message = await this.messages.findInboundForReply(job.messageId);
     const text = message?.bodyRedacted?.trim();
-    return text ? { type: 'text', text } : null;
+    return text ? { input: { type: 'text', text }, s3Key: null } : null;
   }
 
   private async mediaInput(
     user: UserState,
     job: InboundJobData,
     session: ReplySession,
-  ): Promise<ProcessRequest['input'] | 'rejected' | null> {
+  ): Promise<PreparedInput | 'rejected' | null> {
     if (!job.media) return null;
     const stored = await this.media.storeInboundMedia({
       messageId: job.messageId,
@@ -119,10 +132,13 @@ export class AiProcessor {
     }
     const mediaUrl = await this.storage.getPresignedUrl(stored.key, PRESIGNED_URL_TTL_SECONDS);
     return {
-      // The contract knows image | text | audio; photos and PDFs of documents are "image".
-      type: job.type === 'audio' ? 'audio' : 'image',
-      media_url: mediaUrl,
-      mime: stored.mimeType,
+      input: {
+        // The contract knows image | text | audio; photos and PDFs of documents are "image".
+        type: job.type === 'audio' ? 'audio' : 'image',
+        media_url: mediaUrl,
+        mime: stored.mimeType,
+      },
+      s3Key: stored.key,
     };
   }
 
@@ -145,15 +161,68 @@ export class AiProcessor {
 
   // ------------------------------------------------------------------ output
 
-  private async sendReply(response: ProcessResponse, session: ReplySession): Promise<void> {
+  /**
+   * M7: a prescription the AI service could read (or partly read) is saved as a `documents` row plus
+   * its `medications`. Returns the document id, or null when there is nothing to save (other intents,
+   * text input, no extraction).
+   */
+  private async savePrescription(
+    user: UserState,
+    job: InboundJobData,
+    response: ProcessResponse,
+    s3Key: string | null,
+  ): Promise<string | null> {
+    const extraction = response.extraction;
+    if (response.intent !== 'prescription' || !extraction) {
+      return null;
+    }
+    if (!s3Key) return null;
+    const saved = await this.prescriptions.save({
+      userId: user.id,
+      messageId: job.messageId,
+      s3Key,
+      extraction,
+      meta: response.meta,
+    });
+    this.logger.info(
+      {
+        request_id: job.requestId,
+        user_id: user.id,
+        document_id: saved.documentId,
+        status: saved.status,
+        medicines: extraction.medicines?.length ?? 0,
+        created: saved.created,
+      },
+      'prescription saved',
+    );
+    return saved.documentId;
+  }
+
+  private async sendReply(
+    response: ProcessResponse,
+    session: ReplySession,
+    documentId: string | null,
+  ): Promise<void> {
     const { text } = response.reply;
-    const buttons = response.reply.buttons ?? [];
-    if (buttons.length > 0 && text.length <= MAX_INTERACTIVE_BODY_LENGTH) {
+    // The AI service does not know the document id: its button ids carry a placeholder.
+    const buttons = (response.reply.buttons ?? []).flatMap((button) => {
+      if (!button.id.includes(DOCUMENT_ID_PLACEHOLDER)) return [button];
+      return documentId
+        ? [{ ...button, id: button.id.replace(DOCUMENT_ID_PLACEHOLDER, documentId) }]
+        : [];
+    });
+    if (buttons.length === 0) {
+      await session.rawText(text);
+      return;
+    }
+    if (text.length <= MAX_INTERACTIVE_BODY_LENGTH) {
       await session.rawButtons(text, buttons);
       return;
     }
-    // WhatsApp button messages carry at most 1024 characters of body: longer replies go as text.
+    // WhatsApp button messages carry at most 1024 characters of body: the long answer goes as plain
+    // text and the buttons follow with a short prompt, so they are never silently dropped.
     await session.rawText(text);
+    await session.rawButtonsWithPrompt('common.next_step', buttons);
   }
 
   /** The category only: never the text. A failing audit write must not hide the help message. */

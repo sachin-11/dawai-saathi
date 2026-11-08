@@ -9,6 +9,7 @@ import { CommandHandlersService } from './command-handlers.service';
 import { BUTTON_ID } from './commands';
 import { DeletionFlowService } from './deletion-flow.service';
 import { OnboardingService } from './onboarding.service';
+import { parseRxButton, RxActionsService } from './rx-actions.service';
 import { RepliesService, type ReplySession } from './replies.service';
 
 /**
@@ -32,6 +33,9 @@ export type RouteOutcome =
   | 'reminders_stopped'
   | 'reminders_started'
   | 'meds'
+  | 'rx_wrong'
+  | 'rx_coming_soon'
+  | 'rx_not_found'
   | 'echo_bot'
   | 'ai_reply'
   | 'ai_emergency'
@@ -45,7 +49,7 @@ export type RouteOutcome =
  *   1. emergency  — for everyone, even before consent, even before a language is chosen
  *   2. DELETE / HELP and the delete buttons — work in every onboarding step
  *   3. onboarding — until it is `done`, nothing else happens (no media download, no processing)
- *   4. commands for onboarded users — LANGUAGE, STOP/START REMINDERS, MEDS
+ *   4. commands for onboarded users — LANGUAGE, STOP/START REMINDERS, MEDS, prescription buttons
  *   5. everything else — the dev echo bot (if enabled) or the AI service (M5)
  *
  * The router never sees message text: the webhook turns it into `signals` (emergency / command)
@@ -59,6 +63,7 @@ export class InboundRouter {
     private readonly onboarding: OnboardingService,
     private readonly commands: CommandHandlersService,
     private readonly deletion: DeletionFlowService,
+    private readonly rxActions: RxActionsService,
     private readonly echoBot: EchoBotService,
     private readonly aiProcessor: AiProcessor,
     private readonly logger: PinoLogger,
@@ -149,6 +154,12 @@ export class InboundRouter {
     if (command === 'meds') {
       await this.commands.meds(user, session);
       return 'meds';
+    }
+
+    // Prescription buttons (`rx:wrong:<document id>` ...): matched by id, never by title.
+    const rxButton = buttonId ? parseRxButton(buttonId) : null;
+    if (rxButton) {
+      return this.rxActions.handle(user, rxButton, session);
     }
 
     // 5. Everything else.

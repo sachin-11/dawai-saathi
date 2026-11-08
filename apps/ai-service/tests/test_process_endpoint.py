@@ -25,6 +25,7 @@ from app.observability.tracing import LangfuseTracer, observe_llm_call, trace_id
 from app.pipeline.base import PipelineContext, PipelineOutput
 from app.schemas.process import MAX_BUTTONS, MAX_REPLY_CHARS, ProcessRequest, Reply, ReplyButton
 from tests.conftest import SERVICE_TOKEN, make_settings
+from tests.rx_support import fake_fetch, sample_jpeg
 from tests.test_tracing import FakeLangfuse
 
 URL = "/v1/process"
@@ -102,7 +103,7 @@ class TestSuccess:
         assert body["reply"]["buttons"] == []
         meta = body["meta"]
         assert meta["model"] == "fake-model" and meta["provider"] == "fake"
-        assert meta["prompt_version"] == "reply_templates_v2,emergency_classify_v1,intent_text_v2"
+        assert meta["prompt_version"] == "reply_templates_v3,emergency_classify_v1,intent_text_v2"
         assert meta["fallback_used"] is False
         assert meta["latency_ms"] >= 0 and meta["cost_usd"] == 0
         assert meta["trace_id"] is None  # no Langfuse configured
@@ -125,14 +126,15 @@ class TestSuccess:
         assert res.json()["intent"] == "greeting"
         assert "नमस्ते" in res.json()["reply"]["text"]
 
-    async def test_an_image_is_acknowledged_without_any_llm_call(self):
+    async def test_a_voice_note_is_acknowledged_without_any_llm_call(self):
+        # Audio is still a static "received" reply (STT arrives with M13). Images are read since M7.
         provider = FakeProvider()
         app, _ = app_with(provider)
         body = payload(
             input={
-                "type": "image",
+                "type": "audio",
                 "media_url": "http://localhost:9000/b/k?s=1",
-                "mime": "image/jpeg",
+                "mime": "audio/ogg",
             }
         )
         async with client_for(app) as client:
@@ -448,9 +450,12 @@ class TestSafetyLayerEndToEnd:
         )
         assert "9876543210" not in everything and "2345 6789 0124" not in everything
 
-    async def test_an_emergency_in_an_image_request_cannot_exist(self):
-        provider = FakeProvider()
+    async def test_an_emergency_in_an_image_request_cannot_exist(self, monkeypatch):
+        # The guard runs on typed text and voice transcripts only. An image goes to the document
+        # pipeline: its model calls are the image classifier / extractor, never the emergency one.
+        provider = FakeProvider([{"kind": "other", "quality": "good", "confidence": 0.9}])
         app, _ = app_with(provider)
+        monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg"))
         body = payload(
             input={
                 "type": "image",
@@ -460,7 +465,8 @@ class TestSafetyLayerEndToEnd:
         )
         async with client_for(app) as client:
             res = await client.post(URL, json=body, headers=HEADERS)
-        assert res.json()["emergency"] is False and provider.calls == []
+        assert res.json()["emergency"] is False
+        assert all("is_emergency" not in str(c["response_model"]) for c in provider.calls)
 
     async def test_emergency_makes_no_llm_calls_and_costs_nothing(self):
         provider = FakeProvider()

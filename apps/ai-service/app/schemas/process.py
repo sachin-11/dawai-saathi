@@ -11,6 +11,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from app.schemas.prescription import PrescriptionExtraction
+
 # A WhatsApp message id (the gateway uses it as request id) or a UUID. Restricted to a log-safe
 # alphabet: no spaces, quotes or control characters (log injection).
 RequestId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9._=+/-]{1,200}$")]
@@ -118,17 +120,9 @@ class ProcessRequest(_Strict):
 # ------------------------------------------------------------------ response
 
 
-class PlaceholderExtraction(BaseModel):
-    """Stand-in until real extraction schemas arrive (prescription: M7, lab report: M12).
-
-    `extraction` is discriminated by `kind`; M7/M12 turn `Extraction` into a tagged union of the
-    real payloads and this placeholder disappears.
-    """
-
-    kind: Literal["placeholder"] = "placeholder"
-
-
-Extraction = PlaceholderExtraction
+# `extraction` is the intent-specific structured payload. M7 ships the prescription payload; M12
+# turns this alias into a union discriminated by `kind` (prescription | lab_report).
+Extraction = PrescriptionExtraction
 
 
 class Warning(BaseModel):

@@ -1,0 +1,19 @@
+{#- Deterministic prescription reply (Hindi). Same data as the composer gets; no LLM. -#}
+📋 आपकी पर्ची में {% if count == 1 %}1 दवाई{% else %}{{ count }} दवाइयाँ{% endif %} मिलीं:
+
+{% for m in medicines -%}
+{{ m.number }}. {% if m.low -%}
+{%- if m.head %}{{ m.head }} — इसका {{ m.unclear_text }} साफ़ नहीं पढ़ा गया। कृपया फ़ार्मासिस्ट से पूछकर पक्का करें।
+{%- else %}यह दवाई साफ़ नहीं पढ़ी गई। कृपया फ़ार्मासिस्ट से पूछकर पक्का करें।{% endif -%}
+{%- elif m.llm_line -%}{{ m.llm_line }}
+{%- else -%}{{ m.head }}{% if m.parts %} — {{ m.parts | join(", ") }}{% endif %}{% endif %}
+{% endfor %}
+{%- if any_low %}
+⚠️ कुछ दवाइयाँ साफ़ नहीं पढ़ी जा सकीं। कृपया उन्हें फ़ार्मासिस्ट से पक्का करें।
+{%- endif %}
+{%- if "duplicate" in notes %}
+⚠️ एक ही दवाई एक से ज़्यादा बार लिखी दिख रही है। कृपया फ़ार्मासिस्ट से जाँच लें।
+{%- endif %}
+{%- if "poor_quality" in notes %}
+ℹ️ फ़ोटो बहुत साफ़ नहीं थी, इसलिए सब कुछ फ़ार्मासिस्ट से दोबारा जाँच लें।
+{%- endif %}

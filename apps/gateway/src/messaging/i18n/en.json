@@ -38,5 +38,12 @@
   "buttons.consent_yes": "I agree",
   "buttons.consent_no": "Not now",
   "buttons.delete_yes": "Yes, delete all",
-  "buttons.delete_no": "No"
+  "buttons.delete_no": "No",
+  "common.next_step": "What would you like to do next?",
+  "rx.wrong_ack": "Thank you for telling me. I marked this prescription as \"needs checking\" and will not use its medicines for reminders. Please show the prescription to your pharmacist, or type the correct details here.",
+  "rx.reminders_soon": "Dose reminders are coming soon. Your medicines are saved: send MEDS to see them.",
+  "rx.generic_soon": "Generic medicine suggestions are coming soon.",
+  "rx.not_found": "I could not find that prescription any more. Please send the photo again.",
+  "meds.when_as_needed": "only when needed",
+  "meds.when_times": "{{count}} times a day"
 }

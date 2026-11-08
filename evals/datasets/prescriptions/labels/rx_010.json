@@ -1,0 +1,171 @@
+{
+  "id": "rx_010",
+  "layout": 1,
+  "gold": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Tab. Metformin 1-0-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Metformin",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Pantop 40 1-0-0",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Pantop 40",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-0",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "before",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Crocin 500 SOS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Crocin 500",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "SOS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": true,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "overall_confidence": 0.9,
+    "notes_for_user": []
+  },
+  "unreadable_indexes": [],
+  "decoy_name": "Omez",
+  "phi_strings": [
+    "Sunita Devi",
+    "A. K. Verma",
+    "9647491680",
+    "City Health Centre"
+  ]
+}

@@ -13,6 +13,7 @@ from app.llm.types import LLMResult
 from app.prompts.registry import PromptRegistry, TemplateStore
 from app.safety.emergency_guard import EmergencyGuard
 from app.safety.redaction import Redactor, get_redactor
+from app.schemas.prescription import PrescriptionExtraction
 from app.schemas.process import EmergencyCategory, Intent, ProcessRequest, Reply, Warning
 
 
@@ -60,6 +61,7 @@ class PipelineOutput:
     reply: Reply
     warnings: list[Warning] = field(default_factory=list)
     emergency_category: EmergencyCategory | None = None
+    extraction: PrescriptionExtraction | None = None
 
 
 class Pipeline(Protocol):

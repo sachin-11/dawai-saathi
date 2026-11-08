@@ -44,6 +44,15 @@ function freshFixture(name: string, phone: string = randomPhone()): { raw: Buffe
   return { raw: Buffer.from(raw), phone };
 }
 
+/**
+ * The recorded fixtures carry a fixed timestamp. A message older than 24 hours closes WhatsApp's
+ * customer-service window, so a test that needs the bot to ANSWER must send a current timestamp.
+ */
+function withCurrentTimestamps(raw: Buffer): Buffer {
+  const now = String(Math.floor(Date.now() / 1000));
+  return Buffer.from(raw.toString().replace(/"timestamp":\s*"\d+"/g, `"timestamp": "${now}"`));
+}
+
 function randomPhone(): string {
   return `919${String(randomInt(0, 1_000_000_000)).padStart(9, '0')}`;
 }
@@ -380,7 +389,7 @@ describe('inbound worker (integration)', () => {
     const prisma = app.get(PrismaService);
     const queue = app.get(InboundQueue);
     const phone = randomPhone();
-    const { raw } = freshFixture('text', phone);
+    const raw = withCurrentTimestamps(freshFixture('text', phone).raw);
 
     try {
       await request(app.getHttpServer())

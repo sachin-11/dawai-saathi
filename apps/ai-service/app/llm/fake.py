@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.llm.fake_rx import SAMPLE_CLASSIFICATION, SAMPLE_EXTRACTION, fake_compose
 from app.llm.types import ImageInput, LLMError, Message, RawResult
 
 FAKE_MODEL = "fake-model"
@@ -98,6 +99,15 @@ def default_fake_response(
     if response_model is None:
         return "This is a fake LLM response."
     last_user = next((m.content for m in reversed(messages) if m.role == "user"), "").lower()
+    fields = response_model.model_fields
+    # M7: the prescription flow (classify -> extract -> compose). The fake never looks at pixels.
+    if "kind" in fields and "quality" in fields and "confidence" in fields:
+        return json.dumps(SAMPLE_CLASSIFICATION)
+    if "is_prescription" in fields:
+        return json.dumps(SAMPLE_EXTRACTION)
+    if "items" in fields:
+        raw_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
+        return fake_compose([m.content for m in messages], raw_user)
     if "is_emergency" in response_model.model_fields:
         hit = any(hint in last_user for hint in _EMERGENCY_HINTS)
         return json.dumps(

@@ -12,6 +12,8 @@ const isPlaceholder = (value: string): boolean =>
  */
 export const DEV_ENCRYPTION_KEY = 'ZGF3YWktbG9jYWwtZGV2LWtleS1ub3Qtc2VjcmV0ISE=';
 
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** Empty string means "not set" (e.g. `S3_ENDPOINT=` on AWS). */
 const emptyToUndefined = (value: unknown): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
@@ -87,6 +89,18 @@ export const envSchema = z
     PRIVACY_POLICY_URL: z
       .url({ protocol: /^https?$/ })
       .default('https://dawaisaathi.example/privacy'),
+    // --- M7: prescriptions
+    /**
+     * Endpoint used ONLY to presign media URLs for the AI service, when the AI service reaches S3
+     * under another hostname than the gateway (e.g. `http://minio:9000` from a container). Empty:
+     * the same endpoint as `S3_ENDPOINT`. The AI service must have the host in ALLOWED_MEDIA_HOSTS.
+     */
+    S3_AI_ENDPOINT: z.preprocess(emptyToUndefined, z.url({ protocol: /^https?$/ }).optional()),
+    /** Clock times (Asia/Kolkata) a written "morning / afternoon / evening / night" is saved as. */
+    MED_TIME_MORNING: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('08:00'),
+    MED_TIME_AFTERNOON: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('14:00'),
+    MED_TIME_EVENING: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('18:00'),
+    MED_TIME_NIGHT: z.string().regex(CLOCK_TIME, 'must be HH:MM').default('21:00'),
     /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
     S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })

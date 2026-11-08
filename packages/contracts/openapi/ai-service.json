@@ -21,6 +21,32 @@
         "title": "ActiveMedication",
         "type": "object"
       },
+      "DateField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "DateField",
+        "type": "object"
+      },
       "EmergencyCategory": {
         "description": "Why a message was treated as an emergency (shared with the keyword file's categories).",
         "enum": [
@@ -36,6 +62,68 @@
         ],
         "title": "EmergencyCategory",
         "type": "string"
+      },
+      "FoodField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "enum": ["before", "after", "with", "any"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "FoodField",
+        "type": "object"
+      },
+      "FormField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tablet",
+                  "capsule",
+                  "syrup",
+                  "injection",
+                  "drops",
+                  "cream",
+                  "inhaler",
+                  "powder",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "FormField",
+        "type": "object"
       },
       "InputPayload": {
         "additionalProperties": false,
@@ -89,6 +177,31 @@
         "title": "InputType",
         "type": "string"
       },
+      "IntField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "IntField",
+        "type": "object"
+      },
       "Intent": {
         "enum": [
           "prescription",
@@ -119,6 +232,77 @@
         },
         "required": ["status"],
         "title": "LivenessResponse",
+        "type": "object"
+      },
+      "Medicine": {
+        "additionalProperties": false,
+        "properties": {
+          "as_needed": {
+            "default": false,
+            "title": "As Needed",
+            "type": "boolean"
+          },
+          "dose": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "duration_days": {
+            "$ref": "#/components/schemas/IntField"
+          },
+          "form": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "frequency_code": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "frequency_per_day": {
+            "$ref": "#/components/schemas/IntField"
+          },
+          "instructions": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "low_confidence": {
+            "default": false,
+            "title": "Low Confidence",
+            "type": "boolean"
+          },
+          "name": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "raw_text": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "relation_to_food": {
+            "$ref": "#/components/schemas/FoodField"
+          },
+          "strength": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "timings": {
+            "$ref": "#/components/schemas/TimingsField"
+          },
+          "validation_notes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Validation Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "raw_text",
+          "name",
+          "form",
+          "strength",
+          "dose",
+          "frequency_code",
+          "frequency_per_day",
+          "timings",
+          "relation_to_food",
+          "duration_days",
+          "instructions"
+        ],
+        "title": "Medicine",
         "type": "object"
       },
       "Meta": {
@@ -180,17 +364,59 @@
         "title": "Meta",
         "type": "object"
       },
-      "PlaceholderExtraction": {
-        "description": "Stand-in until real extraction schemas arrive (prescription: M7, lab report: M12).\n\n`extraction` is discriminated by `kind`; M7/M12 turn `Extraction` into a tagged union of the\nreal payloads and this placeholder disappears.",
+      "PrescriptionExtraction": {
+        "additionalProperties": false,
         "properties": {
+          "image_quality": {
+            "enum": ["good", "poor", "unreadable"],
+            "title": "Image Quality",
+            "type": "string"
+          },
+          "is_prescription": {
+            "title": "Is Prescription",
+            "type": "boolean"
+          },
           "kind": {
-            "const": "placeholder",
-            "default": "placeholder",
+            "const": "prescription",
+            "default": "prescription",
             "title": "Kind",
+            "type": "string"
+          },
+          "medicines": {
+            "items": {
+              "$ref": "#/components/schemas/Medicine"
+            },
+            "maxItems": 20,
+            "title": "Medicines",
+            "type": "array"
+          },
+          "notes_for_user": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Notes For User",
+            "type": "array"
+          },
+          "overall_confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Overall Confidence",
+            "type": "number"
+          },
+          "prescription_date": {
+            "$ref": "#/components/schemas/DateField"
+          },
+          "status": {
+            "default": "done",
+            "enum": ["done", "needs_review", "failed"],
+            "title": "Status",
             "type": "string"
           }
         },
-        "title": "PlaceholderExtraction",
+        "required": ["is_prescription", "image_quality", "prescription_date"],
+        "title": "PrescriptionExtraction",
         "type": "object"
       },
       "ProcessRequest": {
@@ -235,7 +461,7 @@
           "extraction": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PlaceholderExtraction"
+                "$ref": "#/components/schemas/PrescriptionExtraction"
               },
               {
                 "type": "null"
@@ -356,6 +582,60 @@
           }
         },
         "title": "RequestContext",
+        "type": "object"
+      },
+      "TextField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "TextField",
+        "type": "object"
+      },
+      "TimingsField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": ["morning", "afternoon", "evening", "night"],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "TimingsField",
         "type": "object"
       },
       "UserContext": {

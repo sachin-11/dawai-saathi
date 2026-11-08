@@ -1,0 +1,268 @@
+{
+  "id": "rx_018",
+  "layout": 0,
+  "gold": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Tab. Telma 40 OD",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Telma 40",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1/2 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "OD",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Cap. Becosules 1-1-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Becosules",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "capsule",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 capsule",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-1-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 3,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "afternoon",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Crocin 500 SOS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Crocin 500",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "SOS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": true,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Pantop 40 1-0-0",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Pantop 40",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-0",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "before",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Cetzine HS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Cetzine",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "10 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "HS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": 7,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "overall_confidence": 0.9,
+    "notes_for_user": []
+  },
+  "unreadable_indexes": [],
+  "decoy_name": null,
+  "phi_strings": [
+    "Sunita Devi",
+    "P. Banerjee",
+    "9958792188",
+    "Shanti Care Clinic"
+  ]
+}

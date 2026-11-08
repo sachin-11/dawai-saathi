@@ -12,7 +12,7 @@ GATEWAY_DIR := apps/gateway
 # Real environment variables already set in your shell are overridden by .env, so unset them if needed.
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
-.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency \
+.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx \
         up down migrate seed eval
 
 help: ## Show available targets
@@ -123,5 +123,8 @@ seed: ## [M8] Load catalog datasets
 eval-emergency: ## Emergency-detection eval (rules + fake classifier). Real model: add `MODE=real`
 	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode rules
 	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode $(or $(MODE),fake)
+eval-rx: ## Prescription eval on synthetic images (fake replay). Real model: `make eval-rx MODE=real` (needs keys)
+	@[ -d evals/datasets/prescriptions/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_rx.py
+	uv run --project $(AI_DIR) python evals/run_rx_eval.py --mode $(or $(MODE),fake)
 eval: ## [M14] Run the evaluation suite
 	@echo "make eval: not implemented yet - arrives in M14 (eval harness & CI gates)."

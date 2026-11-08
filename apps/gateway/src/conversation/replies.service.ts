@@ -53,6 +53,11 @@ export class ReplySession {
     this.language = language;
   }
 
+  /** A translated string in the session's language (for building a longer line). */
+  translate(key: MessageKey, params: Params = {}): string {
+    return this.i18n.t(this.language, key, params);
+  }
+
   text(key: MessageKey, params: Params = {}): Promise<void> {
     return this.sendText(this.i18n.t(this.language, key, params));
   }
@@ -83,6 +88,14 @@ export class ReplySession {
       replyIndex: this.nextIndex++,
       requestId: this.ctx.requestId,
     });
+  }
+
+  /** Buttons from the AI service under a short translated prompt (when the answer itself was long). */
+  rawButtonsWithPrompt(
+    bodyKey: MessageKey,
+    buttons: readonly { id: string; title: string }[],
+  ): Promise<void> {
+    return this.rawButtons(this.i18n.t(this.language, bodyKey), buttons);
   }
 
   buttons(bodyKey: MessageKey, params: Params, buttons: readonly ButtonSpec[]): Promise<void> {

@@ -8,6 +8,7 @@ import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
 import type { OnboardingService } from './onboarding.service';
+import type { RxActionsService } from './rx-actions.service';
 import type { RepliesService } from './replies.service';
 
 const NOW = new Date('2026-11-07T12:00:00Z');
@@ -42,6 +43,7 @@ function setup(
   commands: Record<'help' | 'askLanguage' | 'setLanguage' | 'setReminders' | 'meds', jest.Mock>;
   deletion: Record<'request' | 'confirm' | 'cancel', jest.Mock>;
   echoBot: { enabled: boolean; handle: jest.Mock };
+  rxActions: { handle: jest.Mock };
   ai: { handle: jest.Mock };
 } {
   const session = {
@@ -69,6 +71,7 @@ function setup(
     handle: jest.fn().mockResolvedValue(undefined),
   };
   const ai = { handle: jest.fn().mockResolvedValue('ai_reply') };
+  const rxActions = { handle: jest.fn().mockResolvedValue('rx_wrong') };
   const logger = { setContext: jest.fn(), info: jest.fn() };
   const router = new InboundRouter(
     { getState: jest.fn().mockResolvedValue(state) } as unknown as UsersService,
@@ -76,11 +79,12 @@ function setup(
     onboarding as unknown as OnboardingService,
     commands as unknown as CommandHandlersService,
     deletion as unknown as DeletionFlowService,
+    rxActions as unknown as RxActionsService,
     echoBot as unknown as EchoBotService,
     ai as unknown as AiProcessor,
     logger as unknown as PinoLogger,
   );
-  return { router, session, onboarding, commands, deletion, echoBot, ai };
+  return { router, session, onboarding, commands, deletion, echoBot, ai, rxActions };
 }
 
 const STEPS: OnboardingStep[] = ['language', 'consent', 'done'];
@@ -346,6 +350,41 @@ describe('InboundRouter', () => {
       await s.router.route(job({ signals: { command: 'help' } }), NOW);
       await s.router.route(job({ signals: { emergency: 'general' } }), NOW);
       expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('prescription buttons (M7)', () => {
+    const rxJob = (id: string): InboundJobData =>
+      job({ type: 'button', button: { id, title: 'whatever the title says' } });
+    const DOC = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';
+
+    it.each(['reminders', 'generic', 'wrong'] as const)(
+      'routes rx:%s:<id> to the prescription actions, never to the AI',
+      async (action) => {
+        const s = setup(user());
+        await expect(s.router.route(rxJob(`rx:${action}:${DOC}`), NOW)).resolves.toBe('rx_wrong');
+        expect(s.rxActions.handle).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'user-1' }),
+          { action, documentId: DOC },
+          s.session,
+        );
+        expect(s.ai.handle).not.toHaveBeenCalled();
+      },
+    );
+
+    it('matches on the button id, not the title', async () => {
+      const s = setup(user());
+      await s.router.route(
+        job({ type: 'button', button: { id: 'something:else', title: 'Something is wrong' } }),
+        NOW,
+      );
+      expect(s.rxActions.handle).not.toHaveBeenCalled();
+    });
+
+    it('is not reachable before onboarding is done', async () => {
+      const s = setup(user({ onboardingStep: 'consent' }));
+      await s.router.route(rxJob(`rx:wrong:${DOC}`), NOW);
+      expect(s.rxActions.handle).not.toHaveBeenCalled();
     });
   });
 });

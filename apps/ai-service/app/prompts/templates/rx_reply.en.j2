@@ -1,0 +1,19 @@
+{#- Deterministic prescription reply (English). Same data as the composer gets; no LLM. -#}
+📋 {% if count == 1 %}I found 1 medicine in your prescription:{% else %}I found {{ count }} medicines in your prescription:{% endif %}
+
+{% for m in medicines -%}
+{{ m.number }}. {% if m.low -%}
+{%- if m.head %}{{ m.head }} — I could not read the {{ m.unclear_text }} clearly. Please confirm with your pharmacist.
+{%- else %}I could not read this medicine clearly. Please confirm with your pharmacist.{% endif -%}
+{%- elif m.llm_line -%}{{ m.llm_line }}
+{%- else -%}{{ m.head }}{% if m.parts %} — {{ m.parts | join(", ") }}{% endif %}{% endif %}
+{% endfor %}
+{%- if any_low %}
+⚠️ Some items could not be read clearly. Please confirm those with your pharmacist.
+{%- endif %}
+{%- if "duplicate" in notes %}
+⚠️ The same medicine appears more than once. Please check this with your pharmacist.
+{%- endif %}
+{%- if "poor_quality" in notes %}
+ℹ️ The photo was not very clear, so please double-check everything with your pharmacist.
+{%- endif %}

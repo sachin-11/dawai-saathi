@@ -23,26 +23,33 @@ import type { Env } from '../../config/env.schema';
 @Injectable()
 export class StorageService implements OnModuleDestroy {
   readonly client: S3Client;
+  /** Signs the URLs given to the AI service: same as `client` unless `S3_AI_ENDPOINT` is set. */
+  private readonly presignClient: S3Client;
   readonly bucket: string;
   private readonly sse: Env['S3_SSE'];
 
   constructor(@Inject(APP_CONFIG) env: Env) {
     this.bucket = env.S3_BUCKET;
     this.sse = env.S3_SSE;
-    this.client = new S3Client({
-      region: env.AWS_REGION,
-      ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT, forcePathStyle: true } : {}),
-      ...(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
-        ? {
-            credentials: {
-              accessKeyId: env.S3_ACCESS_KEY_ID,
-              secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-            },
-          }
-        : {}),
-      // Health checks must not hide behind SDK retries.
-      maxAttempts: 2,
-    });
+    const build = (endpoint: string | undefined): S3Client =>
+      new S3Client({
+        region: env.AWS_REGION,
+        ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
+        ...(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
+          ? {
+              credentials: {
+                accessKeyId: env.S3_ACCESS_KEY_ID,
+                secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+              },
+            }
+          : {}),
+        // Health checks must not hide behind SDK retries.
+        maxAttempts: 2,
+      });
+    this.client = build(env.S3_ENDPOINT);
+    // A presigned URL is bound to the host it was signed for, so the AI service's hostname needs
+    // its own client (signing only: nothing is ever sent through it).
+    this.presignClient = env.S3_AI_ENDPOINT ? build(env.S3_AI_ENDPOINT) : this.client;
   }
 
   /** HeadBucket: proves endpoint, credentials and bucket all work. Throws otherwise. */
@@ -76,9 +83,13 @@ export class StorageService implements OnModuleDestroy {
 
   /** Time-limited GET URL (default 5 minutes) so the AI service can fetch a file without credentials. */
   getPresignedUrl(key: string, ttlSeconds = 300): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: ttlSeconds,
-    });
+    return getSignedUrl(
+      this.presignClient,
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      {
+        expiresIn: ttlSeconds,
+      },
+    );
   }
 
   async deleteObject(key: string): Promise<void> {
@@ -142,5 +153,6 @@ export class StorageService implements OnModuleDestroy {
 
   onModuleDestroy(): void {
     this.client.destroy();
+    if (this.presignClient !== this.client) this.presignClient.destroy();
   }
 }
