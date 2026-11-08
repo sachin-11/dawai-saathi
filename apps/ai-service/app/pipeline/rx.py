@@ -1,12 +1,11 @@
-"""The prescription pipeline (M7). Replaced by the LangGraph graph in M9 behind the same interface.
+"""The prescription pipeline (M7, extended in M8). Since M9 the default is the LangGraph pipeline
+(`app/graph`); this one stays behind `PIPELINE=minimal` as a rollback switch and is removed in M14.
 
   image / PDF
-    -> fetch (SSRF-safe)                      -> PDF: render the first pages
-    -> prep (orientation, RGB, downscale, EXIF stripped, quality signals)
-    -> hopeless quality?   yes: ask for a better photo, NO model call
+    -> load (fetch, PDF pages, prep, hopeless-photo check)        `app/tools/image_input.py`
     -> classify_image (cheap vision model): prescription | lab_report | medicine_strip | other
     -> vision_extract_rx (VISION_MODEL; one repair retry in the router)
-    -> redact free text, validate_and_normalise (deterministic), confidence_gate
+    -> redact free text, validate, match the catalog, confidence gate
     -> compose_reply (LLM lines + grounding check, or the template) + disclaimer + buttons
 
 Text and audio go to the inner pipeline unchanged (M5/M6). The emergency guard does NOT run here:
@@ -14,44 +13,37 @@ words written on a document are history, not a message from the user (CLAUDE.md 
 """
 
 import asyncio
-from collections.abc import Callable
-from typing import Final
 
 import structlog
 
-from app.api.errors import ApiError
 from app.llm.types import ImageInput, LLMResult
-from app.media.fetcher import IMAGE_MIME_TYPES, FetchedMedia, MediaRejectedError, fetch_media
 from app.pipeline.base import Pipeline, PipelineContext, PipelineOutput
-from app.schemas.catalog import DrugMatch
-from app.schemas.prescription import DateField, PrescriptionExtraction, TextField
 from app.schemas.process import (
     InputType,
     Intent,
     Language,
     ProcessRequest,
     Reply,
-    Warning,
-    WarningType,
 )
 from app.tools.classify_image import IMAGE_CLASSIFY_PROMPT_ID, classify_image
-from app.tools.generic_finder import MedicineFacts
-from app.tools.image_prep import ImagePrepError, PreparedImage, prepare_image, prepare_pil
-from app.tools.pdf_render import PdfRejectedError, render_pdf_pages
+from app.tools.image_input import load_images
 from app.tools.rx_compose import (
     RX_COMPOSE_PROMPT_ID,
     RX_TEMPLATE_VERSION,
     build_reply,
     compose_text,
 )
-from app.tools.rx_gate import apply_gate, unclear_fields
+from app.tools.rx_enrich import (
+    NEEDS_REVIEW_WARNING,
+    enrich_with_catalog,
+    needs_review_extraction,
+    redact_free_text,
+)
+from app.tools.rx_gate import apply_gate
 from app.tools.rx_validate import validate_extraction
 from app.tools.vision_extract_rx import RX_EXTRACT_PROMPT_ID, extract_prescription
 
 log = structlog.get_logger("rx_pipeline")
-
-# Fetch failures that are the user's file (not our infrastructure): answer politely, do not retry.
-_USER_FILE_CODES: Final = frozenset({"too_large", "mime_not_allowed", "not_an_image"})
 
 
 class RxPipeline:
@@ -71,21 +63,11 @@ class RxPipeline:
         language = request.user.language
         ctx.usage.add_prompt_version(ctx.templates.version)
 
-        media = await self._fetch(request, ctx)
-        if isinstance(media, PipelineOutput):
-            return media
+        loaded = await load_images(request, ctx.settings)
+        if loaded.template_key is not None:
+            return _static(ctx, language, loaded.template_key, Intent.other)
 
-        prepared = await self._prepare(media, ctx, language)
-        if isinstance(prepared, PipelineOutput):
-            return prepared
-
-        # Hopeless photo: do not pay for a vision call (CLAUDE.md M7 §3). Every page must be hopeless.
-        if all(page.quality.unreadable for page in prepared):
-            hint = prepared[0].quality.hint()
-            log.info("image_quality_rejected", hint=hint, pages=len(prepared))
-            return _static(ctx, language, f"rx.resend_{hint}", Intent.other)
-
-        images = [page.image for page in prepared]
+        images = loaded.images
         classification, result = await classify_image(
             images, router=ctx.router, prompts=ctx.prompts, deadline=ctx.deadline
         )
@@ -114,9 +96,9 @@ class RxPipeline:
             return _needs_review(ctx, language)
 
         threshold = ctx.settings.extraction_min_confidence
-        extraction = await asyncio.to_thread(_redact_free_text, extraction, ctx)
+        extraction = await asyncio.to_thread(redact_free_text, extraction, ctx.redactor)
         validated = validate_extraction(extraction, threshold)
-        validated = await _enrich_with_catalog(validated, ctx, threshold)
+        validated = await enrich_with_catalog(validated, ctx.catalog, threshold)
         gate = apply_gate(validated, threshold)
         gated = gate.extraction
 
@@ -151,51 +133,6 @@ class RxPipeline:
             extraction=gated,
         )
 
-    # ------------------------------------------------------------------ input handling
-
-    async def _fetch(
-        self, request: ProcessRequest, ctx: PipelineContext
-    ) -> FetchedMedia | PipelineOutput:
-        language = request.user.language
-        assert request.input.media_url is not None and request.input.mime is not None  # noqa: S101
-        try:
-            return await fetch_media(request.input.media_url, request.input.mime, ctx.settings)
-        except MediaRejectedError as error:
-            if error.code in _USER_FILE_CODES:
-                return _static(ctx, language, "rx.bad_file", Intent.other)
-            # Our side (URL expired, host not allowed, S3 down): the gateway retries.
-            log.warning("media_fetch_failed", code=error.code)
-            raise ApiError(
-                502, "MEDIA_FETCH_FAILED", "The uploaded file could not be fetched"
-            ) from None
-
-    async def _prepare(
-        self, media: FetchedMedia, ctx: PipelineContext, language: Language
-    ) -> list[PreparedImage] | PipelineOutput:
-        max_px = ctx.settings.vision_max_px
-        sharpness = ctx.settings.image_min_sharpness
-
-        def work() -> list[PreparedImage]:
-            if media.mime == "application/pdf":
-                pages = render_pdf_pages(media.data, max_px=max_px)
-                return [prepare_pil(p, max_px=max_px, min_sharpness=sharpness) for p in pages]
-            if media.mime not in IMAGE_MIME_TYPES:
-                raise ImagePrepError("not_an_image", "not an image")
-            return [prepare_image(media.data, max_px=max_px, min_sharpness=sharpness)]
-
-        try:
-            return await asyncio.to_thread(work)
-        except PdfRejectedError as error:
-            key = {
-                "encrypted_pdf": "rx.pdf_encrypted",
-                "too_many_pages": "rx.pdf_too_long",
-            }.get(error.code, "rx.bad_file")
-            log.info("pdf_rejected", code=error.code)
-            return _static(ctx, language, key, Intent.other)
-        except ImagePrepError as error:
-            log.info("image_rejected", code=error.code)
-            return _static(ctx, language, "rx.bad_file", Intent.other)
-
 
 # ---------------------------------------------------------------------- helpers
 
@@ -217,74 +154,10 @@ def _static(ctx: PipelineContext, language: Language, key: str, intent: Intent) 
 
 
 def _needs_review(ctx: PipelineContext, language: Language) -> PipelineOutput:
-    extraction = PrescriptionExtraction(
-        is_prescription=True,
-        image_quality="poor",
-        medicines=[],
-        prescription_date=DateField(value=None, confidence=0.0),
-        overall_confidence=0.0,
-        status="needs_review",
-    )
     return PipelineOutput(
         intent=Intent.prescription,
         emergency=False,
         reply=Reply(language=language, text=ctx.templates.get(language, "rx.needs_review")),
-        warnings=[
-            Warning(type=WarningType.low_confidence, detail="prescription could not be read")
-        ],
-        extraction=extraction,
+        warnings=[NEEDS_REVIEW_WARNING],
+        extraction=needs_review_extraction(),
     )
-
-
-def _redact_free_text(
-    extraction: PrescriptionExtraction, ctx: PipelineContext
-) -> PrescriptionExtraction:
-    """PHI minimisation, second line: the schema has no PHI fields, and the few free-text fields
-    (the written line, instructions, notes) still go through the redactor before anything is stored."""
-    redact: Callable[[str], str] = lambda text: ctx.redactor.redact(text).text  # noqa: E731
-    medicines = []
-    for medicine in extraction.medicines:
-        updated = medicine.model_copy(deep=True)
-        if updated.raw_text.value:
-            updated.raw_text = TextField(
-                value=redact(updated.raw_text.value), confidence=updated.raw_text.confidence
-            )
-        if updated.instructions.value:
-            updated.instructions = TextField(
-                value=redact(updated.instructions.value), confidence=updated.instructions.confidence
-            )
-        medicines.append(updated)
-    notes = [redact(note) for note in extraction.notes_for_user]
-    return extraction.model_copy(update={"medicines": medicines, "notes_for_user": notes})
-
-
-async def _enrich_with_catalog(
-    extraction: PrescriptionExtraction, ctx: PipelineContext, threshold: float
-) -> PrescriptionExtraction:
-    """normalize_drugs + generic_finder (M8): deterministic, after validation and before the gate.
-
-    Whatever the model put in `match` / `generic` is discarded first. A medicine whose NAME could not
-    be read is not matched at all (nothing to look up); one with an unclear dose or frequency is
-    matched but gets no generic suggestion (reason `low_confidence`).
-    """
-    catalog = ctx.catalog
-    medicines = []
-    for medicine in extraction.medicines:
-        updated = medicine.model_copy(update={"match": None, "generic": None})
-        unclear = unclear_fields(updated, threshold)
-        if catalog is not None and updated.name.value is not None and "name" not in unclear:
-            match: DrugMatch = await catalog.match(
-                updated.name.value, updated.strength.value, updated.form.value
-            )
-            facts = MedicineFacts(
-                low_confidence=bool(unclear),
-                dose=updated.dose.value,
-                frequency_per_day=updated.frequency_per_day.value,
-                duration_days=updated.duration_days.value,
-                as_needed=updated.as_needed,
-            )
-            updated = updated.model_copy(
-                update={"match": match, "generic": await catalog.generic(match, facts)}
-            )
-        medicines.append(updated)
-    return extraction.model_copy(update={"medicines": medicines})

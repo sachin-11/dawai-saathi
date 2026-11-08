@@ -1,0 +1,59 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	emergency_guard(emergency_guard)
+	redact(redact)
+	emergency_classifier(emergency_classifier)
+	transcribe(transcribe)
+	prepare_image(prepare_image)
+	classify(classify)
+	vision_extract_rx(vision_extract_rx)
+	validate_rx(validate_rx)
+	normalize_drugs(normalize_drugs)
+	generic_finder(generic_finder)
+	confidence_gate(confidence_gate)
+	extract_query(extract_query)
+	composer(composer)
+	verifier(verifier)
+	templates(templates)
+	rx_fallback(rx_fallback)
+	__end__([<p>__end__</p>]):::last
+	__start__ -.-> emergency_guard;
+	__start__ -.-> prepare_image;
+	__start__ -.-> transcribe;
+	classify -.-> extract_query;
+	classify -.-> templates;
+	classify -.-> vision_extract_rx;
+	composer --> verifier;
+	confidence_gate -.-> composer;
+	confidence_gate -.-> templates;
+	emergency_classifier -.-> classify;
+	emergency_classifier -.-> templates;
+	emergency_guard -.-> redact;
+	emergency_guard -.-> templates;
+	extract_query -.-> normalize_drugs;
+	extract_query -.-> templates;
+	generic_finder -.-> composer;
+	generic_finder -.-> confidence_gate;
+	generic_finder -.-> templates;
+	normalize_drugs -.-> generic_finder;
+	normalize_drugs -.-> templates;
+	prepare_image -.-> classify;
+	prepare_image -.-> templates;
+	redact --> emergency_classifier;
+	transcribe --> templates;
+	validate_rx --> normalize_drugs;
+	verifier -.-> __end__;
+	verifier -.-> rx_fallback;
+	vision_extract_rx -.-> templates;
+	vision_extract_rx -.-> validate_rx;
+	rx_fallback --> __end__;
+	templates --> __end__;
+	vision_extract_rx -.-> vision_extract_rx;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

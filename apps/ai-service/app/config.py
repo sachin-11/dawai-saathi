@@ -62,6 +62,31 @@ class Settings(BaseSettings):
         default=60.0, gt=0, le=600, validation_alias="PROCESS_TIMEOUT_S"
     )
 
+    # ---- M9: pipeline and graph
+    # `graph` = the LangGraph pipeline; `minimal` = the pre-M9 code, kept one module as a rollback switch.
+    pipeline: Literal["graph", "minimal"] = Field(default="graph", validation_alias="PIPELINE")
+    # Per-node time limits in seconds (a node that exceeds its limit falls back or fails the request).
+    node_timeout_vision_s: float = Field(
+        default=45.0, gt=0, le=300, validation_alias="NODE_TIMEOUT_VISION_S"
+    )
+    node_timeout_cheap_s: float = Field(
+        default=10.0, gt=0, le=120, validation_alias="NODE_TIMEOUT_CHEAP_S"
+    )
+    node_timeout_composer_s: float = Field(
+        default=20.0, gt=0, le=120, validation_alias="NODE_TIMEOUT_COMPOSER_S"
+    )
+    node_timeout_io_s: float = Field(
+        default=20.0, gt=0, le=120, validation_alias="NODE_TIMEOUT_IO_S"
+    )
+    node_timeout_fast_s: float = Field(
+        default=5.0, gt=0, le=60, validation_alias="NODE_TIMEOUT_FAST_S"
+    )
+    graph_recursion_limit: int = Field(
+        default=25, ge=10, le=100, validation_alias="GRAPH_RECURSION_LIMIT"
+    )
+    # A SECOND token, held by the web demo only: it may ask `/v1/process` for a per-node trace.
+    demo_service_token: OptionalSecret = Field(default=None, validation_alias="DEMO_SERVICE_TOKEN")
+
     # ---- M5: LLM layer
     # `fake` is deterministic and offline (tests, local dev). Production must use `real`.
     llm_mode: LLMMode = Field(default="fake", validation_alias="LLM_MODE")
@@ -168,7 +193,22 @@ class Settings(BaseSettings):
                 raise ValueError("LLM_MODE: the fake LLM is not allowed in production")
             if not self.redaction_enabled:
                 raise ValueError("REDACTION_ENABLED: must be true in production")
+        demo_token = self.demo_service_token
+        if demo_token is not None:
+            if len(demo_token.get_secret_value()) < 16:
+                raise ValueError("DEMO_SERVICE_TOKEN: must be at least 16 characters")
+            if demo_token.get_secret_value() == self.service_token:
+                raise ValueError("DEMO_SERVICE_TOKEN: must differ from SERVICE_TOKEN")
         return self
+
+    def node_timeout_s(self, kind: str) -> float:
+        """Time limit for a node class: vision | cheap | composer | io | fast."""
+        return {
+            "vision": self.node_timeout_vision_s,
+            "cheap": self.node_timeout_cheap_s,
+            "composer": self.node_timeout_composer_s,
+            "io": self.node_timeout_io_s,
+        }.get(kind, self.node_timeout_fast_s)
 
     @property
     def allowed_media_hosts(self) -> frozenset[str]:

@@ -22,9 +22,12 @@ async def extract_prescription(
     router: LLMRouter,
     prompts: PromptRegistry,
     deadline: Deadline,
+    prompt_id: str = RX_EXTRACT_PROMPT_ID,
 ) -> tuple[PrescriptionExtraction | None, LLMResult | None]:
-    """`(None, None)` when the model could not produce a valid structure even after the repair."""
-    prompt = prompts.load(RX_EXTRACT_PROMPT_ID)
+    """`(None, None)` when the model could not produce a valid structure even after the repair.
+
+    `prompt_id` is `rx_extract_v1`; the graph's one retry uses the stricter `rx_extract_strict_v1`."""
+    prompt = prompts.load(prompt_id)
     messages = [
         prompt.to_message(),
         Message("user", "Read the prescription in the attached image(s) and return the JSON."),

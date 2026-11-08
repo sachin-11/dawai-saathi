@@ -1,4 +1,5 @@
-"""The minimal pipeline (M5, extended in M6, replaced by the LangGraph pipeline in M9).
+"""The minimal pipeline (M5, extended in M6/M8). Since M9 the default is the LangGraph pipeline
+(`app/graph`); this one stays behind `PIPELINE=minimal` as a rollback switch and is removed in M14.
 
   text  -> 1. emergency rules on the user's RAW text (fast; a match answers at once, nothing else runs)
            2. redact (phone, Aadhaar-like, e-mail, names ...)
@@ -12,74 +13,43 @@
 Replies come only from `app/prompts/templates/*.yaml`. The model's job is limited to picking one
 intent from a fixed list; none of its words ever reach the user (CLAUDE.md §2.5), which is also why
 an out-of-scope question can never be answered by the model.
+
+The classifier code itself lives in `app/tools/intent.py` (shared with the graph); the names below
+are re-exported so existing imports keep working.
 """
 
 import asyncio
-import re
-import unicodedata
-from enum import StrEnum
 
 import structlog
-from pydantic import BaseModel, Field
 
-from app.llm.types import Message
 from app.pipeline.base import PipelineContext, PipelineOutput
 from app.safety.emergency_guard import EmergencyResult, user_text_from_request
 from app.schemas.process import Intent, Language, ProcessRequest, Reply
 from app.tools.generic_finder import MedicineFacts
 from app.tools.generic_render import DetailItem, render_generic_reply
+from app.tools.intent import (
+    GENERIC_EXTRACT_PROMPT_ID,
+    INTENT_PROMPT_ID,
+    MIN_INTENT_CONFIDENCE,
+    TEMPLATE_FOR_INTENT,
+    ClassifiedIntent,
+    GenericQueryExtract,
+    IntentResult,
+    classify_intent,
+    extract_generic_query,
+)
 
-INTENT_PROMPT_ID = "intent_text_v2"
-GENERIC_EXTRACT_PROMPT_ID = "generic_query_extract_v1"
-# Below this the classification is treated as "other": a guess must not trigger a specific answer.
-MIN_INTENT_CONFIDENCE = 0.5
+__all__ = [
+    "GENERIC_EXTRACT_PROMPT_ID",
+    "INTENT_PROMPT_ID",
+    "MIN_INTENT_CONFIDENCE",
+    "ClassifiedIntent",
+    "GenericQueryExtract",
+    "IntentResult",
+    "MinimalPipeline",
+]
 
 log = structlog.get_logger("pipeline")
-
-
-class ClassifiedIntent(StrEnum):
-    """What the classifier may answer (prompt `intent_text_v2`). Mapped to the contract's `Intent`."""
-
-    prescription_question = "prescription_question"
-    lab_question = "lab_question"
-    generic_query = "generic_query"
-    interaction_query = "interaction_query"
-    help = "help"
-    greeting = "greeting"
-    out_of_scope = "out_of_scope"
-
-
-_TO_CONTRACT_INTENT = {
-    ClassifiedIntent.prescription_question: Intent.prescription,
-    ClassifiedIntent.lab_question: Intent.lab_report,
-    ClassifiedIntent.generic_query: Intent.generic_query,
-    ClassifiedIntent.interaction_query: Intent.interaction_query,
-    ClassifiedIntent.help: Intent.help,
-    ClassifiedIntent.greeting: Intent.greeting,
-    ClassifiedIntent.out_of_scope: Intent.out_of_scope,
-}
-
-_TEMPLATE_FOR_INTENT = {
-    Intent.help: "help",
-    Intent.greeting: "greeting",
-    Intent.out_of_scope: "out_of_scope",
-    Intent.other: "help",  # unclear message: show what the assistant can do
-}
-
-
-class IntentResult(BaseModel):
-    """Structured output of the intent classifier."""
-
-    intent: ClassifiedIntent
-    confidence: float = Field(ge=0.0, le=1.0)
-
-
-class GenericQueryExtract(BaseModel):
-    """Structured output of `generic_query_extract_v1`: words copied out of the message, nothing more."""
-
-    medicine_name: str | None = Field(default=None, max_length=100)
-    strength: str | None = Field(default=None, max_length=50)
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class MinimalPipeline:
@@ -117,10 +87,16 @@ class MinimalPipeline:
             return self._emergency_output(emergency, language, ctx)
 
         # 4. Intent, on the redacted text.
-        intent = await self._classify(redacted, ctx)
+        intent = await classify_intent(
+            redacted,
+            router=ctx.router,
+            prompts=ctx.prompts,
+            usage=ctx.usage,
+            deadline=ctx.deadline,
+        )
         if intent is Intent.generic_query and ctx.catalog is not None:
             return await self._generic_query(redacted, language, ctx)
-        key = _TEMPLATE_FOR_INTENT.get(intent, "coming_soon")
+        key = TEMPLATE_FOR_INTENT.get(intent, "coming_soon")
         return PipelineOutput(
             intent=intent,
             emergency=False,
@@ -146,59 +122,20 @@ class MinimalPipeline:
             reply=Reply(language=language, text=ctx.templates.get(language, key)),
         )
 
-    async def _classify(self, redacted_text: str, ctx: PipelineContext) -> Intent:
-        prompt = ctx.prompts.load(INTENT_PROMPT_ID)
-        messages = [
-            prompt.to_message(
-                allowed_intents=", ".join(intent.value for intent in ClassifiedIntent)
-            ),
-            # The user's text is DATA: passed as-is (never rendered as a template) and delimited.
-            Message("user", f"<message>\n{redacted_text}\n</message>"),
-        ]
-        result = await ctx.router.generate(
-            prompt.model_role,
-            messages,
-            name="classify_intent",
-            temperature=prompt.temperature,
-            max_tokens=100,
-            response_model=IntentResult,
-            prompt_version=prompt.version,
-            deadline=ctx.deadline,
-        )
-        ctx.usage.add(result, prompt.version)
-
-        parsed = result.parsed
-        if not isinstance(parsed, IntentResult) or parsed.confidence < MIN_INTENT_CONFIDENCE:
-            return Intent.other
-        return _TO_CONTRACT_INTENT[parsed.intent]
-
     async def _generic_query(
         self, redacted_text: str, language: Language, ctx: PipelineContext
     ) -> PipelineOutput:
         """For "Dolo 650 ka generic batao": the model only copies the medicine name out of the message;
         matching, the salt, strength, price and the reply are deterministic (CLAUDE.md §2.5)."""
         assert ctx.catalog is not None  # noqa: S101 - checked by the caller
-        prompt = ctx.prompts.load(GENERIC_EXTRACT_PROMPT_ID)
-        result = await ctx.router.generate(
-            prompt.model_role,
-            [prompt.to_message(), Message("user", f"<message>\n{redacted_text}\n</message>")],
-            name="generic_query_extract",
-            temperature=prompt.temperature,
-            max_tokens=100,
-            response_model=GenericQueryExtract,
-            prompt_version=prompt.version,
+        query = await extract_generic_query(
+            redacted_text,
+            router=ctx.router,
+            prompts=ctx.prompts,
+            usage=ctx.usage,
             deadline=ctx.deadline,
         )
-        ctx.usage.add(result, prompt.version)
-        parsed = result.parsed
-        name = (
-            _clean_name(parsed.medicine_name) if isinstance(parsed, GenericQueryExtract) else None
-        )
-        if (
-            not isinstance(parsed, GenericQueryExtract)
-            or not name
-            or parsed.confidence < MIN_INTENT_CONFIDENCE
-        ):
+        if query is None:
             return PipelineOutput(
                 intent=Intent.generic_query,
                 emergency=False,
@@ -206,7 +143,8 @@ class MinimalPipeline:
                     language=language, text=ctx.templates.get(language, "generic_query_ask_name")
                 ),
             )
-        match = await ctx.catalog.match(name, parsed.strength, None)
+        name, strength = query
+        match = await ctx.catalog.match(name, strength, None)
         if match.note == "catalog_unavailable":  # say so instead of "not in my list"
             return PipelineOutput(
                 intent=Intent.generic_query,
@@ -217,21 +155,9 @@ class MinimalPipeline:
             )
         suggestion = await ctx.catalog.generic(match, MedicineFacts())
         shown = match.brand_name or name  # the catalog's spelling when it knows the product
-        text = render_generic_reply([DetailItem(1, shown, parsed.strength, suggestion)], language)
+        text = render_generic_reply([DetailItem(1, shown, strength, suggestion)], language)
         return PipelineOutput(
             intent=Intent.generic_query,
             emergency=False,
             reply=Reply(language=language, text=text),
         )
-
-
-def _clean_name(raw: str | None) -> str | None:
-    """A printable one-line name of reasonable length, or None. Letters, combining marks (Devanagari
-    vowel signs!), digits, spaces and a few separators survive; everything else becomes a space."""
-    if not raw:
-        return None
-    kept = "".join(
-        ch if unicodedata.category(ch)[0] in "LMN" or ch in " .-+/()" else " " for ch in raw
-    )
-    name = re.sub(r"\s+", " ", kept).strip()[:60]
-    return name or None

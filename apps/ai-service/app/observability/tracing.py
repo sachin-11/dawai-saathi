@@ -41,10 +41,17 @@ class LangfuseLike(Protocol):
     def shutdown(self) -> None: ...
 
 
+class NodeSpan(Protocol):
+    """One graph node inside a trace (M9). LLM generations made while it is open nest under it."""
+
+    def end(self, status: str, details: dict[str, Any]) -> None: ...
+
+
 class TraceSession(Protocol):
     @property
     def trace_id(self) -> str | None: ...
     def generation(self, record: LLMCallRecord) -> None: ...
+    def node_span(self, name: str) -> NodeSpan: ...
     def finish(self, output: dict[str, Any]) -> None: ...
 
 
@@ -57,11 +64,19 @@ class Tracer(Protocol):
 # ------------------------------------------------------------------ no-op
 
 
+class _NoopSpan:
+    def end(self, status: str, details: dict[str, Any]) -> None:
+        return None
+
+
 class _NoopSession:
     trace_id: str | None = None
 
     def generation(self, record: LLMCallRecord) -> None:
         return None
+
+    def node_span(self, name: str) -> NodeSpan:
+        return _NoopSpan()
 
     def finish(self, output: dict[str, Any]) -> None:
         return None
@@ -83,12 +98,44 @@ class NoopTracer:
 # ------------------------------------------------------------------ Langfuse
 
 
+# Calls whose input/output is (a repair of) the text read from a document: raw OCR lines. A trace only
+# gets the prompt (instructions) and a placeholder, never what the model read (CLAUDE.md §13, M9).
+_CONTENT_FREE_PREFIXES = ("vision_extract_rx",)
+
+
+def _is_content_free(record: LLMCallRecord) -> bool:
+    return record.name.startswith(_CONTENT_FREE_PREFIXES)
+
+
 def _describe_messages(record: LLMCallRecord) -> list[dict[str, str]]:
     """Prompt as sent to the model, redacted, with images replaced by a placeholder."""
-    described = [{"role": m.role, "content": redact_str(m.content)} for m in record.messages]
+    messages = [
+        m for m in record.messages if not (_is_content_free(record) and m.role == "assistant")
+    ]
+    described = [{"role": m.role, "content": redact_str(m.content)} for m in messages]
     for image in record.images:
         described.append({"role": "user", "content": image.describe()})
     return described
+
+
+class _LangfuseSpan:
+    def __init__(self, observation: LangfuseObservation | None) -> None:
+        self._observation = observation
+        self.id: str | None = getattr(observation, "id", None)
+
+    def end(self, status: str, details: dict[str, Any]) -> None:
+        if self._observation is None:
+            return
+        try:
+            failed = status in {"error", "timeout"}
+            self._observation.update(
+                output=redact_value(details),
+                level="ERROR" if failed else "DEFAULT",
+                status_message=status,
+            )
+            self._observation.end()
+        except Exception:
+            _logger.warning("tracing_span_failed")
 
 
 class _LangfuseSession:
@@ -103,15 +150,42 @@ class _LangfuseSession:
     def trace_id(self) -> str | None:
         return self._trace_id
 
+    def node_span(self, name: str) -> NodeSpan:
+        """A span for one graph node, under the request's root span."""
+        try:
+            context: dict[str, str] = {"trace_id": self._trace_id}
+            root_id = getattr(self._root, "id", None)
+            if root_id:
+                context["parent_span_id"] = root_id
+            observation = self._client.start_observation(
+                trace_context=context, name=name, as_type="span"
+            )
+        except Exception:
+            _logger.warning("tracing_span_start_failed")
+            return _LangfuseSpan(None)
+        span = _LangfuseSpan(observation)
+        _current_span_id.set(span.id)
+        return span
+
     def generation(self, record: LLMCallRecord) -> None:
         try:
+            context: dict[str, str] = {"trace_id": self._trace_id}
+            parent = _current_span_id.get()
+            if parent:  # nest under the node that made the call
+                context["parent_span_id"] = parent
             observation = self._client.start_observation(
-                trace_context={"trace_id": self._trace_id},
+                trace_context=context,
                 name=record.name,
                 as_type="generation",
                 model=record.model,
                 input=_describe_messages(record),
-                output=redact_str(record.output_text) if record.output_text is not None else None,
+                output=(
+                    "[structured output omitted: it contains text read from a document]"
+                    if _is_content_free(record)
+                    else redact_str(record.output_text)
+                    if record.output_text is not None
+                    else None
+                ),
                 usage_details={"input": record.input_tokens, "output": record.output_tokens},
                 cost_details={"total": record.cost_usd},
                 version=record.prompt_version,
@@ -201,6 +275,16 @@ def build_tracer(settings: Settings, client: LangfuseLike | None = None) -> Trac
 # ------------------------------------------------------------------ per-request wiring
 
 _current_session: ContextVar[TraceSession | None] = ContextVar("trace_session", default=None)
+_current_span_id: ContextVar[str | None] = ContextVar("trace_span_id", default=None)
+
+
+def current_session() -> TraceSession | None:
+    return _current_session.get()
+
+
+def clear_current_span() -> None:
+    """Called when a node ends: later LLM calls (outside any node) nest under the root again."""
+    _current_span_id.set(None)
 
 
 def bind_session(session: TraceSession) -> None:

@@ -327,6 +327,48 @@ class ComposeOutcome:
 _LANGUAGE_NAMES: Final = {Language.hi: "Hindi", Language.en: "English"}
 
 
+async def request_llm_lines(
+    payload: list[dict[str, Any]],
+    language: Language,
+    *,
+    router: LLMRouter,
+    prompts: PromptRegistry,
+    deadline: Deadline,
+) -> tuple[dict[int, str] | None, LLMResult | None, list[str]]:
+    """The LLM step only: `(lines by medicine index, the call's result, problems)`.
+
+    Lines are NOT verified here (see `rx_grounding` and the graph's verifier). `None` lines plus a
+    reason code mean the model failed; the caller then renders the template.
+    """
+    prompt = prompts.load(RX_COMPOSE_PROMPT_ID)
+    messages = [
+        prompt.to_message(language=language.value, language_name=_LANGUAGE_NAMES[language]),
+        # Structured data only: no image, no raw OCR text (asserted in tests).
+        Message("user", json.dumps({"medicines": payload}, ensure_ascii=False)),
+    ]
+    try:
+        result = await router.generate(
+            prompt.model_role,
+            messages,
+            name="compose_reply",
+            temperature=prompt.temperature,
+            max_tokens=1500,
+            response_model=ComposedItems,
+            prompt_version=prompt.version,
+            deadline=deadline,
+        )
+    except LLMError as error:
+        return None, None, [f"llm_{error.kind}"]
+    if not isinstance(result.parsed, ComposedItems):
+        return None, result, ["llm_bad_shape"]
+    return {item.index: item.text.strip() for item in result.parsed.items}, result, []
+
+
+def max_body_chars() -> int:
+    """Room for the disclaimer: a body longer than this is rendered from the template instead."""
+    return MAX_REPLY_CHARS - 400
+
+
 async def compose_text(
     extraction: PrescriptionExtraction,
     language: Language,
@@ -343,34 +385,14 @@ async def compose_text(
     if not payload:  # every medicine is low confidence: nothing for the LLM to phrase
         return ComposeOutcome(render_reply_text(views, extraction, language), False, [])
 
-    prompt = prompts.load(RX_COMPOSE_PROMPT_ID)
-    messages = [
-        prompt.to_message(language=language.value, language_name=_LANGUAGE_NAMES[language]),
-        # Structured data only: no image, no raw OCR text (asserted in tests).
-        Message("user", json.dumps({"medicines": payload}, ensure_ascii=False)),
-    ]
-    result: LLMResult | None = None
-    problems: list[str] = []
-    try:
-        result = await router.generate(
-            prompt.model_role,
-            messages,
-            name="compose_reply",
-            temperature=prompt.temperature,
-            max_tokens=1500,
-            response_model=ComposedItems,
-            prompt_version=prompt.version,
-            deadline=deadline,
-        )
-    except LLMError as error:
-        problems = [f"llm_{error.kind}"]
-
-    if result is not None and isinstance(result.parsed, ComposedItems):
-        items = [(item.index, item.text.strip()) for item in result.parsed.items]
-        problems = verify_items(items, payload, language)
+    lines, result, problems = await request_llm_lines(
+        payload, language, router=router, prompts=prompts, deadline=deadline
+    )
+    if lines is not None:
+        problems = verify_items(sorted(lines.items()), payload, language)
         if not problems:
-            text = render_reply_text(views, extraction, language, dict(items))
-            if len(text) <= MAX_REPLY_CHARS - 400:
+            text = render_reply_text(views, extraction, language, lines)
+            if len(text) <= max_body_chars():
                 return ComposeOutcome(text, True, [], result)
             problems = ["reply_too_long"]
 
@@ -395,6 +417,13 @@ _BUTTON_TITLES: Final[dict[Language, dict[str, str]]] = {
 }
 
 DOCUMENT_ID_PLACEHOLDER = "{document_id}"
+
+# A phrase every "could not read this clearly" line contains, per language (the graph's verifier checks
+# that a low-confidence medicine is never presented as readable).
+LOW_CONFIDENCE_MARKERS: Final[dict[Language, str]] = {
+    Language.en: "could not read",
+    Language.hi: "साफ़ नहीं पढ़",
+}
 
 
 def rx_buttons(language: Language) -> list[ReplyButton]:

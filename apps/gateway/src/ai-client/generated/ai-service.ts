@@ -420,12 +420,15 @@ export interface components {
     ProcessRequest: {
       context?: components['schemas']['RequestContext'];
       input: components['schemas']['InputPayload'];
+      options?: components['schemas']['RequestOptions'];
       /** Request Id */
       request_id: string;
       user: components['schemas']['UserContext'];
     };
     /** ProcessResponse */
     ProcessResponse: {
+      /** Debug Trace */
+      debug_trace?: components['schemas']['TraceEntry'][] | null;
       /**
        * Emergency
        * @default false
@@ -483,6 +486,14 @@ export interface components {
       /** Active Medications */
       active_medications?: components['schemas']['ActiveMedication'][];
     };
+    /** RequestOptions */
+    RequestOptions: {
+      /**
+       * Include Trace
+       * @default false
+       */
+      include_trace: boolean;
+    };
     /** TextField */
     TextField: {
       /**
@@ -502,6 +513,31 @@ export interface components {
       confidence: number;
       /** Value */
       value?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+    };
+    /**
+     * TraceEntry
+     * @description One graph node as the demo's trace view shows it. NEVER any text, extraction value or PHI.
+     */
+    TraceEntry: {
+      /** Cost Usd */
+      cost_usd?: number | null;
+      /** Latency Ms */
+      latency_ms: number;
+      /** Model */
+      model?: string | null;
+      /** Node */
+      node: string;
+      /** Prompt Version */
+      prompt_version?: string | null;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'ok' | 'error' | 'timeout' | 'fallback';
+      /** Tokens In */
+      tokens_in?: number | null;
+      /** Tokens Out */
+      tokens_out?: number | null;
     };
     /** UserContext */
     UserContext: {

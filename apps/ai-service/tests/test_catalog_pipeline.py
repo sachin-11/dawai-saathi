@@ -35,7 +35,9 @@ def catalog() -> CatalogService:
 
 @pytest.fixture(autouse=True)
 def _jpeg(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg"))
+    monkeypatch.setattr(
+        "app.tools.image_input.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg")
+    )
 
 
 def line_for(*names: str) -> dict:

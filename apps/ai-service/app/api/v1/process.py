@@ -2,13 +2,16 @@
 
 import asyncio
 import time
+from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, Request
+from langgraph.errors import GraphRecursionError
 
-from app.api.auth import require_service_token
+from app.api.auth import Caller, identify_caller
 from app.api.errors import ApiError, api_error_from_llm
 from app.config import Settings
+from app.graph.errors import NodeTimeoutError
 from app.llm.router import Deadline, LLMRouter
 from app.llm.types import LLMError
 from app.observability.tracing import Tracer, bind_session
@@ -37,7 +40,6 @@ def _input_summary(request: ProcessRequest) -> dict[str, object]:
 @router.post(
     "/process",
     response_model=ProcessResponse,
-    dependencies=[Depends(require_service_token)],
     responses={
         401: {"description": "Missing or wrong X-Service-Token"},
         413: {"description": "Request body too large"},
@@ -47,7 +49,9 @@ def _input_summary(request: ProcessRequest) -> dict[str, object]:
         504: {"description": "Processing took longer than PROCESS_TIMEOUT_S"},
     },
 )
-async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
+async def process(
+    body: ProcessRequest, request: Request, caller: Annotated[Caller, Depends(identify_caller)]
+) -> ProcessResponse:
     """Run one message through the pipeline and return a structured, WhatsApp-ready reply."""
     state = request.app.state
     settings: Settings = state.settings
@@ -81,6 +85,12 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
     except TimeoutError:
         session.finish({"error": "PROCESS_TIMEOUT"})
         raise ApiError(504, "PROCESS_TIMEOUT", "Processing took too long") from None
+    except NodeTimeoutError as error:
+        session.finish({"error": "NODE_TIMEOUT", "node": error.node})
+        raise ApiError(504, "NODE_TIMEOUT", "A processing step took too long") from None
+    except GraphRecursionError:
+        session.finish({"error": "GRAPH_LIMIT"})
+        raise ApiError(500, "GRAPH_LIMIT", "Processing did not finish") from None
     except LLMError as error:
         session.finish({"error": error.kind})
         raise api_error_from_llm(error) from None
@@ -125,6 +135,8 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         warnings=output.warnings,
         reply=output.reply,
         meta=meta,
+        # Only the demo client, and only when it asked: per-node names and numbers, never content.
+        debug_trace=output.debug_trace if body.options.include_trace and caller == "demo" else None,
     )
 
 

@@ -808,6 +808,9 @@
           "input": {
             "$ref": "#/components/schemas/InputPayload"
           },
+          "options": {
+            "$ref": "#/components/schemas/RequestOptions"
+          },
           "request_id": {
             "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
             "title": "Request Id",
@@ -823,6 +826,20 @@
       },
       "ProcessResponse": {
         "properties": {
+          "debug_trace": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TraceEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Trace"
+          },
           "emergency": {
             "default": false,
             "title": "Emergency",
@@ -964,6 +981,18 @@
         "title": "RequestContext",
         "type": "object"
       },
+      "RequestOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "include_trace": {
+            "default": false,
+            "title": "Include Trace",
+            "type": "boolean"
+          }
+        },
+        "title": "RequestOptions",
+        "type": "object"
+      },
       "TextField": {
         "additionalProperties": false,
         "properties": {
@@ -1016,6 +1045,83 @@
           }
         },
         "title": "TimingsField",
+        "type": "object"
+      },
+      "TraceEntry": {
+        "description": "One graph node as the demo's trace view shows it. NEVER any text, extraction value or PHI.",
+        "properties": {
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          },
+          "latency_ms": {
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "status": {
+            "enum": ["ok", "error", "timeout", "fallback"],
+            "title": "Status",
+            "type": "string"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          }
+        },
+        "required": ["node", "latency_ms", "status"],
+        "title": "TraceEntry",
         "type": "object"
       },
       "UserContext": {

@@ -386,12 +386,22 @@ class TestLoggingAndTracing:
         body = res.json()
         assert body["meta"]["trace_id"] == trace_id_for(payload()["request_id"])
 
+        # One root span, one span per graph node, and the LLM calls (generations) in between (M9).
         names = [o.kwargs["name"] for o in langfuse.observations]
-        assert names == ["process", "emergency_classify", "classify_intent"]
+        assert names == [
+            "process",
+            "emergency_guard",
+            "redact",
+            "emergency_classifier",
+            "emergency_classify",
+            "classify",
+            "classify_intent",
+            "templates",
+        ]
         sent = langfuse.everything_sent()
         assert "9876543210" not in sent and "[PHONE]" in sent
         assert langfuse.flushed >= 1
-        generation = langfuse.observations[2].kwargs
+        generation = langfuse.observations[names.index("classify_intent")].kwargs
         assert generation["version"] == "intent_text_v2"
         assert generation["usage_details"]["input"] > 0
 
@@ -455,7 +465,9 @@ class TestSafetyLayerEndToEnd:
         # pipeline: its model calls are the image classifier / extractor, never the emergency one.
         provider = FakeProvider([{"kind": "other", "quality": "good", "confidence": 0.9}])
         app, _ = app_with(provider)
-        monkeypatch.setattr("app.pipeline.rx.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg"))
+        monkeypatch.setattr(
+            "app.tools.image_input.fetch_media", fake_fetch(sample_jpeg(), "image/jpeg")
+        )
         body = payload(
             input={
                 "type": "image",

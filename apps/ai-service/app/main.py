@@ -26,6 +26,7 @@ from app.observability.logging import configure_logging
 from app.observability.request_id import RequestIdMiddleware, current_request_id
 from app.observability.tracing import Tracer, build_tracer, observe_llm_call
 from app.pipeline.base import Pipeline
+from app.pipeline.graph import GraphPipeline
 from app.pipeline.minimal import MinimalPipeline
 from app.pipeline.rx import RxPipeline
 from app.prompts.registry import PromptRegistry, TemplateStore
@@ -79,7 +80,7 @@ def create_app(
     app.state.catalog = catalog or CatalogService.from_settings(
         settings, app.state.db.session_factory
     )
-    app.state.pipeline = pipeline or RxPipeline(MinimalPipeline())
+    app.state.pipeline = pipeline or default_pipeline(settings)
     app.state.llm_router = llm_router or _default_llm_router(settings)
 
     # Last added = outermost: the request id is bound first, then the body limit applies.
@@ -91,6 +92,13 @@ def create_app(
     app.include_router(health.router)
     app.include_router(v1_router)
     return app
+
+
+def default_pipeline(settings: Settings) -> Pipeline:
+    """The LangGraph pipeline; `PIPELINE=minimal` switches back to the pre-M9 code (removed in M14)."""
+    if settings.pipeline == "minimal":
+        return RxPipeline(MinimalPipeline())
+    return GraphPipeline()
 
 
 def _default_llm_router(settings: Settings) -> LLMRouter:
