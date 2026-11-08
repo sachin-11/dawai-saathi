@@ -103,7 +103,7 @@ class TestSuccess:
         assert body["reply"]["buttons"] == []
         meta = body["meta"]
         assert meta["model"] == "fake-model" and meta["provider"] == "fake"
-        assert meta["prompt_version"] == "reply_templates_v3,emergency_classify_v1,intent_text_v2"
+        assert meta["prompt_version"] == "reply_templates_v4,emergency_classify_v1,intent_text_v2"
         assert meta["fallback_used"] is False
         assert meta["latency_ms"] >= 0 and meta["cost_usd"] == 0
         assert meta["trace_id"] is None  # no Langfuse configured

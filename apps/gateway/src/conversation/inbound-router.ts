@@ -36,6 +36,8 @@ export type RouteOutcome =
   | 'rx_wrong'
   | 'rx_coming_soon'
   | 'rx_not_found'
+  | 'rx_generic_details'
+  | 'rx_generic_unavailable'
   | 'echo_bot'
   | 'ai_reply'
   | 'ai_emergency'

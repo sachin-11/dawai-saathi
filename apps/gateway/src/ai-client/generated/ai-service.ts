@@ -44,6 +44,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/generic-details': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generic Details
+     * @description The details message for a saved prescription, from the stored (structured) suggestions only.
+     */
+    post: operations['generic_details_v1_generic_details_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/process': {
     parameters: {
       query?: never;
@@ -84,6 +104,65 @@ export interface components {
       confidence: number;
       /** Value */
       value?: string | null;
+    };
+    /** DrugCandidate */
+    DrugCandidate: {
+      /** Brand Name */
+      brand_name: string;
+      /** Drug Id */
+      drug_id: string;
+      /** Score */
+      score: number;
+    };
+    /**
+     * DrugMatch
+     * @description What the catalog says about one prescribed medicine.
+     */
+    DrugMatch: {
+      /**
+       * Ambiguous
+       * @default false
+       */
+      ambiguous: boolean;
+      /** Brand Name */
+      brand_name?: string | null;
+      /** Candidates */
+      candidates?: components['schemas']['DrugCandidate'][];
+      /** Drug Id */
+      drug_id?: string | null;
+      /**
+       * Form Conflict
+       * @default false
+       */
+      form_conflict: boolean;
+      /** Form Key */
+      form_key?: string | null;
+      /** @default none */
+      method: components['schemas']['MatchMethod'];
+      /** Note */
+      note?: string | null;
+      /** Release Type */
+      release_type?: string | null;
+      /** Salt Key */
+      salt_key?: string | null;
+      /**
+       * Score
+       * @default 0
+       */
+      score: number;
+      /**
+       * Strength Basis
+       * @default none
+       * @enum {string}
+       */
+      strength_basis: 'prescription' | 'brand_name' | 'none';
+      /**
+       * Strength Conflict
+       * @default false
+       */
+      strength_conflict: boolean;
+      /** Strength Key */
+      strength_key?: string | null;
     };
     /**
      * EmergencyCategory
@@ -131,6 +210,74 @@ export interface components {
             | 'other'
           )
         | null;
+    };
+    /** GenericAlternative */
+    GenericAlternative: {
+      /** Approx Savings */
+      approx_savings?: number | null;
+      /** Brand Name */
+      brand_name: string;
+      /** Drug Id */
+      drug_id: string;
+      /** Is Janaushadhi */
+      is_janaushadhi: boolean;
+      /** Pack Label */
+      pack_label?: string | null;
+      /** Pack Price */
+      pack_price?: number | null;
+      /** Price Per Unit */
+      price_per_unit: number;
+      /** Savings Basis */
+      savings_basis?: ('course' | 'pack') | null;
+    };
+    /** GenericDetailsItem */
+    GenericDetailsItem: {
+      generic?: components['schemas']['GenericSuggestion'] | null;
+      /** Name */
+      name: string;
+      /** Strength */
+      strength?: string | null;
+    };
+    /** GenericDetailsRequest */
+    GenericDetailsRequest: {
+      language: components['schemas']['Language'];
+      /** Medicines */
+      medicines: components['schemas']['GenericDetailsItem'][];
+      /** Request Id */
+      request_id: string;
+    };
+    /** GenericDetailsResponse */
+    GenericDetailsResponse: {
+      reply: components['schemas']['Reply'];
+      /** Request Id */
+      request_id: string;
+    };
+    /** GenericSuggestion */
+    GenericSuggestion: {
+      /** Alternatives */
+      alternatives?: components['schemas']['GenericAlternative'][];
+      /** Price Source Date */
+      price_source_date?: string | null;
+      /** Reason If None */
+      reason_if_none?:
+        | (
+            | 'low_confidence'
+            | 'no_match'
+            | 'weak_match'
+            | 'strength_mismatch'
+            | 'form_mismatch'
+            | 'strength_unverified'
+            | 'ambiguous'
+            | 'not_substitutable'
+            | 'no_exact_alternative'
+            | 'no_cheaper_option'
+          )
+        | null;
+      /**
+       * Savings Known
+       * @default false
+       */
+      savings_known: boolean;
     };
     /** InputPayload */
     InputPayload: {
@@ -184,6 +331,11 @@ export interface components {
        */
       status: 'ok';
     };
+    /**
+     * MatchMethod
+     * @enum {string}
+     */
+    MatchMethod: 'exact' | 'trgm' | 'vector' | 'salt_written' | 'none';
     /** Medicine */
     Medicine: {
       /**
@@ -196,12 +348,14 @@ export interface components {
       form: components['schemas']['FormField'];
       frequency_code: components['schemas']['TextField'];
       frequency_per_day: components['schemas']['IntField'];
+      generic?: components['schemas']['GenericSuggestion'] | null;
       instructions: components['schemas']['TextField'];
       /**
        * Low Confidence
        * @default false
        */
       low_confidence: boolean;
+      match?: components['schemas']['DrugMatch'] | null;
       name: components['schemas']['TextField'];
       raw_text: components['schemas']['TextField'];
       relation_to_food: components['schemas']['FoodField'];
@@ -423,6 +577,46 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ReadinessResponse'];
         };
+      };
+    };
+  };
+  generic_details_v1_generic_details_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        'x-service-token'?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GenericDetailsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GenericDetailsResponse'];
+        };
+      };
+      /** @description Missing or wrong X-Service-Token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

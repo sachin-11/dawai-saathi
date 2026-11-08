@@ -12,7 +12,7 @@ GATEWAY_DIR := apps/gateway
 # Real environment variables already set in your shell are overridden by .env, so unset them if needed.
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
-.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx \
+.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher embed \
         up down migrate seed eval
 
 help: ## Show available targets
@@ -118,11 +118,15 @@ test-integration: ## Run gateway + ai-service integration tests against the test
 	exit $$status
 
 # ---- placeholders: implemented in later modules (see CLAUDE.md §14) ----
-seed: ## [M8] Load catalog datasets
-	@echo "make seed: not implemented yet - arrives in M8 (medicine catalog), extended in M11/M12."
+seed: ## Load the medicine catalog (curated brands + Jan Aushadhi if data/raw/pmbjp/*.csv). FIXTURE=1 adds FICTIONAL prices, BRANDS_CSV=<file> a local brand list, PMBJP_DATE=YYYY-MM-DD is needed with Jan Aushadhi files
+	$(WITH_ENV) uv run --project $(AI_DIR) python data/scripts/seed_catalog.py --load $(if $(FIXTURE),--fixture) $(if $(BRANDS_CSV),--brands-csv $(BRANDS_CSV)) $(if $(PMBJP_DATE),--pmbjp-date $(PMBJP_DATE))
+embed: ## Embed the catalog for the vector fallback (Pinecone when VECTOR_BACKEND=pinecone, else a check only)
+	$(WITH_ENV) uv run --project $(AI_DIR) python data/scripts/embed_catalog.py
 eval-emergency: ## Emergency-detection eval (rules + fake classifier). Real model: add `MODE=real`
 	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode rules
 	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode $(or $(MODE),fake)
+eval-matcher: ## Drug matching + generic finder eval: every safety gate must be zero
+	uv run --project $(AI_DIR) python evals/run_matcher_eval.py
 eval-rx: ## Prescription eval on synthetic images (fake replay). Real model: `make eval-rx MODE=real` (needs keys)
 	@[ -d evals/datasets/prescriptions/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_rx.py
 	uv run --project $(AI_DIR) python evals/run_rx_eval.py --mode $(or $(MODE),fake)

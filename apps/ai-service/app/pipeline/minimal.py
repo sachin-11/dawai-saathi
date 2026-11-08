@@ -15,6 +15,8 @@ an out-of-scope question can never be answered by the model.
 """
 
 import asyncio
+import re
+import unicodedata
 from enum import StrEnum
 
 import structlog
@@ -24,8 +26,11 @@ from app.llm.types import Message
 from app.pipeline.base import PipelineContext, PipelineOutput
 from app.safety.emergency_guard import EmergencyResult, user_text_from_request
 from app.schemas.process import Intent, Language, ProcessRequest, Reply
+from app.tools.generic_finder import MedicineFacts
+from app.tools.generic_render import DetailItem, render_generic_reply
 
 INTENT_PROMPT_ID = "intent_text_v2"
+GENERIC_EXTRACT_PROMPT_ID = "generic_query_extract_v1"
 # Below this the classification is treated as "other": a guess must not trigger a specific answer.
 MIN_INTENT_CONFIDENCE = 0.5
 
@@ -69,6 +74,14 @@ class IntentResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class GenericQueryExtract(BaseModel):
+    """Structured output of `generic_query_extract_v1`: words copied out of the message, nothing more."""
+
+    medicine_name: str | None = Field(default=None, max_length=100)
+    strength: str | None = Field(default=None, max_length=50)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 class MinimalPipeline:
     async def run(self, request: ProcessRequest, ctx: PipelineContext) -> PipelineOutput:
         language = request.user.language
@@ -105,6 +118,8 @@ class MinimalPipeline:
 
         # 4. Intent, on the redacted text.
         intent = await self._classify(redacted, ctx)
+        if intent is Intent.generic_query and ctx.catalog is not None:
+            return await self._generic_query(redacted, language, ctx)
         key = _TEMPLATE_FOR_INTENT.get(intent, "coming_soon")
         return PipelineOutput(
             intent=intent,
@@ -156,3 +171,67 @@ class MinimalPipeline:
         if not isinstance(parsed, IntentResult) or parsed.confidence < MIN_INTENT_CONFIDENCE:
             return Intent.other
         return _TO_CONTRACT_INTENT[parsed.intent]
+
+    async def _generic_query(
+        self, redacted_text: str, language: Language, ctx: PipelineContext
+    ) -> PipelineOutput:
+        """For "Dolo 650 ka generic batao": the model only copies the medicine name out of the message;
+        matching, the salt, strength, price and the reply are deterministic (CLAUDE.md §2.5)."""
+        assert ctx.catalog is not None  # noqa: S101 - checked by the caller
+        prompt = ctx.prompts.load(GENERIC_EXTRACT_PROMPT_ID)
+        result = await ctx.router.generate(
+            prompt.model_role,
+            [prompt.to_message(), Message("user", f"<message>\n{redacted_text}\n</message>")],
+            name="generic_query_extract",
+            temperature=prompt.temperature,
+            max_tokens=100,
+            response_model=GenericQueryExtract,
+            prompt_version=prompt.version,
+            deadline=ctx.deadline,
+        )
+        ctx.usage.add(result, prompt.version)
+        parsed = result.parsed
+        name = (
+            _clean_name(parsed.medicine_name) if isinstance(parsed, GenericQueryExtract) else None
+        )
+        if (
+            not isinstance(parsed, GenericQueryExtract)
+            or not name
+            or parsed.confidence < MIN_INTENT_CONFIDENCE
+        ):
+            return PipelineOutput(
+                intent=Intent.generic_query,
+                emergency=False,
+                reply=Reply(
+                    language=language, text=ctx.templates.get(language, "generic_query_ask_name")
+                ),
+            )
+        match = await ctx.catalog.match(name, parsed.strength, None)
+        if match.note == "catalog_unavailable":  # say so instead of "not in my list"
+            return PipelineOutput(
+                intent=Intent.generic_query,
+                emergency=False,
+                reply=Reply(
+                    language=language, text=ctx.templates.get(language, "generic_query_unavailable")
+                ),
+            )
+        suggestion = await ctx.catalog.generic(match, MedicineFacts())
+        shown = match.brand_name or name  # the catalog's spelling when it knows the product
+        text = render_generic_reply([DetailItem(1, shown, parsed.strength, suggestion)], language)
+        return PipelineOutput(
+            intent=Intent.generic_query,
+            emergency=False,
+            reply=Reply(language=language, text=text),
+        )
+
+
+def _clean_name(raw: str | None) -> str | None:
+    """A printable one-line name of reasonable length, or None. Letters, combining marks (Devanagari
+    vowel signs!), digits, spaces and a few separators survive; everything else becomes a space."""
+    if not raw:
+        return None
+    kept = "".join(
+        ch if unicodedata.category(ch)[0] in "LMN" or ch in " .-+/()" else " " for ch in raw
+    )
+    name = re.sub(r"\s+", " ", kept).strip()[:60]
+    return name or None

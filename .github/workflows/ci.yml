@@ -82,11 +82,23 @@ jobs:
           uv run python ../../evals/run_emergency_eval.py --mode rules
           uv run python ../../evals/run_emergency_eval.py --mode fake
 
+      # Safety gates (M7, M8): prescription replay and the drug matcher / generic finder. Hard gates:
+      # zero wrong-strength, wrong-form/release, wrong-salt and forbidden generic suggestions.
+      - name: Prescription eval and drug matcher eval (offline)
+        run: |
+          uv run python ../../evals/scripts/make_synthetic_rx.py
+          uv run python ../../evals/run_rx_eval.py --mode fake
+          uv run python ../../evals/run_rx_eval.py --mode fake-noisy
+          uv run python ../../evals/run_matcher_eval.py
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: emergency-eval-reports
-          path: evals/reports/*emergency*.md
+          name: eval-reports
+          path: |
+            evals/reports/*emergency*.md
+            evals/reports/*rx*.md
+            evals/reports/*drug-matcher*.md
           if-no-files-found: ignore
 
   integration:

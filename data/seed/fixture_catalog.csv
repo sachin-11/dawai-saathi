@@ -1,0 +1,29 @@
+kind,ref,brand_name,product,pack,mrp
+ja,FIX-JA-001,Paracetamol Tablets IP 500 mg (Jan Aushadhi),Paracetamol Tablets IP 500 mg,10's,10
+ja,FIX-JA-002,Paracetamol Tablets IP 650 mg (Jan Aushadhi),Paracetamol Tablets IP 650 mg,10's,15
+ja,FIX-JA-003,Pantoprazole Gastro-resistant Tablets IP 40 mg (Jan Aushadhi),Pantoprazole Gastro-resistant Tablets IP 40 mg,10's,20
+ja,FIX-JA-004,Azithromycin Tablets IP 500 mg (Jan Aushadhi),Azithromycin Tablets IP 500 mg,5's,50
+ja,FIX-JA-005,Cetirizine Tablets IP 10 mg (Jan Aushadhi),Cetirizine Tablets IP 10 mg,10's,5
+ja,FIX-JA-006,Metformin Hydrochloride Tablets IP 500 mg (Jan Aushadhi),Metformin Hydrochloride Tablets IP 500 mg,10's,8
+ja,FIX-JA-007,Metformin Hydrochloride SR Tablets IP 500 mg (Jan Aushadhi),Metformin Hydrochloride SR Tablets IP 500 mg,10's,12
+ja,FIX-JA-008,Amoxycillin 500mg + Clavulanic Acid 125mg Tablets (Jan Aushadhi),Amoxycillin 500mg + Clavulanic Acid 125mg Tablets,10's,60
+ja,FIX-JA-009,Telmisartan 40 mg + Amlodipine 5 mg Tablets (Jan Aushadhi),Telmisartan 40 mg + Amlodipine 5 mg Tablets,10's,25
+ja,FIX-JA-010,Atorvastatin Tablets IP 10 mg (Jan Aushadhi),Atorvastatin Tablets IP 10 mg,10's,15
+ja,FIX-JA-011,Levothyroxine Sodium Tablets IP 50 mcg (Jan Aushadhi),Levothyroxine Sodium Tablets IP 50 mcg,100's,50
+ja,FIX-JA-012,Amlodipine Tablets IP 5 mg (Jan Aushadhi),Amlodipine Tablets IP 5 mg,10's,4
+ja,FIX-JA-013,Paracetamol Oral Suspension IP 250mg/5ml (Jan Aushadhi),Paracetamol Oral Suspension IP 250mg/5ml,60 ml,25
+brand,FIX-BR-001,Dolo 500,Paracetamol 500 mg tablet,15's,30
+brand,FIX-BR-002,Dolo 650,Paracetamol 650 mg tablet,15's,45
+brand,FIX-BR-003,Pantop 40,Pantoprazole 40 mg gastro-resistant tablet,15's,150
+brand,FIX-BR-004,Azithral 500,Azithromycin 500 mg tablet,5's,120
+brand,FIX-BR-005,Cetzine,Cetirizine Hydrochloride 10 mg tablet,10's,40
+brand,FIX-BR-006,Glycomet 500,Metformin Hydrochloride 500 mg tablet,10's,16
+brand,FIX-BR-007,Glycomet SR 500,Metformin Hydrochloride 500 mg SR tablet,10's,24
+brand,FIX-BR-008,Augmentin 625 Duo,Amoxycillin 500 mg + Clavulanic Acid 125 mg tablet,10's,200
+brand,FIX-BR-009,Telma-AM,Telmisartan 40 mg + Amlodipine 5 mg tablet,15's,180
+brand,FIX-BR-010,Atorva 10,Atorvastatin Calcium 10 mg tablet,15's,120
+brand,FIX-BR-011,Thyronorm 50,Levothyroxine Sodium 50 mcg tablet,100's,300
+brand,FIX-BR-012,Amlong 5,Amlodipine 5 mg tablet,15's,45
+brand,FIX-BR-013,Calpol Syrup,Paracetamol Oral Suspension 250mg/5ml,60 ml,60
+brand,FIX-BR-014,Shelcal 500,Calcium 500 mg + Vitamin D3 250 IU tablet,15's,110
+brand,FIX-BR-015,Telma 40,Telmisartan 40 mg tablet,15's,170

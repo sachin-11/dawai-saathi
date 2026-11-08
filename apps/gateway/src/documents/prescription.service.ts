@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import type { ProcessMeta } from '../ai-client/types';
+import type { GenericDetailsRequest, ProcessMeta } from '../ai-client/types';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
@@ -147,5 +147,34 @@ export class PrescriptionService {
       });
       return result.count;
     });
+  }
+
+  /**
+   * The medicines of one of the user's prescriptions, with the generic suggestions stored when it was
+   * read (names and prices as they were then). Null when the document is not found or not theirs.
+   * Medicines whose name could not be read were never matched and are left out.
+   */
+  async genericItems(
+    userId: string,
+    documentId: string,
+  ): Promise<GenericDetailsRequest['medicines'] | null> {
+    if (!isUuid(documentId)) return null;
+    const document = await this.prisma.document.findFirst({
+      where: { id: documentId, userId, kind: 'prescription' },
+      select: { extraction: true },
+    });
+    if (!document) return null;
+    const extraction = document.extraction as unknown as PrescriptionExtraction | null;
+    return (extraction?.medicines ?? []).flatMap((medicine) =>
+      medicine.name.value && medicine.match
+        ? [
+            {
+              name: medicine.name.value,
+              strength: medicine.strength.value ?? null,
+              generic: medicine.generic ?? null,
+            },
+          ]
+        : [],
+    );
   }
 }

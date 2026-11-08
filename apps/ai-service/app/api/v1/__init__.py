@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.generic_details import router as generic_details_router
 from app.api.v1.process import router as process_router
 
 router = APIRouter()
 router.include_router(process_router)
+router.include_router(generic_details_router)

@@ -85,7 +85,7 @@ make test-integration           # real Postgres/Redis/MinIO on separate ports (5
 
 Other targets: `make format`, `make build`, `make docker-build`, `make down`, `make logs`, `make migrate-dev name=<name>`, `make clean`, `make help`.
 
-Coming later: `make seed` (M8), `make eval` (M14). For now these only print which module will implement them.
+Coming later: `make eval` (M14). For now it only prints which module will implement it.
 
 ### Test the webhook locally
 
@@ -168,7 +168,7 @@ The emergency phrases live in ONE file, `packages/contracts/safety/emergency-key
 
 ## Prescriptions (M7): try it
 
-Send a photo (or PDF) of a prescription to the bot after you have finished onboarding. The reply lists every medicine with dose, timing, food relation and duration, flags anything it could not read clearly (and asks you to confirm it with your pharmacist), and shows three buttons: **Set reminders** and **Generic medicines** (both "coming soon": M10 / M8) and **Something is wrong** (marks the document for review and switches its medicines off). `MEDS` lists the saved medicines.
+Send a photo (or PDF) of a prescription to the bot after you have finished onboarding. The reply lists every medicine with dose, timing, food relation and duration, flags anything it could not read clearly (and asks you to confirm it with your pharmacist), and shows three buttons: **Set reminders** ("coming soon": M10) and **Generic medicines** (M8) and **Something is wrong** (marks the document for review and switches its medicines off). `MEDS` lists the saved medicines.
 
 ```
 photo / PDF ─► pre-process (EXIF stripped, resized, blur/dark check) ─► classify (prescription? lab report? strip?)
@@ -182,6 +182,48 @@ photo / PDF ─► pre-process (EXIF stripped, resized, blur/dark check) ─► 
 - **Reminder clock times:** a written "morning / afternoon / evening / night" is saved as `MED_TIME_MORNING` (08:00), `MED_TIME_AFTERNOON` (14:00), `MED_TIME_EVENING` (18:00), `MED_TIME_NIGHT` (21:00), Asia/Kolkata.
 - **Prescription eval:** `make eval-rx` generates 24 synthetic prescription images (`evals/datasets/prescriptions/`, see its README), replays them through the pipeline with a fake model and writes `evals/reports/<date>-rx_extract_v1-rx-fake.md`. The fake modes check the safety rules around the model (flag recall, no PHI leakage, no invented medicine, grounded replies), not model accuracy. `make eval-rx MODE=fake-noisy` injects model mistakes; **`make eval-rx MODE=real`** runs your real provider on the images (needs keys, costs money) and is the only mode that measures reading quality.
 - Migration `20261108100000_rx_persistence` (run `make migrate`) makes `medications.frequency_per_day` nullable (as-needed medicines), adds `medications.as_needed` and a unique `documents.message_id`.
+
+## Medicine catalog and generic finder (M8)
+
+For every medicine read from a prescription the AI service looks it up in the catalog (`drugs`), and
+suggests a cheaper generic only when the salt, strength, form AND release type (plain / SR / ER ...)
+are exactly the same. Details and the open gaps: [`data/SOURCES.md`](./data/SOURCES.md).
+
+**Seed the catalog (once, and again whenever the price list changes):**
+
+```bash
+make migrate                      # applies the M8 migration (new drugs columns, salt_aliases, match fields)
+make seed                         # 73 curated brands (no prices) + Jan Aushadhi if data/raw/pmbjp/*.csv exists
+make seed FIXTURE=1               # ... plus FICTIONAL generics and prices, for a local demo only
+make seed PMBJP_DATE=2026-01-31   # needed when Jan Aushadhi CSV files are present (the list's own date)
+make seed BRANDS_CSV=data/raw/brands.csv   # a brand list you supply (local only, never committed)
+make embed                        # vector fallback: uploads to Pinecone if VECTOR_BACKEND=pinecone, else a check
+```
+
+`make seed` is idempotent and writes an ingestion report to `data/reports/` (rows read / accepted /
+rejected by reason). The Jan Aushadhi list must be exported to CSV with the columns `Drug Code,
+Generic Name, Unit Size, MRP` first; strength and form are parsed from the name, and a row that cannot
+be parsed safely is rejected, never guessed. `FIXTURE=1` is refused when `NODE_ENV=production`.
+
+**Try it:** with the fixture seeded, send a prescription photo (the fake LLM returns Dolo 650, Pantop 40
+and one unreadable line): the reply shows "A cheaper option with the same salt is available" under
+Dolo 650, and the **Generic medicines** button sends the details (name, "Jan Aushadhi" tag, approximate
+price and saving, price date, and "Same salt, same strength. Please ask your doctor or pharmacist before
+switching"). Typing `Dolo 650 ka generic batao` does the same for one medicine.
+
+**What is never suggested:** narrow-therapeutic-index drugs (levothyroxine, warfarin, phenytoin ...),
+insulins and biologics, every modified-release product, inhalers and forms we could not classify, a
+medicine whose written strength or form contradicts the catalog product, and anything unreadable. The
+list lives in `apps/ai-service/app/safety/no_substitute.yaml` and **must be reviewed by a pharmacist
+before launch**. A saving is only stated when both the brand price and the alternative price are known.
+
+**Evals (offline, no keys):** `make eval-matcher` runs 279 synthetic cases and fails on any wrong-strength,
+wrong-form/release, wrong-salt or forbidden suggestion (all four must be 0); `make eval-rx` now also checks
+suggestions end to end on the synthetic prescriptions. Both run in CI.
+
+Settings: `DRUG_TRGM_MIN`, `DRUG_MATCH_MIN`, `DRUG_VECTOR_MIN`, `MIN_SAVINGS_PCT`, `VECTOR_BACKEND`,
+`PINECONE_INDEX_HOST`, `EMBEDDING_*` (see `.env.example`). The Pinecone and embedding-API code is tested
+against mocked HTTP only.
 
 ## Conversation flow (M4)
 
@@ -211,6 +253,8 @@ first message ──► choose language (हिन्दी / English) ──►
 | `make db-reset` | Wipe local volumes, restart infra, re-migrate (asks first) |
 | `make safety-data` | Copy the shared emergency keywords into both apps |
 | `make eval-emergency` | Emergency-detection eval (rules, then rules + classifier) |
+| `make seed` / `make embed` | Load the medicine catalog / embed it for the vector fallback (see M8 section) |
+| `make eval-matcher` | Drug matching + generic finder eval (all safety gates must be zero) |
 | `make eval-rx` | Prescription eval on synthetic images (`MODE=fake-noisy`, or `MODE=real` with your keys) |
 | `make seed` | Load catalog datasets |
 | `make eval` | Run evaluation suite → `evals/reports/` |

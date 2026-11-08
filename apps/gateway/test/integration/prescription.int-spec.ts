@@ -7,6 +7,7 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 
 import type { INestApplication } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import nock from 'nock';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -37,6 +38,7 @@ interface GraphBody {
 }
 const graph = { sends: [] as GraphBody[] };
 const aiRequests: Array<Record<string, unknown>> = [];
+const detailsRequests: Array<Record<string, unknown>> = [];
 
 function installGraphMock(): void {
   nock(GRAPH)
@@ -111,6 +113,9 @@ const f = <T>(value: T | null, confidence = 0.95): { value: T | null; confidence
   confidence,
 });
 
+/** A real row in `drugs` (created in beforeAll): medications.drug_id is a foreign key. */
+const DRUG_ID = randomUUID();
+
 const DOLO = {
   raw_text: f('Tab. Dolo 650 1-0-1 x 5 days'),
   name: f('Dolo 650'),
@@ -126,6 +131,37 @@ const DOLO = {
   instructions: f(null, 0),
   low_confidence: false,
   validation_notes: [],
+  match: {
+    drug_id: DRUG_ID,
+    brand_name: 'Dolo 650',
+    salt_key: 'paracetamol',
+    strength_key: '650mg',
+    form_key: 'tablet',
+    release_type: 'ir',
+    score: 1,
+    method: 'exact',
+    candidates: [],
+    strength_basis: 'brand_name',
+    strength_conflict: false,
+    form_conflict: false,
+    ambiguous: false,
+  },
+  generic: {
+    alternatives: [
+      {
+        drug_id: 'jan-1',
+        brand_name: 'Paracetamol Tablets IP 650 mg',
+        is_janaushadhi: true,
+        price_per_unit: 1.5,
+        pack_label: '10 tablet',
+        pack_price: 15,
+        approx_savings: 15,
+        savings_basis: 'course',
+      },
+    ],
+    price_source_date: '2026-01-01',
+    savings_known: true,
+  },
 };
 const UNREADABLE = {
   ...DOLO,
@@ -153,7 +189,7 @@ function prescriptionResponse(requestId: string): ProcessResponse {
     warnings: [{ type: 'low_confidence', detail: 'medicine 2: name not clear' }],
     reply: {
       language: 'en',
-      text: '📋 I found 2 medicines in your prescription:\n\n1. Dolo 650 (tablet, 650 mg) — 1 tablet, morning and night, after food, for 5 days\n2. I could not read this medicine clearly. Please confirm with your pharmacist.',
+      text: '📋 I found 2 medicines in your prescription:\n\n1. Dolo 650 (tablet, 650 mg) — 1 tablet, morning and night, after food, for 5 days\n   💰 A cheaper option with the same salt is available.\n2. I could not read this medicine clearly. Please confirm with your pharmacist.',
       buttons: [
         { id: 'rx:reminders:{document_id}', title: 'Set reminders' },
         { id: 'rx:generic:{document_id}', title: 'Generic medicines' },
@@ -257,8 +293,34 @@ describe('prescription flow (integration)', () => {
         aiRequests.push(requestBody);
         return [200, prescriptionResponse(requestBody.request_id)];
       });
+    nock(AI)
+      .persist()
+      .post('/v1/generic-details')
+      .matchHeader('x-service-token', INTEGRATION_ENV['SERVICE_TOKEN'] ?? '')
+      .reply((_uri, body) => {
+        const requestBody = body as { request_id: string } & Record<string, unknown>;
+        detailsRequests.push(requestBody);
+        return [
+          200,
+          {
+            request_id: requestBody.request_id,
+            reply: { language: 'en', text: 'GENERIC-DETAILS-TEXT', buttons: [] },
+          },
+        ];
+      });
     app = (await createApp()) as INestApplication<App>;
     prisma = app.get(PrismaService);
+    await prisma.drug.create({
+      data: {
+        id: DRUG_ID,
+        brandName: 'Dolo 650',
+        saltComposition: 'paracetamol',
+        strength: '650mg',
+        form: 'tablet',
+        source: 'int-test',
+        sourceRef: DRUG_ID,
+      },
+    });
     storage = app.get(StorageService);
   });
 
@@ -266,6 +328,7 @@ describe('prescription flow (integration)', () => {
     for (const id of userIds) await storage.deletePrefix(`media/${id}/`);
     await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await prisma.drug.deleteMany({ where: { id: DRUG_ID } });
     await app.close();
     nock.cleanAll();
     nock.enableNetConnect();
@@ -307,9 +370,15 @@ describe('prescription flow (integration)', () => {
       relationToFood: 'after',
       durationDays: 5,
       active: true,
-      salt: null,
-      drugId: null,
+      salt: 'paracetamol',
+      saltKey: 'paracetamol',
+      strengthKey: '650mg',
+      formKey: 'tablet',
+      releaseType: 'ir',
+      matchMethod: 'exact',
+      drugId: DRUG_ID,
     });
+    expect(Number(dolo?.matchScore)).toBe(1);
     // "x 5 days" starting today: the inclusive end date is 4 days after the start date.
     const spanMs = (dolo?.endDate?.getTime() ?? NaN) - (dolo?.startDate.getTime() ?? 0);
     expect(spanMs / (24 * 60 * 60 * 1000)).toBe(4);
@@ -447,18 +516,78 @@ describe('prescription flow (integration)', () => {
     expect(sendsTo(phone)[before]?.text?.body).toContain('could not find');
   });
 
-  it('"Set reminders" and "Generic medicines" say coming soon and change nothing', async () => {
+  it('"Set reminders" says coming soon and changes nothing', async () => {
     const { phone, userId } = await activeUser();
     const document = await photo(phone, userId);
-    for (const [action, snippet] of [
-      ['reminders', 'reminders are coming soon'],
-      ['generic', 'Generic medicine suggestions are coming soon'],
-    ] as const) {
-      const before = sendsTo(phone).length;
-      await say(phone, tap(`rx:${action}:${document.id}`));
-      expect(sendsTo(phone)[before]?.text?.body).toContain(snippet);
-    }
+    const before = sendsTo(phone).length;
+    await say(phone, tap(`rx:reminders:${document.id}`));
+    expect(sendsTo(phone)[before]?.text?.body).toContain('reminders are coming soon');
     expect(await prisma.medication.count({ where: { userId, active: true } })).toBe(1);
+  });
+
+  it('the reply carries the cheaper-option line, no price and no brand of the generic', async () => {
+    const { phone, userId } = await activeUser();
+    await photo(phone, userId);
+    const reply = sendsTo(phone)[1]?.interactive?.body.text ?? '';
+    expect(reply).toContain('💰 A cheaper option with the same salt is available.');
+    expect(reply).not.toContain('₹');
+    expect(reply).not.toContain('Paracetamol Tablets IP');
+  });
+
+  it('"Generic medicines" sends the STORED suggestions to the AI service and relays its text', async () => {
+    const { phone, userId } = await activeUser();
+    const document = await photo(phone, userId);
+    detailsRequests.length = 0;
+
+    const before = sendsTo(phone).length;
+    await say(phone, tap(`rx:generic:${document.id}`));
+    expect(sendsTo(phone)[before]?.text?.body).toBe('GENERIC-DETAILS-TEXT');
+
+    expect(detailsRequests).toHaveLength(1);
+    const request = detailsRequests[0] as {
+      language: string;
+      medicines: Array<{ name: string; generic: { alternatives: unknown[] } }>;
+    };
+    expect(request.language).toBe('en');
+    // Only the readable medicine (the unreadable one was never matched); the snapshot is untouched.
+    expect(request.medicines.map((m) => m.name)).toEqual(['Dolo 650']);
+    expect(request.medicines[0]?.generic.alternatives).toHaveLength(1);
+    expect(JSON.stringify(detailsRequests)).not.toMatch(/919\d{9}/);
+  });
+
+  it("someone else's document id never reaches the AI service", async () => {
+    const owner = await activeUser();
+    const document = await photo(owner.phone, owner.userId);
+    const stranger = await activeUser();
+    detailsRequests.length = 0;
+
+    const before = sendsTo(stranger.phone).length;
+    await say(stranger.phone, tap(`rx:generic:${document.id}`));
+    expect(sendsTo(stranger.phone)[before]?.text?.body).toContain('could not find');
+    expect(detailsRequests).toHaveLength(0);
+  });
+
+  it('a prescription read before M8 (no stored suggestions) gets an honest message', async () => {
+    const { phone, userId } = await activeUser();
+    const document = await photo(phone, userId);
+    const stored = await prisma.document.findUniqueOrThrow({ where: { id: document.id } });
+    const extraction = JSON.parse(JSON.stringify(stored.extraction)) as {
+      medicines: Array<Record<string, unknown>>;
+    };
+    for (const medicine of extraction.medicines) {
+      delete medicine['match'];
+      delete medicine['generic'];
+    }
+    await prisma.document.update({
+      where: { id: document.id },
+      data: { extraction: extraction as unknown as Prisma.InputJsonValue },
+    });
+    detailsRequests.length = 0;
+
+    const before = sendsTo(phone).length;
+    await say(phone, tap(`rx:generic:${document.id}`));
+    expect(sendsTo(phone)[before]?.text?.body).toContain("don't have generic suggestions saved");
+    expect(detailsRequests).toHaveLength(0);
   });
 
   it('deleting the user removes the documents and medications too', async () => {

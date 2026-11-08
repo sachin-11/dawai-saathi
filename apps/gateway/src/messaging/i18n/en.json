@@ -6,33 +6,24 @@
   "dev.echo_text": "[dev] You wrote: {{text}}",
   "dev.echo_media": "[dev] Got your {{type}} ({{size_kb}} KB) and saved it.",
   "dev.ai_not_ready": "[dev] The AI part is not connected yet; it arrives in a later module.",
-
   "onboarding.choose_language": "Please choose your language / कृपया अपनी भाषा चुनें",
-
   "consent.v1.body": "Namaste! I'm Dawai Saathi 💊 I help you understand prescriptions and lab reports.\n\nBefore we start:\n• I save the photos you send, the medicine details I read from them, and your reminders.\n• Photos are deleted automatically after {{retention_days}} days.\n• I am not a doctor and I never diagnose. Always check with your doctor or pharmacist.\n• Send DELETE any time to erase all your data.\n\nPrivacy policy: {{privacy_url}}\n\nDo you agree?",
   "consent.v1.accepted_welcome": "Thank you! 🙏 You can now:\n📷 Send a photo of a prescription or lab report\n💊 Send MEDS to see your medicines\n❓ Send HELP to see all commands\n\nI only explain what is written. Please confirm everything with your doctor or pharmacist.",
   "consent.v1.declined": "Okay, no problem. I will not read or save any of your documents. Whenever you change your mind, just send any message and I will ask again.",
   "consent.v1.reminder": "To read your documents I first need your permission. Nothing you sent has been opened or saved. Please choose an option below.",
-
   "help.body": "I'm Dawai Saathi 💊\n\nI can:\n• Read a prescription photo and explain it simply\n• Explain a lab report (never a diagnosis)\n• Suggest cheaper generics with the same salt\n\nCommands:\nHELP – this message\nMEDS – your active medicines\nLANGUAGE – change language\nSTOP REMINDERS / START REMINDERS\nDELETE – erase all your data\n\n🚨 Emergency? Call 112 or 108.\n\nI am not a doctor. Always ask your doctor or pharmacist before changing anything.",
-
   "language.changed": "Language set to English.",
-
   "reminders.disabled": "Dose reminders are switched off. Send START REMINDERS to turn them on again.",
   "reminders.enabled": "Dose reminders are switched on.",
-
   "meds.none": "You have no active medicines saved yet. Send a photo of your prescription to add them.",
   "meds.list_header": "Your active medicines:",
   "meds.item": "• {{name}} — {{timings}}",
-
   "delete.confirm_question": "⚠️ This will permanently delete ALL your data: messages, photos, medicines and reminders. It cannot be undone.\n\nDelete everything?",
   "delete.cancelled": "Okay, nothing was deleted.",
   "delete.expired": "That confirmation has expired, so nothing was deleted. Send DELETE again if you still want to erase your data.",
   "delete.done": "Done. All your data has been deleted. If you message me again we will start fresh. Take care! 🙏",
-
   "emergency.general": "🚨 This sounds like an emergency. Please call 112 (or 108 for an ambulance) right now or go to the nearest hospital. Do not wait for a reply here: I am not a doctor and cannot help in an emergency.",
   "emergency.self_harm": "💛 I'm really sorry you are going through this. You are not alone. Please call Tele-MANAS (free, 24x7) on 14416 now. If you are in immediate danger, call 112 or 108 or go to the nearest hospital.",
-
   "buttons.lang_hi": "हिन्दी",
   "buttons.lang_en": "English",
   "buttons.consent_yes": "I agree",
@@ -42,7 +33,7 @@
   "common.next_step": "What would you like to do next?",
   "rx.wrong_ack": "Thank you for telling me. I marked this prescription as \"needs checking\" and will not use its medicines for reminders. Please show the prescription to your pharmacist, or type the correct details here.",
   "rx.reminders_soon": "Dose reminders are coming soon. Your medicines are saved: send MEDS to see them.",
-  "rx.generic_soon": "Generic medicine suggestions are coming soon.",
+  "rx.generic_unavailable": "I don't have generic suggestions saved for this prescription. Please send the photo again to check, or ask your pharmacist about cheaper options with the same salt.",
   "rx.not_found": "I could not find that prescription any more. Please send the photo again.",
   "meds.when_as_needed": "only when needed",
   "meds.when_times": "{{count}} times a day"

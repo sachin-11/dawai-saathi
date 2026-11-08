@@ -1,0 +1,7 @@
+{#- No generic to suggest (English): says WHY for each medicine. No LLM. -#}
+ℹ️ I could not suggest a cheaper generic for:
+
+{% for it in missing -%}
+{{ it.number }}. {{ it.name }}: {{ it.reason }}
+{% endfor %}
+You can ask your pharmacist about cheaper options with the same salt.

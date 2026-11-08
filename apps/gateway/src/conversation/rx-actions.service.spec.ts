@@ -1,3 +1,4 @@
+import type { AiClient } from '../ai-client/ai-client';
 import type { AuditService } from '../audit/audit.service';
 import type { PrescriptionService } from '../documents/prescription.service';
 import type { UserState } from '../users/users.service';
@@ -14,22 +15,47 @@ const user: UserState = {
 };
 const DOC = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';
 
-function setup(markWrong: number | null = 2): {
+const ITEMS = [
+  {
+    name: 'Dolo 650',
+    strength: '650 mg',
+    generic: { alternatives: [{ drug_id: 'd1', brand_name: 'Paracetamol IP' }] },
+  },
+];
+
+function setup(
+  markWrong: number | null = 2,
+  items: unknown = ITEMS,
+): {
   service: RxActionsService;
-  prescriptions: { markWrong: jest.Mock };
+  prescriptions: { markWrong: jest.Mock; genericItems: jest.Mock };
   audit: { log: jest.Mock };
-  session: { text: jest.Mock };
+  ai: { genericDetails: jest.Mock };
+  session: { text: jest.Mock; textAt: jest.Mock; rawText: jest.Mock; requestId: string };
 } {
-  const prescriptions = { markWrong: jest.fn().mockResolvedValue(markWrong) };
+  const prescriptions = {
+    markWrong: jest.fn().mockResolvedValue(markWrong),
+    genericItems: jest.fn().mockResolvedValue(items),
+  };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
-  const session = { text: jest.fn().mockResolvedValue(undefined) };
+  const ai = {
+    genericDetails: jest.fn().mockResolvedValue({ request_id: 'r', reply: { text: 'DETAILS' } }),
+  };
+  const session = {
+    text: jest.fn().mockResolvedValue(undefined),
+    textAt: jest.fn().mockResolvedValue(undefined),
+    rawText: jest.fn().mockResolvedValue(undefined),
+    requestId: 'req-1',
+  };
   return {
     service: new RxActionsService(
       prescriptions as unknown as PrescriptionService,
       audit as unknown as AuditService,
+      ai as unknown as AiClient,
     ),
     prescriptions,
     audit,
+    ai,
     session,
   };
 }
@@ -87,18 +113,61 @@ describe('RxActionsService', () => {
     expect(s.session.text).toHaveBeenCalledWith('rx.not_found');
   });
 
-  it.each([
-    ['reminders', 'rx.reminders_soon'],
-    ['generic', 'rx.generic_soon'],
-  ] as const)('%s says "coming soon" and touches nothing', async (action, key) => {
+  it('reminders says coming soon and touches nothing', async () => {
     const s = setup();
     const outcome = await s.service.handle(
       user,
-      { action, documentId: DOC },
+      { action: 'reminders', documentId: DOC },
       s.session as unknown as ReplySession,
     );
     expect(outcome).toBe('rx_coming_soon');
-    expect(s.session.text).toHaveBeenCalledWith(key);
+    expect(s.session.text).toHaveBeenCalledWith('rx.reminders_soon');
     expect(s.prescriptions.markWrong).not.toHaveBeenCalled();
+  });
+
+  describe('generic details (M8)', () => {
+    const tap = (s: ReturnType<typeof setup>) =>
+      s.service.handle(
+        user,
+        { action: 'generic', documentId: DOC },
+        s.session as unknown as ReplySession,
+      );
+
+    it('sends the stored suggestions to the AI service in the user language and relays its text', async () => {
+      const s = setup();
+      await expect(tap(s)).resolves.toBe('rx_generic_details');
+      expect(s.prescriptions.genericItems).toHaveBeenCalledWith('user-1', DOC);
+      expect(s.ai.genericDetails).toHaveBeenCalledWith({
+        request_id: 'req-1-generic',
+        language: 'en',
+        medicines: ITEMS,
+      });
+      expect(s.session.rawText).toHaveBeenCalledWith('DETAILS');
+    });
+
+    it('a foreign or unknown document gets the neutral answer and no AI call', async () => {
+      const s = setup(2, null);
+      await expect(tap(s)).resolves.toBe('rx_not_found');
+      expect(s.session.text).toHaveBeenCalledWith('rx.not_found');
+      expect(s.ai.genericDetails).not.toHaveBeenCalled();
+    });
+
+    it.each([[[]], [[{ name: 'Dolo', strength: null, generic: null }]]])(
+      'a prescription without stored suggestions says so instead of an empty list (%j)',
+      async (items) => {
+        const s = setup(2, items);
+        await expect(tap(s)).resolves.toBe('rx_generic_unavailable');
+        expect(s.session.text).toHaveBeenCalledWith('rx.generic_unavailable');
+        expect(s.ai.genericDetails).not.toHaveBeenCalled();
+      },
+    );
+
+    it('an AI failure sends ONE error message at the fixed index and rethrows for the retry', async () => {
+      const s = setup();
+      s.ai.genericDetails.mockRejectedValue(new Error('down'));
+      await expect(tap(s)).rejects.toThrow('down');
+      expect(s.session.textAt).toHaveBeenCalledWith(99, 'common.error_try_again');
+      expect(s.session.rawText).not.toHaveBeenCalled();
+    });
   });
 });

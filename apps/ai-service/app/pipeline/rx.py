@@ -23,6 +23,7 @@ from app.api.errors import ApiError
 from app.llm.types import ImageInput, LLMResult
 from app.media.fetcher import IMAGE_MIME_TYPES, FetchedMedia, MediaRejectedError, fetch_media
 from app.pipeline.base import Pipeline, PipelineContext, PipelineOutput
+from app.schemas.catalog import DrugMatch
 from app.schemas.prescription import DateField, PrescriptionExtraction, TextField
 from app.schemas.process import (
     InputType,
@@ -34,6 +35,7 @@ from app.schemas.process import (
     WarningType,
 )
 from app.tools.classify_image import IMAGE_CLASSIFY_PROMPT_ID, classify_image
+from app.tools.generic_finder import MedicineFacts
 from app.tools.image_prep import ImagePrepError, PreparedImage, prepare_image, prepare_pil
 from app.tools.pdf_render import PdfRejectedError, render_pdf_pages
 from app.tools.rx_compose import (
@@ -42,7 +44,7 @@ from app.tools.rx_compose import (
     build_reply,
     compose_text,
 )
-from app.tools.rx_gate import apply_gate
+from app.tools.rx_gate import apply_gate, unclear_fields
 from app.tools.rx_validate import validate_extraction
 from app.tools.vision_extract_rx import RX_EXTRACT_PROMPT_ID, extract_prescription
 
@@ -114,6 +116,7 @@ class RxPipeline:
         threshold = ctx.settings.extraction_min_confidence
         extraction = await asyncio.to_thread(_redact_free_text, extraction, ctx)
         validated = validate_extraction(extraction, threshold)
+        validated = await _enrich_with_catalog(validated, ctx, threshold)
         gate = apply_gate(validated, threshold)
         gated = gate.extraction
 
@@ -253,3 +256,35 @@ def _redact_free_text(
         medicines.append(updated)
     notes = [redact(note) for note in extraction.notes_for_user]
     return extraction.model_copy(update={"medicines": medicines, "notes_for_user": notes})
+
+
+async def _enrich_with_catalog(
+    extraction: PrescriptionExtraction, ctx: PipelineContext, threshold: float
+) -> PrescriptionExtraction:
+    """normalize_drugs + generic_finder (M8): deterministic, after validation and before the gate.
+
+    Whatever the model put in `match` / `generic` is discarded first. A medicine whose NAME could not
+    be read is not matched at all (nothing to look up); one with an unclear dose or frequency is
+    matched but gets no generic suggestion (reason `low_confidence`).
+    """
+    catalog = ctx.catalog
+    medicines = []
+    for medicine in extraction.medicines:
+        updated = medicine.model_copy(update={"match": None, "generic": None})
+        unclear = unclear_fields(updated, threshold)
+        if catalog is not None and updated.name.value is not None and "name" not in unclear:
+            match: DrugMatch = await catalog.match(
+                updated.name.value, updated.strength.value, updated.form.value
+            )
+            facts = MedicineFacts(
+                low_confidence=bool(unclear),
+                dose=updated.dose.value,
+                frequency_per_day=updated.frequency_per_day.value,
+                duration_days=updated.duration_days.value,
+                as_needed=updated.as_needed,
+            )
+            updated = updated.model_copy(
+                update={"match": match, "generic": await catalog.generic(match, facts)}
+            )
+        medicines.append(updated)
+    return extraction.model_copy(update={"medicines": medicines})

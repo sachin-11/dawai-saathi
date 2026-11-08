@@ -7,6 +7,8 @@
 {%- else %}I could not read this medicine clearly. Please confirm with your pharmacist.{% endif -%}
 {%- elif m.llm_line -%}{{ m.llm_line }}
 {%- else -%}{{ m.head }}{% if m.parts %} — {{ m.parts | join(", ") }}{% endif %}{% endif %}
+{%- if m.generic_line and not m.low %}
+   {{ m.generic_line }}{% endif %}
 {% endfor %}
 {%- if any_low %}
 ⚠️ Some items could not be read clearly. Please confirm those with your pharmacist.

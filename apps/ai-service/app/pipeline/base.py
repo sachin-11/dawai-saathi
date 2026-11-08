@@ -7,6 +7,7 @@ the endpoint, the contract and the gateway do not change.
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from app.catalog.service import CatalogService
 from app.config import Settings
 from app.llm.router import Deadline, LLMRouter
 from app.llm.types import LLMResult
@@ -52,6 +53,8 @@ class PipelineContext:
     usage: RequestUsage
     guard: EmergencyGuard = field(default_factory=EmergencyGuard)
     redactor: Redactor = field(default_factory=get_redactor)
+    # M8: None in tests that do not need the catalog; then no match / generic step runs.
+    catalog: CatalogService | None = None
 
 
 @dataclass(frozen=True, slots=True)

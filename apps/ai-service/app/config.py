@@ -119,6 +119,25 @@ class Settings(BaseSettings):
         default=12.0, ge=0.0, le=1000.0, validation_alias="IMAGE_MIN_SHARPNESS"
     )
 
+    # ---- M8: catalog matching and generic suggestions
+    drug_trgm_min: float = Field(default=0.45, ge=0.0, le=1.0, validation_alias="DRUG_TRGM_MIN")
+    # Below this score a match is only shown, never used for a generic suggestion.
+    drug_match_min: float = Field(default=0.8, ge=0.0, le=1.0, validation_alias="DRUG_MATCH_MIN")
+    drug_vector_min: float = Field(default=0.8, ge=0.0, le=1.0, validation_alias="DRUG_VECTOR_MIN")
+    # An alternative must save at least this much (percent) when the brand price is known.
+    min_savings_pct: float = Field(
+        default=15.0, ge=0.0, le=100.0, validation_alias="MIN_SAVINGS_PCT"
+    )
+    # `memory` builds the vector index from the catalog at first use; `pinecone` queries a real index.
+    vector_backend: Literal["memory", "pinecone"] = Field(
+        default="memory", validation_alias="VECTOR_BACKEND"
+    )
+    pinecone_api_key: OptionalSecret = Field(default=None, validation_alias="PINECONE_API_KEY")
+    pinecone_index_host: Optional_ = Field(default=None, validation_alias="PINECONE_INDEX_HOST")
+    embedding_base_url: Optional_ = Field(default=None, validation_alias="EMBEDDING_BASE_URL")
+    embedding_api_key: OptionalSecret = Field(default=None, validation_alias="EMBEDDING_API_KEY")
+    embedding_model: Optional_ = Field(default=None, validation_alias="EMBEDDING_MODEL")
+
     # ---- M5: Langfuse (optional: without keys tracing is a no-op)
     langfuse_public_key: OptionalSecret = Field(
         default=None, validation_alias="LANGFUSE_PUBLIC_KEY"

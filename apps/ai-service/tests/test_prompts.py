@@ -125,7 +125,7 @@ class TestPromptRegistry:
 class TestTemplateStore:
     def test_has_the_same_keys_and_version_in_both_languages(self):
         store = TemplateStore()
-        assert store.version == "reply_templates_v3"
+        assert store.version == "reply_templates_v4"
         for key in (
             "help",
             "coming_soon",
