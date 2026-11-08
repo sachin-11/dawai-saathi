@@ -516,13 +516,16 @@ describe('prescription flow (integration)', () => {
     expect(sendsTo(phone)[before]?.text?.body).toContain('could not find');
   });
 
-  it('"Set reminders" says coming soon and changes nothing', async () => {
+  it('"Set reminders" shows the plan first and saves nothing until the user confirms (M10)', async () => {
     const { phone, userId } = await activeUser();
     const document = await photo(phone, userId);
     const before = sendsTo(phone).length;
     await say(phone, tap(`rx:reminders:${document.id}`));
-    expect(sendsTo(phone)[before]?.text?.body).toContain('reminders are coming soon');
+    const summary = sendsTo(phone)[before];
+    expect(summary?.interactive?.body.text).toContain('Dolo 650');
+    expect(summary?.interactive?.action.buttons).toHaveLength(3);
     expect(await prisma.medication.count({ where: { userId, active: true } })).toBe(1);
+    expect(await prisma.reminderSchedule.count({ where: { userId } })).toBe(0);
   });
 
   it('the reply carries the cheaper-option line, no price and no brand of the generic', async () => {

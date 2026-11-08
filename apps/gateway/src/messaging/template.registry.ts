@@ -5,7 +5,13 @@ import { WhatsAppValidationError } from './whatsapp.errors';
 
 export type TemplateLanguage = 'hi' | 'en';
 export type TemplateName =
-  'dose_reminder' | 'caregiver_missed_dose_alert' | 'consent_reminder' | 'generic_reengage';
+  | 'dose_reminder'
+  | 'caregiver_invite'
+  | 'caregiver_missed_dose_alert'
+  | 'daily_summary'
+  | 'reminder_renewal'
+  | 'consent_reminder'
+  | 'generic_reengage';
 
 interface TemplateDefinition {
   /** Template name as registered with Meta (see docs/whatsapp-templates.md). */
@@ -24,13 +30,30 @@ interface TemplateDefinition {
 export const TEMPLATES: Readonly<Record<TemplateName, TemplateDefinition>> = {
   dose_reminder: {
     metaName: 'dose_reminder',
-    bodyParams: ['medicine_name', 'dose_timing'],
+    // {{1}} = the due medicines as one line ("Dolo 650 (1 tablet, after food); ..."), {{2}} = local time.
+    bodyParams: ['medicines', 'time'],
     quickReplyButtons: 3, // Taken / Snooze / Skip
   },
+  caregiver_invite: {
+    metaName: 'caregiver_invite',
+    bodyParams: ['user_label'],
+    quickReplyButtons: 0, // the caregiver answers YES / NO as text
+  },
+  // Minimum necessary information: a label and a time. NEVER a medicine name (CLAUDE.md §2.6).
   caregiver_missed_dose_alert: {
     metaName: 'caregiver_missed_dose_alert',
-    bodyParams: ['patient_label', 'medicine_name', 'due_time'],
+    bodyParams: ['user_label', 'time'],
     quickReplyButtons: 0,
+  },
+  daily_summary: {
+    metaName: 'daily_summary',
+    bodyParams: ['taken', 'total'],
+    quickReplyButtons: 0,
+  },
+  reminder_renewal: {
+    metaName: 'reminder_renewal',
+    bodyParams: [],
+    quickReplyButtons: 2, // Renew / Not now
   },
   consent_reminder: {
     metaName: 'consent_reminder',

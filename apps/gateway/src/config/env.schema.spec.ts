@@ -37,6 +37,12 @@ describe('validateEnv', () => {
       PRIVACY_POLICY_URL: 'https://dawaisaathi.example/privacy',
       AI_CLIENT_TIMEOUT_MS: 70000,
       S3_SSE: 'AES256',
+      REMINDER_HORIZON_HOURS: 36,
+      REMINDER_OPEN_ENDED_DAYS: 30,
+      SNOOZE_MINUTES: 30,
+      REMINDER_ACK_TIMEOUT_MIN: 60,
+      CAREGIVER_ALERT_AFTER_MISSES: 2,
+      DAILY_SUMMARY_ENABLED: false,
     });
   });
 
@@ -122,6 +128,28 @@ describe('validateEnv', () => {
   });
 
   describe('M3 settings', () => {
+    it('REMINDER_TEST_OFFSET_MIN is a dev helper and is refused in production', () => {
+      expect(
+        validateEnv({ ...valid, REMINDER_TEST_OFFSET_MIN: '3' }).REMINDER_TEST_OFFSET_MIN,
+      ).toBe(3);
+      expect(
+        validateEnv({ ...valid, REMINDER_TEST_OFFSET_MIN: '' }).REMINDER_TEST_OFFSET_MIN,
+      ).toBeUndefined();
+      expect(() =>
+        validateEnv({
+          ...valid,
+          NODE_ENV: 'production',
+          REMINDER_TEST_OFFSET_MIN: '3',
+          SERVICE_TOKEN: 'a-real-production-token-123456',
+          PHONE_HASH_PEPPER: 'a-real-pepper-value',
+          WA_VERIFY_TOKEN: 'a-real-verify-token',
+          WA_APP_SECRET: 'a-real-app-secret-value',
+          WA_ACCESS_TOKEN: 'a-real-access-token-value',
+          ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+        }),
+      ).toThrow(/REMINDER_TEST_OFFSET_MIN/);
+    });
+
     it('DEV_ECHO_BOT is off by default and can be turned on outside production', () => {
       expect(validateEnv(valid).DEV_ECHO_BOT).toBe(false);
       expect(validateEnv({ ...valid, DEV_ECHO_BOT: 'true' }).DEV_ECHO_BOT).toBe(true);

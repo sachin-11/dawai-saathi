@@ -1,3 +1,4 @@
+import type { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import type { AuditService } from '../audit/audit.service';
 import type { UserState, UsersService } from '../users/users.service';
 import { CommandHandlersService } from './command-handlers.service';
@@ -17,6 +18,7 @@ function setup(): {
   handlers: CommandHandlersService;
   users: Record<'setLanguage' | 'setRemindersEnabled' | 'activeMedications', jest.Mock>;
   audit: { log: jest.Mock };
+  schedules: Record<'suspendAll' | 'resumeAll' | 'todayStatus', jest.Mock>;
   session: Record<'text' | 'buttons' | 'textLines' | 'useLanguage' | 'translate', jest.Mock>;
 } {
   const users = {
@@ -25,6 +27,11 @@ function setup(): {
     activeMedications: jest.fn().mockResolvedValue([]),
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
+  const schedules = {
+    suspendAll: jest.fn().mockResolvedValue(0),
+    resumeAll: jest.fn().mockResolvedValue(undefined),
+    todayStatus: jest.fn().mockResolvedValue(new Map()),
+  };
   const session = {
     text: jest.fn().mockResolvedValue(undefined),
     buttons: jest.fn().mockResolvedValue(undefined),
@@ -40,9 +47,11 @@ function setup(): {
     handlers: new CommandHandlersService(
       users as unknown as UsersService,
       audit as unknown as AuditService,
+      schedules as unknown as ReminderScheduleService,
     ),
     users,
     audit,
+    schedules,
     session,
   };
 }

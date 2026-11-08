@@ -1,7 +1,15 @@
 import { normaliseForMatching } from '../common/safety/normalise';
 
 export type CommandName =
-  'help' | 'language' | 'delete' | 'stop_reminders' | 'start_reminders' | 'meds';
+  | 'help'
+  | 'language'
+  | 'delete'
+  | 'stop_reminders'
+  | 'start_reminders'
+  | 'meds'
+  | 'reminders'
+  | 'caregiver_add'
+  | 'caregiver_remove';
 
 /**
  * Stable ids of the interactive buttons we send. Routing uses these ids, NEVER the visible titles
@@ -14,6 +22,9 @@ export const BUTTON_ID = {
   consentNo: 'consent:no',
   deleteConfirm: 'delete:confirm',
   deleteCancel: 'delete:cancel',
+  // M10: answer to the "your reminders end tomorrow" question
+  renewYes: 'rem:renew:yes',
+  renewNo: 'rem:renew:no',
 } as const;
 
 /**
@@ -28,6 +39,10 @@ const ALIASES: Readonly<Record<CommandName, readonly string[]>> = {
   stop_reminders: ['stop reminders', 'stop reminder', 'reminder band karo', 'stop'],
   start_reminders: ['start reminders', 'start reminder', 'reminder chalu karo'],
   meds: ['meds', 'dawai', 'dawaiyan', 'दवाई'],
+  reminders: ['reminders', 'reminder list', 'reminder dikhao', 'रिमाइंडर'],
+  // 'caregiver_add' without a number also lands here: the handler explains the format.
+  caregiver_add: ['caregiver', 'caregiver add', 'parivar jodo', 'परिवार जोड़ो'],
+  caregiver_remove: ['caregiver remove', 'caregiver hatao', 'parivar hatao'],
 };
 
 const LOOKUP: ReadonlyMap<string, CommandName> = new Map(
@@ -50,4 +65,41 @@ export function parseCommand(text: string): CommandName | null {
     return 'help';
   }
   return LOOKUP.get(normaliseForMatching(trimmed)) ?? null;
+}
+
+const CAREGIVER_ADD_PREFIX = /^(?:caregiver(?:\s+add)?|parivar\s+jodo)\s+([+\d][\d\s-]{6,20})$/iu;
+
+/**
+ * `CAREGIVER +91 98765 43210` / `parivar jodo 9876543210` -> the number as typed (digits, spaces,
+ * dashes, a leading +), or null. Only the webhook calls this: the number is stored encrypted in Redis
+ * right away and never enters a queue job.
+ */
+export function parseCaregiverAddNumber(text: string): string | null {
+  const match = CAREGIVER_ADD_PREFIX.exec(text.trim());
+  return match ? (match[1] as string).trim() : null;
+}
+
+/** Caregiver-side answers, matched on the whole message (they come from the caregiver's own number). */
+export type CaregiverReply = 'yes' | 'no' | 'stop_alerts';
+
+const CAREGIVER_REPLIES: ReadonlyMap<string, CaregiverReply> = new Map(
+  [
+    ['yes', 'yes'],
+    ['haan', 'yes'],
+    ['han', 'yes'],
+    ['ha', 'yes'],
+    ['हाँ', 'yes'],
+    ['हां', 'yes'],
+    ['no', 'no'],
+    ['nahi', 'no'],
+    ['nahin', 'no'],
+    ['नहीं', 'no'],
+    ['stop alerts', 'stop_alerts'],
+    ['stop alert', 'stop_alerts'],
+    ['alerts band karo', 'stop_alerts'],
+  ].map(([alias, reply]) => [normaliseForMatching(alias as string), reply as CaregiverReply]),
+);
+
+export function parseCaregiverReply(text: string): CaregiverReply | null {
+  return CAREGIVER_REPLIES.get(normaliseForMatching(text)) ?? null;
 }

@@ -48,7 +48,13 @@ describe('AI service contract', () => {
 
   it('request fields the client sends exist in the contract (a rename would break the build)', () => {
     const request = spec.components.schemas['ProcessRequest']?.properties ?? {};
-    expect(Object.keys(request).sort()).toEqual(['context', 'input', 'request_id', 'user']);
+    expect(Object.keys(request).sort()).toEqual([
+      'context',
+      'input',
+      'options',
+      'request_id',
+      'user',
+    ]);
     const reply = spec.components.schemas['Reply']?.properties ?? {};
     expect(Object.keys(reply).sort()).toEqual(['buttons', 'language', 'text']);
   });

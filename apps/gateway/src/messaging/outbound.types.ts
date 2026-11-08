@@ -35,6 +35,12 @@ export interface OutboundRequest {
   /** Position of this reply among the replies to `sourceMessageId`. Part of the idempotency key. */
   replyIndex: number;
   requestId?: string;
+  /**
+   * Send to a caregiver instead of the user (M10). Caregivers are not users: their phone is read from
+   * `caregivers`, their own 24 h window is `caregivers.last_inbound_at`, and the message is NOT stored
+   * in the user's `messages` (it is not part of the user's conversation).
+   */
+  recipient?: { caregiverId: string };
   /** BullMQ priority (1 = highest). Emergency replies use 1 so they never wait behind other sends. */
   priority?: number;
 }
@@ -47,6 +53,8 @@ export interface OutboundJobData {
   userId: string;
   /** Encrypted JSON of `{ content, templateFallback }`. */
   payload: string;
+  /** Set for a caregiver message: `userId` is then the OWNER of the caregiver row (for erasure). */
+  caregiverId?: string;
   sourceMessageId: string;
   replyIndex: number;
   requestId: string;

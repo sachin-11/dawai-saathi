@@ -102,10 +102,30 @@ enum ReminderStatus {
   pending
   sent
   taken
+  snoozed
+  skipped
   missed
   cancelled
 
   @@map("reminder_status")
+}
+
+enum ReminderScheduleStatus {
+  active
+  paused
+  completed
+  cancelled
+
+  @@map("reminder_schedule_status")
+}
+
+enum CaregiverStatus {
+  pending
+  verified
+  declined
+  removed
+
+  @@map("caregiver_status")
 }
 
 enum InteractionSeverity {
@@ -135,43 +155,60 @@ enum AuditActor {
 // ------------------------------------------------------------------ user-owned tables
 
 model User {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Peppered SHA-256 of the phone number: used for lookup only.
-  waPhoneHash      String         @unique @map("wa_phone_hash")
+  waPhoneHash       String         @unique @map("wa_phone_hash")
   /// AES-256-GCM ciphertext of the phone number: used for sending only.
-  waPhoneEnc       String         @map("wa_phone_enc")
-  language         Language       @default(hi)
-  consentAt        DateTime?      @map("consent_at") @db.Timestamptz(6)
+  waPhoneEnc        String         @map("wa_phone_enc")
+  language          Language       @default(hi)
+  consentAt         DateTime?      @map("consent_at") @db.Timestamptz(6)
   /// No document is processed until this is `done` (consent-first, CLAUDE.md §2.7).
-  onboardingStep   OnboardingStep @default(language) @map("onboarding_step")
+  onboardingStep    OnboardingStep @default(language) @map("onboarding_step")
   /// Version of the consent text the user accepted, e.g. "v1".
-  consentVersion   String?        @map("consent_version")
+  consentVersion    String?        @map("consent_version")
   /// STOP REMINDERS / START REMINDERS. The reminder scheduler (M10) must respect this.
-  remindersEnabled Boolean        @default(true) @map("reminders_enabled")
-  lastInboundAt    DateTime?      @map("last_inbound_at") @db.Timestamptz(6)
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  remindersEnabled  Boolean        @default(true) @map("reminders_enabled")
+  lastInboundAt     DateTime?      @map("last_inbound_at") @db.Timestamptz(6)
+  /// M10: IANA zone all reminder times are computed in. Times are stored UTC.
+  timezone          String         @default("Asia/Kolkata")
+  /// M10: a snooze never moves a reminder into this window (local HH:MM).
+  quietHoursStart   String         @default("22:30") @map("quiet_hours_start")
+  quietHoursEnd     String         @default("06:30") @map("quiet_hours_end")
+  /// M10: slots missed in a row; reset by any taken dose, drives the caregiver alert.
+  consecutiveMisses Int            @default(0) @map("consecutive_misses")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Set when the user confirms DELETE, while the erasure job runs: the conversation router ignores
   /// such users. This is only an in-flight marker; the job then HARD-deletes the row (§6).
-  deletedAt        DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(6)
 
-  caregivers  Caregiver[]
-  messages    Message[]
-  documents   Document[]
-  medications Medication[]
-  reminders   Reminder[]
+  caregivers        Caregiver[]
+  messages          Message[]
+  documents         Document[]
+  medications       Medication[]
+  reminders         Reminder[]
+  reminderSchedules ReminderSchedule[]
 
   @@map("users")
 }
 
 model Caregiver {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  waPhoneEnc  String    @map("wa_phone_enc")
-  waPhoneHash String    @map("wa_phone_hash")
-  relation    String
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String          @map("user_id") @db.Uuid
+  waPhoneEnc    String          @map("wa_phone_enc")
+  waPhoneHash   String          @map("wa_phone_hash")
+  relation      String
+  /// `relation` is the label the USER typed ("Papa"): the only name an alert ever shows.
   /// Set when the caregiver replies YES (M10).
-  verifiedAt  DateTime? @map("verified_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  verifiedAt    DateTime?       @map("verified_at") @db.Timestamptz(6)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  status        CaregiverStatus @default(pending)
+  invitedAt     DateTime        @default(now()) @map("invited_at") @db.Timestamptz(6)
+  /// The caregiver's own last message: opens THEIR 24 h window (they are not users).
+  lastInboundAt DateTime?       @map("last_inbound_at") @db.Timestamptz(6)
+  lastAlertAt   DateTime?       @map("last_alert_at") @db.Timestamptz(6)
+  /// Alerts sent on `alertsDay` (local date), for the 3-per-day cap.
+  alertsToday   Int             @default(0) @map("alerts_today")
+  alertsDay     DateTime?       @map("alerts_day") @db.Date
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -197,9 +234,9 @@ model Message {
   /// Outbound only: Meta error code of a failed delivery (text: codes are opaque to us).
   errorCode       String?          @map("error_code")
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// At most one document per inbound message: makes re-processing a message idempotent (M7).
-  document  Document?
+  document Document?
 
   @@index([userId, createdAt])
   @@map("messages")
@@ -260,10 +297,11 @@ model Medication {
   confidence      Decimal        @db.Decimal(4, 3)
   active          Boolean        @default(true)
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  drug      Drug?      @relation(fields: [drugId], references: [id], onDelete: SetNull)
-  reminders Reminder[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  drug              Drug?              @relation(fields: [drugId], references: [id], onDelete: SetNull)
+  reminders         Reminder[]
+  reminderSchedules ReminderSchedule[]
 
   @@index([userId, active])
   @@index([documentId])
@@ -271,21 +309,53 @@ model Medication {
   @@map("medications")
 }
 
+model ReminderSchedule {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String                 @map("user_id") @db.Uuid
+  /// One schedule per medication (re-creating it updates this row).
+  medicationId      String                 @unique @map("medication_id") @db.Uuid
+  /// Local wall-clock times, e.g. ["08:00", "21:00"].
+  times             String[]
+  startDate         DateTime               @map("start_date") @db.Date
+  endDate           DateTime?              @map("end_date") @db.Date
+  timezone          String                 @default("Asia/Kolkata")
+  status            ReminderScheduleStatus @default(active)
+  /// Set when the "your reminders end tomorrow" message was sent (open-ended prescriptions).
+  renewalNotifiedAt DateTime?              @map("renewal_notified_at") @db.Timestamptz(6)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  reminders  Reminder[]
+
+  @@index([status])
+  @@index([userId])
+  @@map("reminder_schedules")
+}
+
 model Reminder {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheduleId   String         @map("schedule_id") @db.Uuid
   medicationId String         @map("medication_id") @db.Uuid
   userId       String         @map("user_id") @db.Uuid
   scheduledAt  DateTime       @map("scheduled_at") @db.Timestamptz(6)
   status       ReminderStatus @default(pending)
   sentAt       DateTime?      @map("sent_at") @db.Timestamptz(6)
   ackAt        DateTime?      @map("ack_at") @db.Timestamptz(6)
+  snoozeCount  Int            @default(0) @map("snooze_count")
+  /// Meta message id of the grouped slot message (one message per user and slot).
+  waMessageId  String?        @map("wa_message_id")
+  /// BullMQ id of the slot job: `rem_<userId>_<epoch seconds>`.
+  jobId        String         @map("job_id")
 
-  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule   ReminderSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  medication Medication       @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([scheduleId, scheduledAt])
   /// The reminder worker's hot query: "what is due?"
   @@index([status, scheduledAt])
-  @@index([userId])
+  @@index([userId, scheduledAt])
   @@index([medicationId])
   @@map("reminders")
 }
@@ -293,34 +363,34 @@ model Reminder {
 // ------------------------------------------------------------------ catalog tables (shared, read-only for the AI service)
 
 model Drug {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  brandName       String   @map("brand_name")
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  brandName       String      @map("brand_name")
   /// Normalised, lowercase alphanumerics only ("dolo650"): the lookup key for brand matching (M8).
-  brandKey        String?  @map("brand_key")
+  brandKey        String?     @map("brand_key")
   /// Normalised: sorted, lowercase salts joined with " + ". Kept from M1; `saltKey` is the matching key.
-  saltComposition String   @map("salt_composition")
+  saltComposition String      @map("salt_composition")
   strength        String
   form            String
   /// M8 canonical keys. A generic is only ever suggested when ALL FOUR are equal (CLAUDE.md §2.4).
-  saltKey         String?  @map("salt_key")
-  strengthKey     String?  @map("strength_key")
-  formKey         String?  @map("form_key")
+  saltKey         String?     @map("salt_key")
+  strengthKey     String?     @map("strength_key")
+  formKey         String?     @map("form_key")
   releaseType     ReleaseType @default(na) @map("release_type")
-  packSize        String?  @map("pack_size")
-  packQty         Decimal? @map("pack_qty") @db.Decimal(10, 2)
-  packUnit        String?  @map("pack_unit")
-  mrp             Decimal? @db.Decimal(10, 2)
+  packSize        String?     @map("pack_size")
+  packQty         Decimal?    @map("pack_qty") @db.Decimal(10, 2)
+  packUnit        String?     @map("pack_unit")
+  mrp             Decimal?    @db.Decimal(10, 2)
   /// mrp / pack_qty. Null when the price or pack size is unknown (then no savings are ever shown).
-  pricePerUnit    Decimal? @map("price_per_unit") @db.Decimal(12, 4)
-  priceSourceDate DateTime? @map("price_source_date") @db.Date
+  pricePerUnit    Decimal?    @map("price_per_unit") @db.Decimal(12, 4)
+  priceSourceDate DateTime?   @map("price_source_date") @db.Date
   manufacturer    String?
-  isGeneric       Boolean  @default(false) @map("is_generic")
-  isJanaushadhi   Boolean  @default(false) @map("is_janaushadhi")
-  janaushadhiCode String?  @map("janaushadhi_code")
+  isGeneric       Boolean     @default(false) @map("is_generic")
+  isJanaushadhi   Boolean     @default(false) @map("is_janaushadhi")
+  janaushadhiCode String?     @map("janaushadhi_code")
   /// Dataset + licence the row came from (CLAUDE.md M8: always record the source).
   source          String
   /// Id of the row inside its source (drug code, or a catalog key): upsert key together with `source`.
-  sourceRef       String?  @map("source_ref")
+  sourceRef       String?     @map("source_ref")
 
   medications Medication[]
 

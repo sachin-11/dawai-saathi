@@ -28,6 +28,7 @@ const USER_SELECT = {
 } as const;
 
 export interface ActiveMedicationLine {
+  id: string;
   name: string;
   timings: string[];
   frequencyPerDay: number | null;
@@ -130,9 +131,10 @@ export class UsersService {
     const rows = await this.prisma.medication.findMany({
       where: { userId, active: true },
       orderBy: { rawName: 'asc' },
-      select: { rawName: true, timings: true, frequencyPerDay: true, asNeeded: true },
+      select: { id: true, rawName: true, timings: true, frequencyPerDay: true, asNeeded: true },
     });
     return rows.map((row) => ({
+      id: row.id,
       name: row.rawName,
       timings: row.timings,
       frequencyPerDay: row.frequencyPerDay,

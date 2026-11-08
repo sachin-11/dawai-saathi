@@ -350,7 +350,7 @@ describe('OutboundService.deliver', () => {
         kind: 'template',
         template: 'dose_reminder',
         language: 'en',
-        params: { medicine_name: 'Dolo 650', dose_timing: '1 tablet' },
+        params: { medicines: 'Dolo 650', time: '08:00' },
         buttonPayloads: ['taken:r1', 'snooze:r1', 'skip:r1'],
       },
     });
@@ -367,7 +367,7 @@ describe('OutboundService.deliver', () => {
     );
   });
 
-  it('fails permanently when the user no longer exists (DELETE command ran)', async () => {
+  it('fails permanently when the recipient no longer exists (DELETE command ran)', async () => {
     const s = setup(null);
     const { job } = jobFor({ content: { kind: 'text', body: 'hi' } });
     await expect(s.service.deliver(job)).rejects.toBeInstanceOf(UnrecoverableError);

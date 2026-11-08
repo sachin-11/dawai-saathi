@@ -1,7 +1,9 @@
 import type { AiClient } from '../ai-client/ai-client';
 import type { AuditService } from '../audit/audit.service';
 import type { PrescriptionService } from '../documents/prescription.service';
+import type { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import type { UserState } from '../users/users.service';
+import type { ReminderFlowService } from './reminder-flow.service';
 import type { ReplySession } from './replies.service';
 import { parseRxButton, RxActionsService } from './rx-actions.service';
 
@@ -31,6 +33,8 @@ function setup(
   prescriptions: { markWrong: jest.Mock; genericItems: jest.Mock };
   audit: { log: jest.Mock };
   ai: { genericDetails: jest.Mock };
+  reminderFlow: { start: jest.Mock };
+  schedules: { cancelForDocument: jest.Mock };
   session: { text: jest.Mock; textAt: jest.Mock; rawText: jest.Mock; requestId: string };
 } {
   const prescriptions = {
@@ -41,6 +45,8 @@ function setup(
   const ai = {
     genericDetails: jest.fn().mockResolvedValue({ request_id: 'r', reply: { text: 'DETAILS' } }),
   };
+  const reminderFlow = { start: jest.fn().mockResolvedValue('rem_preview') };
+  const schedules = { cancelForDocument: jest.fn().mockResolvedValue(3) };
   const session = {
     text: jest.fn().mockResolvedValue(undefined),
     textAt: jest.fn().mockResolvedValue(undefined),
@@ -52,7 +58,11 @@ function setup(
       prescriptions as unknown as PrescriptionService,
       audit as unknown as AuditService,
       ai as unknown as AiClient,
+      reminderFlow as unknown as ReminderFlowService,
+      schedules as unknown as ReminderScheduleService,
     ),
+    reminderFlow,
+    schedules,
     prescriptions,
     audit,
     ai,
@@ -113,15 +123,15 @@ describe('RxActionsService', () => {
     expect(s.session.text).toHaveBeenCalledWith('rx.not_found');
   });
 
-  it('reminders says coming soon and touches nothing', async () => {
+  it('reminders starts the reminder flow and touches nothing else', async () => {
     const s = setup();
     const outcome = await s.service.handle(
       user,
       { action: 'reminders', documentId: DOC },
       s.session as unknown as ReplySession,
     );
-    expect(outcome).toBe('rx_coming_soon');
-    expect(s.session.text).toHaveBeenCalledWith('rx.reminders_soon');
+    expect(outcome).toBe('rx_reminders');
+    expect(s.reminderFlow.start).toHaveBeenCalledWith(user, DOC, s.session);
     expect(s.prescriptions.markWrong).not.toHaveBeenCalled();
   });
 
