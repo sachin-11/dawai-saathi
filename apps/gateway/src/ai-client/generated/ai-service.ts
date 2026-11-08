@@ -75,6 +75,16 @@ export interface components {
       /** Strength */
       strength: string;
     };
+    /** DateField */
+    DateField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: string | null;
+    };
     /**
      * EmergencyCategory
      * @description Why a message was treated as an emergency (shared with the keyword file's categories).
@@ -90,6 +100,38 @@ export interface components {
       | 'stroke'
       | 'severe_allergy'
       | 'self_harm';
+    /** FoodField */
+    FoodField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: ('before' | 'after' | 'with' | 'any') | null;
+    };
+    /** FormField */
+    FormField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?:
+        | (
+            | 'tablet'
+            | 'capsule'
+            | 'syrup'
+            | 'injection'
+            | 'drops'
+            | 'cream'
+            | 'inhaler'
+            | 'powder'
+            | 'other'
+          )
+        | null;
+    };
     /** InputPayload */
     InputPayload: {
       /** Media Url */
@@ -105,6 +147,16 @@ export interface components {
      * @enum {string}
      */
     InputType: 'image' | 'text' | 'audio';
+    /** IntField */
+    IntField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: number | null;
+    };
     /**
      * Intent
      * @enum {string}
@@ -132,6 +184,32 @@ export interface components {
        */
       status: 'ok';
     };
+    /** Medicine */
+    Medicine: {
+      /**
+       * As Needed
+       * @default false
+       */
+      as_needed: boolean;
+      dose: components['schemas']['TextField'];
+      duration_days: components['schemas']['IntField'];
+      form: components['schemas']['FormField'];
+      frequency_code: components['schemas']['TextField'];
+      frequency_per_day: components['schemas']['IntField'];
+      instructions: components['schemas']['TextField'];
+      /**
+       * Low Confidence
+       * @default false
+       */
+      low_confidence: boolean;
+      name: components['schemas']['TextField'];
+      raw_text: components['schemas']['TextField'];
+      relation_to_food: components['schemas']['FoodField'];
+      strength: components['schemas']['TextField'];
+      timings: components['schemas']['TimingsField'];
+      /** Validation Notes */
+      validation_notes?: string[];
+    };
     /** Meta */
     Meta: {
       /** Cost Usd */
@@ -152,20 +230,37 @@ export interface components {
       /** Trace Id */
       trace_id?: string | null;
     };
-    /**
-     * PlaceholderExtraction
-     * @description Stand-in until real extraction schemas arrive (prescription: M7, lab report: M12).
-     *
-     *     `extraction` is discriminated by `kind`; M7/M12 turn `Extraction` into a tagged union of the
-     *     real payloads and this placeholder disappears.
-     */
-    PlaceholderExtraction: {
+    /** PrescriptionExtraction */
+    PrescriptionExtraction: {
+      /**
+       * Image Quality
+       * @enum {string}
+       */
+      image_quality: 'good' | 'poor' | 'unreadable';
+      /** Is Prescription */
+      is_prescription: boolean;
       /**
        * Kind
-       * @default placeholder
+       * @default prescription
        * @constant
        */
-      kind: 'placeholder';
+      kind: 'prescription';
+      /** Medicines */
+      medicines?: components['schemas']['Medicine'][];
+      /** Notes For User */
+      notes_for_user?: string[];
+      /**
+       * Overall Confidence
+       * @default 0
+       */
+      overall_confidence: number;
+      prescription_date: components['schemas']['DateField'];
+      /**
+       * Status
+       * @default done
+       * @enum {string}
+       */
+      status: 'done' | 'needs_review' | 'failed';
     };
     /** ProcessRequest */
     ProcessRequest: {
@@ -183,7 +278,7 @@ export interface components {
        */
       emergency: boolean;
       emergency_category?: components['schemas']['EmergencyCategory'] | null;
-      extraction?: components['schemas']['PlaceholderExtraction'] | null;
+      extraction?: components['schemas']['PrescriptionExtraction'] | null;
       intent: components['schemas']['Intent'];
       meta: components['schemas']['Meta'];
       reply: components['schemas']['Reply'];
@@ -233,6 +328,26 @@ export interface components {
     RequestContext: {
       /** Active Medications */
       active_medications?: components['schemas']['ActiveMedication'][];
+    };
+    /** TextField */
+    TextField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: string | null;
+    };
+    /** TimingsField */
+    TimingsField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
     };
     /** UserContext */
     UserContext: {

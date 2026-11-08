@@ -120,7 +120,7 @@ async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         intent=output.intent,
         emergency=output.emergency,
         emergency_category=output.emergency_category,
-        extraction=None,
+        extraction=output.extraction,
         warnings=output.warnings,
         reply=output.reply,
         meta=meta,

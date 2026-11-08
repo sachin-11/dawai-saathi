@@ -26,6 +26,7 @@ from app.observability.request_id import RequestIdMiddleware, current_request_id
 from app.observability.tracing import Tracer, build_tracer, observe_llm_call
 from app.pipeline.base import Pipeline
 from app.pipeline.minimal import MinimalPipeline
+from app.pipeline.rx import RxPipeline
 from app.prompts.registry import PromptRegistry, TemplateStore
 from app.safety.emergency_guard import EmergencyGuard
 from app.safety.redaction import Redactor, configure_redactor
@@ -73,7 +74,7 @@ def create_app(
     app.state.tracer = tracer or build_tracer(settings)
     app.state.prompts = PromptRegistry()
     app.state.templates = TemplateStore()
-    app.state.pipeline = pipeline or MinimalPipeline()
+    app.state.pipeline = pipeline or RxPipeline(MinimalPipeline())
     app.state.llm_router = llm_router or _default_llm_router(settings)
 
     # Last added = outermost: the request id is bound first, then the body limit applies.

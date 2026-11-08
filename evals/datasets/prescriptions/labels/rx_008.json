@@ -1,0 +1,271 @@
+{
+  "id": "rx_008",
+  "layout": 2,
+  "gold": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Syp. Ascoril TDS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Ascoril",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "syrup",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "5 ml",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "TDS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 3,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "name": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-0",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "before",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Allegra 120 twice daily",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Allegra 120",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "twice daily",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Cap. Becosules 1-1-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Becosules",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "capsule",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 capsule",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-1-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 3,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "afternoon",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Dolo 650 1-0-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Dolo 650",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "overall_confidence": 0.9,
+    "notes_for_user": []
+  },
+  "unreadable_indexes": [
+    1
+  ],
+  "decoy_name": null,
+  "phi_strings": [
+    "Mohammed Iqbal",
+    "A. K. Verma",
+    "9949302173",
+    "City Health Centre"
+  ]
+}

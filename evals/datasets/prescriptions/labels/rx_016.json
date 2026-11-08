@@ -1,0 +1,218 @@
+{
+  "id": "rx_016",
+  "layout": 1,
+  "gold": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Tab. Allegra 120 twice daily",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Allegra 120",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "twice daily",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "name": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "SOS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": true,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Metformin 1-0-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Metformin",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Syp. Ascoril TDS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Ascoril",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "syrup",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "5 ml",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "TDS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 3,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "overall_confidence": 0.9,
+    "notes_for_user": []
+  },
+  "unreadable_indexes": [
+    1
+  ],
+  "decoy_name": null,
+  "phi_strings": [
+    "Lakshmi Narayanan",
+    "A. K. Verma",
+    "9664752234",
+    "Arogya Polyclinic"
+  ]
+}

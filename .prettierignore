@@ -6,3 +6,6 @@ pnpm-lock.yaml
 apps/ai-service
 *.md
 .env.example
+
+# Generated synthetic prescription labels (evals/scripts/make_synthetic_rx.py)
+evals/datasets/prescriptions/labels/

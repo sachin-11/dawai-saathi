@@ -105,6 +105,20 @@ class Settings(BaseSettings):
     )
     max_media_mb: int = Field(default=10, ge=1, le=100, validation_alias="MAX_MEDIA_MB")
 
+    # ---- M7: prescription reading
+    # Prescription gate (CLAUDE.md §2.3): a medicine whose name, dose or frequency is below this is
+    # flagged and never guessed.
+    extraction_min_confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0, validation_alias="EXTRACTION_MIN_CONFIDENCE"
+    )
+    # Longest side of an image sent to a vision model (pixels).
+    vision_max_px: int = Field(default=2000, ge=512, le=6000, validation_alias="VISION_MAX_PX")
+    # Laplacian-variance floor: below it (and only then) a photo is "too blurry" and no vision
+    # call is made. Deliberately low: only a clearly hopeless photo is refused.
+    image_min_sharpness: float = Field(
+        default=12.0, ge=0.0, le=1000.0, validation_alias="IMAGE_MIN_SHARPNESS"
+    )
+
     # ---- M5: Langfuse (optional: without keys tracing is a no-op)
     langfuse_public_key: OptionalSecret = Field(
         default=None, validation_alias="LANGFUSE_PUBLIC_KEY"

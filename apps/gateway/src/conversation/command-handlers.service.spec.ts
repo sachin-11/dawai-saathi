@@ -17,7 +17,7 @@ function setup(): {
   handlers: CommandHandlersService;
   users: Record<'setLanguage' | 'setRemindersEnabled' | 'activeMedications', jest.Mock>;
   audit: { log: jest.Mock };
-  session: Record<'text' | 'buttons' | 'textLines' | 'useLanguage', jest.Mock>;
+  session: Record<'text' | 'buttons' | 'textLines' | 'useLanguage' | 'translate', jest.Mock>;
 } {
   const users = {
     setLanguage: jest.fn().mockResolvedValue(undefined),
@@ -30,6 +30,11 @@ function setup(): {
     buttons: jest.fn().mockResolvedValue(undefined),
     textLines: jest.fn().mockResolvedValue(undefined),
     useLanguage: jest.fn(),
+    translate: jest
+      .fn()
+      .mockImplementation((key: string, params?: { count?: number }) =>
+        params?.count !== undefined ? `${key}:${params.count}` : key,
+      ),
   };
   return {
     handlers: new CommandHandlersService(
@@ -131,13 +136,17 @@ describe('CommandHandlersService', () => {
     it('lists name and timings as one message', async () => {
       const s = setup();
       s.users.activeMedications.mockResolvedValue([
-        { name: 'Dolo 650', timings: ['08:00', '20:00'] },
-        { name: 'Vitamin D', timings: [] },
+        { name: 'Dolo 650', timings: ['08:00', '20:00'], frequencyPerDay: 2, asNeeded: false },
+        { name: 'Vitamin D', timings: [], frequencyPerDay: null, asNeeded: false },
+        { name: 'Crocin', timings: [], frequencyPerDay: null, asNeeded: true },
+        { name: 'Cough Syp', timings: [], frequencyPerDay: 3, asNeeded: false },
       ]);
       await s.handlers.meds(user, asSession(s));
       expect(s.session.textLines).toHaveBeenCalledWith('meds.list_header', [
         { key: 'meds.item', params: { name: 'Dolo 650', timings: '08:00, 20:00' } },
         { key: 'meds.item', params: { name: 'Vitamin D', timings: '–' } },
+        { key: 'meds.item', params: { name: 'Crocin', timings: 'meds.when_as_needed' } },
+        { key: 'meds.item', params: { name: 'Cough Syp', timings: 'meds.when_times:3' } },
       ]);
     });
   });

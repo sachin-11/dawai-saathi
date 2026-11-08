@@ -1,0 +1,216 @@
+{
+  "id": "rx_011",
+  "layout": 2,
+  "gold": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Tab. Augmentin 625 BD",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Augmentin 625",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "BD",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Dolo 650 1-0-1",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Dolo 650",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.85
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Crocin 500 SOS",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Crocin 500",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "SOS",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "as_needed": true,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Azithral 500 OD",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Azithral 500",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.9
+        },
+        "strength": {
+          "value": "500 mg",
+          "confidence": 0.85
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "OD",
+          "confidence": 0.9
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.9
+        },
+        "timings": {
+          "value": null,
+          "confidence": 0.1
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.85
+        },
+        "duration_days": {
+          "value": 3,
+          "confidence": 0.9
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0.1
+        }
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0.0
+    },
+    "overall_confidence": 0.9,
+    "notes_for_user": []
+  },
+  "unreadable_indexes": [],
+  "decoy_name": null,
+  "phi_strings": [
+    "Lakshmi Narayanan",
+    "S. Rao",
+    "9227475879",
+    "Shanti Care Clinic"
+  ]
+}

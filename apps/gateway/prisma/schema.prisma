@@ -198,7 +198,8 @@ model Message {
   errorCode       String?          @map("error_code")
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents Document[]
+  /// At most one document per inbound message: makes re-processing a message idempotent (M7).
+  document  Document?
 
   @@index([userId, createdAt])
   @@map("messages")
@@ -207,7 +208,7 @@ model Message {
 model Document {
   id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String         @map("user_id") @db.Uuid
-  messageId         String         @map("message_id") @db.Uuid
+  messageId         String         @unique @map("message_id") @db.Uuid
   kind              DocumentKind   @default(unknown)
   s3Key             String         @map("s3_key")
   status            DocumentStatus @default(queued)
@@ -240,7 +241,9 @@ model Medication {
   strength        String?
   form            String?
   dose            String?
-  frequencyPerDay Int            @map("frequency_per_day")
+  /// Null for as-needed (SOS) medicines (M7).
+  frequencyPerDay Int?           @map("frequency_per_day")
+  asNeeded        Boolean        @default(false) @map("as_needed")
   /// e.g. ["08:00", "20:00"], Asia/Kolkata wall-clock.
   timings         String[]
   relationToFood  RelationToFood @default(any) @map("relation_to_food")

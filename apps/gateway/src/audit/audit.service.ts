@@ -13,6 +13,7 @@ export type AuditAction =
   | 'reminders_enabled'
   | 'delete_requested'
   | 'emergency_detected'
+  | 'rx_reported_wrong'
   | 'user_deleted';
 
 export type AuditValue =

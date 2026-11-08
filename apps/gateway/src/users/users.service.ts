@@ -30,6 +30,8 @@ const USER_SELECT = {
 export interface ActiveMedicationLine {
   name: string;
   timings: string[];
+  frequencyPerDay: number | null;
+  asNeeded: boolean;
 }
 
 @Injectable()
@@ -128,9 +130,14 @@ export class UsersService {
     const rows = await this.prisma.medication.findMany({
       where: { userId, active: true },
       orderBy: { rawName: 'asc' },
-      select: { rawName: true, timings: true },
+      select: { rawName: true, timings: true, frequencyPerDay: true, asNeeded: true },
     });
-    return rows.map((row) => ({ name: row.rawName, timings: row.timings }));
+    return rows.map((row) => ({
+      name: row.rawName,
+      timings: row.timings,
+      frequencyPerDay: row.frequencyPerDay,
+      asNeeded: row.asNeeded,
+    }));
   }
 
   /** `{salt, strength}` of the user's active medicines: the context sent to the AI service. */

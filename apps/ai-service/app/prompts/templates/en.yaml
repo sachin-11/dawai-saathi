@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v2
+version: reply_templates_v3
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -38,3 +38,29 @@ texts:
     Namaste! 🙏 I am Dawai Saathi.
 
     Send a clear photo of your prescription or lab report and I will explain it in simple words. Send HELP to see all commands.
+  rx.lab_report: |-
+    This looks like a lab report. Lab report explanations are coming soon. For now, please send a clear photo of your prescription.
+  rx.medicine_strip: |-
+    This looks like a medicine strip or box. Please send a photo of the doctor's prescription instead; reading strips will come later.
+  rx.other: |-
+    I could not tell that this is a prescription. Please send a clear photo of the whole prescription page.
+
+    Tips: good light, paper flat on a table, the whole page in the frame.
+  rx.resend_dark: |-
+    The photo is too dark for me to read. Please send it again in good light, with the paper flat and the whole page in the frame.
+  rx.resend_blur: |-
+    The photo is too blurry for me to read. Please hold the phone steady, keep the paper flat and send it again with the whole page in the frame.
+  rx.resend_contrast: |-
+    I cannot see the writing clearly in this photo (it may be too bright or too faded). Please send it again in good light with the whole page in the frame.
+  rx.unreadable: |-
+    I could not read any medicine clearly from this photo. Please send a clearer photo of the whole page, or show the prescription to your pharmacist.
+
+    Tips: good light, paper flat on a table, the whole page in the frame.
+  rx.needs_review: |-
+    I could not read this prescription properly, so I will not guess. Please confirm the medicines with your pharmacist, or send a clearer photo.
+  rx.pdf_encrypted: |-
+    This PDF is password protected, so I cannot open it. Please send a photo of the prescription or a PDF without a password.
+  rx.bad_file: |-
+    I could not open this file. Please send a clear photo (JPG or PNG) or a normal PDF of the prescription.
+  rx.pdf_too_long: |-
+    This PDF has too many pages for a prescription. Please send only the prescription page as a photo or a short PDF.

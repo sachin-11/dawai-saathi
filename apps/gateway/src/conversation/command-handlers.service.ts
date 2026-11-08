@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service';
-import { type UserLanguage, type UserState, UsersService } from '../users/users.service';
+import {
+  type ActiveMedicationLine,
+  type UserLanguage,
+  type UserState,
+  UsersService,
+} from '../users/users.service';
 import type { ReplySession } from './replies.service';
 import { LANGUAGE_BUTTONS } from './onboarding.service';
 
@@ -67,9 +72,19 @@ export class CommandHandlersService {
         key: 'meds.item' as const,
         params: {
           name: medication.name,
-          timings: medication.timings.length > 0 ? medication.timings.join(', ') : '–',
+          timings: this.describeSchedule(medication, session),
         },
       })),
     );
+  }
+
+  /** Clock times when saved, otherwise "only when needed" / "N times a day", otherwise a dash. */
+  private describeSchedule(medication: ActiveMedicationLine, session: ReplySession): string {
+    if (medication.timings.length > 0) return medication.timings.join(', ');
+    if (medication.asNeeded) return session.translate('meds.when_as_needed');
+    if (medication.frequencyPerDay !== null) {
+      return session.translate('meds.when_times', { count: medication.frequencyPerDay });
+    }
+    return '–';
   }
 }

@@ -5,6 +5,7 @@ import type { AuditService } from '../audit/audit.service';
 import { AiServiceError } from '../ai-client/ai-client.errors';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import type { StorageService } from '../common/storage/storage.service';
+import type { PrescriptionService } from '../documents/prescription.service';
 import type { MediaService } from '../messaging/media.service';
 import type { MessagesService } from '../messaging/messages.service';
 import type { WhatsAppClient } from '../messaging/whatsapp.client';
@@ -65,7 +66,11 @@ function setup(): {
   logger: Record<'setContext' | 'info' | 'warn' | 'error', jest.Mock>;
   calls: string[];
   audit: { log: jest.Mock };
-  session: Record<'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawEmergencyText', jest.Mock>;
+  prescriptions: { save: jest.Mock };
+  session: Record<
+    'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawButtonsWithPrompt' | 'rawEmergencyText',
+    jest.Mock
+  >;
 } {
   const calls: string[] = [];
   const track = (name: string, value?: unknown): jest.Mock =>
@@ -99,9 +104,17 @@ function setup(): {
     textAt: track('session.textAt'),
     rawText: track('session.rawText'),
     rawButtons: track('session.rawButtons'),
+    rawButtonsWithPrompt: track('session.rawButtonsWithPrompt'),
     rawEmergencyText: track('session.rawEmergencyText'),
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
+  const prescriptions = {
+    save: track('prescriptions.save', {
+      documentId: 'doc-1',
+      status: 'done',
+      created: true,
+    }),
+  };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
     messages as unknown as MessagesService,
@@ -110,6 +123,7 @@ function setup(): {
     users as unknown as UsersService,
     whatsapp as unknown as WhatsAppClient,
     audit as unknown as AuditService,
+    prescriptions as unknown as PrescriptionService,
     logger as unknown as PinoLogger,
   );
   return {
@@ -121,6 +135,7 @@ function setup(): {
     users,
     whatsapp,
     audit,
+    prescriptions,
     logger,
     calls,
     session,
@@ -171,14 +186,18 @@ describe('AiProcessor: text', () => {
     expect(s.session.rawText).not.toHaveBeenCalled();
   });
 
-  it('falls back to plain text when the reply is too long for a button message (1024)', async () => {
+  it('sends a long reply as text and the buttons after it (a button body holds 1024 characters)', async () => {
     const s = setup();
     s.ai.process.mockResolvedValue(
       aiReply({ text: 'x'.repeat(1500), buttons: [{ id: 'a', title: 'A' }] }),
     );
     await s.processor.handle(user, job(), asSession(s));
+    // The long answer goes as plain text; the buttons follow under a short prompt (never dropped).
     expect(s.session.rawText).toHaveBeenCalledWith('x'.repeat(1500));
     expect(s.session.rawButtons).not.toHaveBeenCalled();
+    expect(s.session.rawButtonsWithPrompt).toHaveBeenCalledWith('common.next_step', [
+      { id: 'a', title: 'A' },
+    ]);
   });
 
   it('treats a response without a buttons field as "no buttons"', async () => {
@@ -422,5 +441,102 @@ describe('AiProcessor: logging', () => {
     expect(logged).toContain('req-1');
     expect(logged).not.toContain('kya kar sakte');
     expect(logged).not.toContain('यह जवाब है');
+  });
+});
+
+const rxExtraction = (status: 'done' | 'needs_review' | 'failed' = 'done') =>
+  ({
+    kind: 'prescription',
+    is_prescription: true,
+    image_quality: 'good',
+    medicines: [],
+    prescription_date: { value: null, confidence: 0 },
+    overall_confidence: 0.9,
+    notes_for_user: [],
+    status,
+  }) as unknown as NonNullable<ProcessResponse['extraction']>;
+
+const rxButtons = [
+  { id: 'rx:reminders:{document_id}', title: 'Set reminders' },
+  { id: 'rx:generic:{document_id}', title: 'Generic medicines' },
+  { id: 'rx:wrong:{document_id}', title: 'Something is wrong' },
+];
+
+describe('AiProcessor: prescriptions (M7)', () => {
+  const imageJob = job({
+    type: 'image',
+    media: { id: 'media-1', mimeType: 'image/jpeg' },
+  });
+
+  const prescriptionResponse = (
+    status: 'done' | 'needs_review' | 'failed' = 'done',
+    buttons = rxButtons,
+  ): ProcessResponse => ({
+    ...aiReply({ text: 'Dolo 650', buttons }),
+    intent: 'prescription',
+    extraction: rxExtraction(status),
+  });
+
+  it('saves the document BEFORE replying and puts its id into the button ids', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(prescriptionResponse());
+    await s.processor.handle(user, imageJob, asSession(s));
+
+    expect(s.prescriptions.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        messageId: 'msg-1',
+        s3Key: 'media/user-1/2026/11/msg-1.jpg',
+        meta: expect.objectContaining({ prompt_version: 'v1', model: 'fake-model' }) as unknown,
+      }),
+    );
+    expect(s.calls.indexOf('prescriptions.save')).toBeLessThan(
+      s.calls.indexOf('session.rawButtons'),
+    );
+    expect(s.session.rawButtons).toHaveBeenCalledWith('Dolo 650', [
+      { id: 'rx:reminders:doc-1', title: 'Set reminders' },
+      { id: 'rx:generic:doc-1', title: 'Generic medicines' },
+      { id: 'rx:wrong:doc-1', title: 'Something is wrong' },
+    ]);
+  });
+
+  it('a failed save sends no reply with buttons, shows ONE error message and lets BullMQ retry', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(prescriptionResponse());
+    s.prescriptions.save.mockRejectedValue(new Error('db down'));
+    await expect(s.processor.handle(user, imageJob, asSession(s))).rejects.toThrow('db down');
+    expect(s.session.rawButtons).not.toHaveBeenCalled();
+    expect(s.session.textAt).toHaveBeenCalledWith(AI_ERROR_REPLY_INDEX, 'common.error_try_again');
+  });
+
+  it('saves a needs_review document too (the user was told about the unclear items)', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(prescriptionResponse('needs_review'));
+    await s.processor.handle(user, imageJob, asSession(s));
+    expect(s.prescriptions.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not save anything for other intents or when there is no extraction', async () => {
+    const s = setup();
+    await s.processor.handle(user, imageJob, asSession(s)); // intent help, no extraction
+    s.ai.process.mockResolvedValue({ ...aiReply(), intent: 'lab_report' });
+    await s.processor.handle(user, imageJob, asSession(s));
+    expect(s.prescriptions.save).not.toHaveBeenCalled();
+  });
+
+  it('drops document buttons rather than sending an id that points nowhere', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue({ ...aiReply({ text: 'x', buttons: rxButtons }) });
+    await s.processor.handle(user, imageJob, asSession(s)); // no extraction -> no document id
+    expect(s.session.rawButtons).not.toHaveBeenCalled();
+    expect(s.session.rawText).toHaveBeenCalledWith('x');
+  });
+
+  it('never logs the reply text or any medicine', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(prescriptionResponse());
+    await s.processor.handle(user, imageJob, asSession(s));
+    const logged = JSON.stringify(s.logger.info.mock.calls);
+    expect(logged).not.toContain('Dolo 650');
   });
 });

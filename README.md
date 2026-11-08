@@ -148,7 +148,7 @@ If nothing happens: the gateway log shows each Graph API call (`whatsapp api cal
 
 ## AI service (M5)
 
-The gateway sends every ordinary message of a consented user to the AI service (`POST /v1/process`, header `X-Service-Token`) and forwards the reply. In M5 the service only classifies text and answers with a fixed template; reading prescriptions arrives in M7.
+The gateway sends every ordinary message of a consented user to the AI service (`POST /v1/process`, header `X-Service-Token`) and forwards the reply. Text is classified and answered with a fixed template (M5, M6); photos and PDFs of prescriptions are read since M7 (next section).
 
 **Fake mode (default, no API keys, used by tests and CI):** `LLM_MODE=fake`. Start with `make dev`; send "help" from WhatsApp (or call the endpoint with curl). `LLM_MODE=fake` is refused when `NODE_ENV=production`.
 
@@ -165,6 +165,23 @@ Three guards run before any medical work (CLAUDE.md §2):
 3. **Scope guard.** Only medicines, prescriptions and lab reports. Everything else (cricket, coding, diet advice ...) gets a fixed polite reply; the model never writes it.
 
 The emergency phrases live in ONE file, `packages/contracts/safety/emergency-keywords.json`. After editing it run `make safety-data` (or `make contracts`); a test in each app fails if its copy is stale. `make eval-emergency` runs the emergency eval set (`evals/datasets/emergency/`), writes a report to `evals/reports/` and fails when recall drops below 100%; `make eval-emergency MODE=real` does the manual run with your real model keys.
+
+## Prescriptions (M7): try it
+
+Send a photo (or PDF) of a prescription to the bot after you have finished onboarding. The reply lists every medicine with dose, timing, food relation and duration, flags anything it could not read clearly (and asks you to confirm it with your pharmacist), and shows three buttons: **Set reminders** and **Generic medicines** (both "coming soon": M10 / M8) and **Something is wrong** (marks the document for review and switches its medicines off). `MEDS` lists the saved medicines.
+
+```
+photo / PDF ─► pre-process (EXIF stripped, resized, blur/dark check) ─► classify (prescription? lab report? strip?)
+            ─► vision extract (strict JSON, per-field confidence) ─► validate (written codes beat the model) ─► confidence gate
+            ─► compose (LLM phrases ONE line per readable medicine) ─► grounding check (else template) ─► reply + save
+```
+
+- **Locally without API keys:** `make dev` (fake LLM). Any photo returns a fixed sample prescription (two clear medicines and one unreadable line), enough to see the reply, the buttons and the saved rows. The fake never looks at pixels.
+- **With a real model:** set `LLM_MODE=real` and the model ids (see "AI service"). `VISION_MODEL` reads the prescription, `TEXT_MODEL` phrases the lines, and **`CHEAP_MODEL` must accept images** (it classifies the photo). `EXTRACTION_MIN_CONFIDENCE` (default 0.75) is the "say so, do not guess" threshold; `VISION_MAX_PX` and `IMAGE_MIN_SHARPNESS` tune the image check.
+- **Containerised AI service:** presigned S3 URLs are bound to the hostname they were signed for. If the AI service reaches S3 under another name than the gateway (for example `http://minio:9000`), set `S3_AI_ENDPOINT` for the gateway and add that host to `ALLOWED_MEDIA_HOSTS` of the AI service.
+- **Reminder clock times:** a written "morning / afternoon / evening / night" is saved as `MED_TIME_MORNING` (08:00), `MED_TIME_AFTERNOON` (14:00), `MED_TIME_EVENING` (18:00), `MED_TIME_NIGHT` (21:00), Asia/Kolkata.
+- **Prescription eval:** `make eval-rx` generates 24 synthetic prescription images (`evals/datasets/prescriptions/`, see its README), replays them through the pipeline with a fake model and writes `evals/reports/<date>-rx_extract_v1-rx-fake.md`. The fake modes check the safety rules around the model (flag recall, no PHI leakage, no invented medicine, grounded replies), not model accuracy. `make eval-rx MODE=fake-noisy` injects model mistakes; **`make eval-rx MODE=real`** runs your real provider on the images (needs keys, costs money) and is the only mode that measures reading quality.
+- Migration `20261108100000_rx_persistence` (run `make migrate`) makes `medications.frequency_per_day` nullable (as-needed medicines), adds `medications.as_needed` and a unique `documents.message_id`.
 
 ## Conversation flow (M4)
 
@@ -194,6 +211,7 @@ first message ──► choose language (हिन्दी / English) ──►
 | `make db-reset` | Wipe local volumes, restart infra, re-migrate (asks first) |
 | `make safety-data` | Copy the shared emergency keywords into both apps |
 | `make eval-emergency` | Emergency-detection eval (rules, then rules + classifier) |
+| `make eval-rx` | Prescription eval on synthetic images (`MODE=fake-noisy`, or `MODE=real` with your keys) |
 | `make seed` | Load catalog datasets |
 | `make eval` | Run evaluation suite → `evals/reports/` |
 
