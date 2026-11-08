@@ -13,6 +13,7 @@ from typing import Any
 from app.graph.nodes._util import language_of, track
 from app.graph.state import GraphState
 from app.graph.traced import STATUS_KEY, traced_node
+from app.interactions.render import render_block, render_query_reply
 from app.llm.types import LLMResult
 from app.pipeline.base import PipelineContext
 from app.schemas.process import Intent, Reply
@@ -34,11 +35,33 @@ def template_reply(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     if state.intent is Intent.generic_query:
         text = render_generic_reply(state.generic_items, language)
         return {"reply": Reply(language=language, text=text), "reply_source": "template"}
+    if state.intent is Intent.interaction_query:
+        return interaction_query_reply(state, ctx)
     extraction = state.rx_extraction
     assert extraction is not None  # noqa: S101 - routing guarantees it
     views = build_views(extraction, ctx.settings.extraction_min_confidence)
-    text = render_reply_text(views, extraction, language)
+    text = render_reply_text(views, extraction, language, tail=interaction_tail(state))
     return {"reply": build_reply(text, language, with_buttons=True), "reply_source": "template"}
+
+
+def interaction_tail(state: GraphState) -> str:
+    """The interaction block of a prescription reply (empty when no check ran)."""
+    if state.interaction_report is None:
+        return ""
+    return render_block(state.interaction_report, language_of(state))
+
+
+def interaction_query_reply(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
+    """The answer to a typed interaction question: templates only, no model words."""
+    language = language_of(state)
+    text = (
+        render_query_reply(state.interaction_names, state.interaction_report, language)
+        if state.interaction_report is not None
+        else None
+    )
+    if text is None:  # nothing honest to say: ask again later, never "all clear"
+        text = ctx.templates.get(language, "interaction.unavailable")
+    return {"reply": build_reply(text, language, with_buttons=False), "reply_source": "template"}
 
 
 def _timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
@@ -48,7 +71,7 @@ def _timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
 
 @traced_node("composer", timeout="composer", on_timeout=_timed_out)
 async def composer(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
-    if state.intent is Intent.generic_query:
+    if state.intent in (Intent.generic_query, Intent.interaction_query):
         return template_reply(state, ctx)
 
     language = language_of(state)
@@ -75,7 +98,7 @@ async def composer(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
             update.update({"compose_problems": problems, STATUS_KEY: "fallback"})
         return update
 
-    text = render_reply_text(views, extraction, language, lines)
+    text = render_reply_text(views, extraction, language, lines, tail=interaction_tail(state))
     return {
         "reply": build_reply(text, language, with_buttons=True),
         "reply_source": "llm",

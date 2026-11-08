@@ -11,6 +11,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from app.schemas.interactions import InteractionReport
 from app.schemas.prescription import PrescriptionExtraction
 
 # A WhatsApp message id (the gateway uses it as request id) or a UUID. Restricted to a log-safe
@@ -64,6 +65,7 @@ class EmergencyCategory(StrEnum):
 class WarningType(StrEnum):
     low_confidence = "low_confidence"
     interaction = "interaction"
+    duplicate_ingredient = "duplicate_ingredient"
     critical_value = "critical_value"
 
 
@@ -102,8 +104,14 @@ class InputPayload(_Strict):
 
 
 class ActiveMedication(_Strict):
-    salt: str = Field(min_length=1, max_length=200)
-    strength: str = Field(min_length=1, max_length=50)
+    # Null when the medicine has no certain salt / strength (it is then reported as "not checked").
+    salt: str | None = Field(default=None, min_length=1, max_length=200)
+    strength: str | None = Field(default=None, min_length=1, max_length=50)
+    # M11: what the interaction checker needs. All optional so an older gateway keeps working.
+    medication_id: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, max_length=200)  # as the user knows it ("Dolo 650")
+    salt_key: str | None = Field(default=None, max_length=200)  # canonical, "a+b" for combinations
+    strength_key: str | None = Field(default=None, max_length=100)
 
 
 class RequestContext(_Strict):
@@ -180,6 +188,8 @@ class ProcessResponse(BaseModel):
     emergency_category: EmergencyCategory | None = None
     extraction: Extraction | None = None
     warnings: list[Warning] = Field(default_factory=list)
+    # M11: structured interaction / duplicate-ingredient findings (null when no check ran).
+    interactions: InteractionReport | None = None
     reply: Reply
     meta: Meta
     # Per-node trace for the web demo: present only for the demo client that asked for it.

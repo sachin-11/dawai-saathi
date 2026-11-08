@@ -7,6 +7,7 @@ export type CommandName =
   | 'stop_reminders'
   | 'start_reminders'
   | 'meds'
+  | 'check'
   | 'reminders'
   | 'caregiver_add'
   | 'caregiver_remove';
@@ -39,6 +40,8 @@ const ALIASES: Readonly<Record<CommandName, readonly string[]>> = {
   stop_reminders: ['stop reminders', 'stop reminder', 'reminder band karo', 'stop'],
   start_reminders: ['start reminders', 'start reminder', 'reminder chalu karo'],
   meds: ['meds', 'dawai', 'dawaiyan', 'दवाई'],
+  // M11: re-run the interaction / duplicate-ingredient check on all active medicines
+  check: ['check', 'jaanch karo', 'jaanch', 'जांच करो', 'जाँच करो', 'जांच'],
   reminders: ['reminders', 'reminder list', 'reminder dikhao', 'रिमाइंडर'],
   // 'caregiver_add' without a number also lands here: the handler explains the format.
   caregiver_add: ['caregiver', 'caregiver add', 'parivar jodo', 'परिवार जोड़ो'],

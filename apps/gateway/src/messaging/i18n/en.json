@@ -11,7 +11,7 @@
   "consent.v1.accepted_welcome": "Thank you! 🙏 You can now:\n📷 Send a photo of a prescription or lab report\n💊 Send MEDS to see your medicines\n❓ Send HELP to see all commands\n\nI only explain what is written. Please confirm everything with your doctor or pharmacist.",
   "consent.v1.declined": "Okay, no problem. I will not read or save any of your documents. Whenever you change your mind, just send any message and I will ask again.",
   "consent.v1.reminder": "To read your documents I first need your permission. Nothing you sent has been opened or saved. Please choose an option below.",
-  "help.body": "I'm Dawai Saathi 💊\n\nI can:\n• Read a prescription photo and explain it simply\n• Explain a lab report (never a diagnosis)\n• Suggest cheaper generics with the same salt\n\nCommands:\nHELP – this message\nMEDS – your active medicines\nLANGUAGE – change language\nSTOP REMINDERS / START REMINDERS\nREMINDERS – see or pause your dose reminders\nCAREGIVER +91XXXXXXXXXX – add a family contact (CAREGIVER REMOVE to remove)\nDELETE – erase all your data\n\n🚨 Emergency? Call 112 or 108.\n\nI am not a doctor. Always ask your doctor or pharmacist before changing anything.",
+  "help.body": "I'm Dawai Saathi 💊\n\nI can:\n• Read a prescription photo and explain it simply\n• Explain a lab report (never a diagnosis)\n• Suggest cheaper generics with the same salt\n\nCommands:\nHELP – this message\nMEDS – your active medicines\nCHECK – check your medicines against each other (interactions, same medicine twice)\nLANGUAGE – change language\nSTOP REMINDERS / START REMINDERS\nREMINDERS – see or pause your dose reminders\nCAREGIVER +91XXXXXXXXXX – add a family contact (CAREGIVER REMOVE to remove)\nDELETE – erase all your data\n\n🚨 Emergency? Call 112 or 108.\n\nI am not a doctor. Always ask your doctor or pharmacist before changing anything.",
   "language.changed": "Language set to English.",
   "reminders.disabled": "Dose reminders are switched off. Send START REMINDERS to turn them on again.",
   "reminders.enabled": "Dose reminders are switched on.",
@@ -112,5 +112,10 @@
   "caregiver.cg_expired": "This request has expired. Please ask them to send it again.",
   "reminders.unclear_item": "a medicine that could not be read clearly",
   "reminders.reason.ended": "the course has already finished",
-  "reminder.daily_summary": "Today you took {{taken}} of {{total}} doses. Send REMINDERS to see your reminders."
+  "reminder.daily_summary": "Today you took {{taken}} of {{total}} doses. Send REMINDERS to see your reminders.",
+  "interaction.details_prompt": "I found interaction notes for these medicines. Do you want the full details?",
+  "interaction.details_button": "Interaction details",
+  "interaction.details_none": "There are no active interaction notes saved for your medicines. Send CHECK to check them again.",
+  "check.need_two": "I need at least two active medicines to check them against each other. Send a photo of your prescription to add them.",
+  "meds.list_header_warn": "Your active medicines (⚠️ = possible interaction or the same medicine twice; send CHECK for details):"
 }

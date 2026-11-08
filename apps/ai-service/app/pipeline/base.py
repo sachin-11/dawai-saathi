@@ -9,11 +9,13 @@ from typing import Protocol
 
 from app.catalog.service import CatalogService
 from app.config import Settings
+from app.interactions.service import InteractionService
 from app.llm.router import Deadline, LLMRouter
 from app.llm.types import LLMResult
 from app.prompts.registry import PromptRegistry, TemplateStore
 from app.safety.emergency_guard import EmergencyGuard
 from app.safety.redaction import Redactor, get_redactor
+from app.schemas.interactions import InteractionReport
 from app.schemas.prescription import PrescriptionExtraction
 from app.schemas.process import (
     EmergencyCategory,
@@ -66,6 +68,8 @@ class PipelineContext:
     redactor: Redactor = field(default_factory=get_redactor)
     # M8: None in tests that do not need the catalog; then no match / generic step runs.
     catalog: CatalogService | None = None
+    # M11: None in tests that do not need it; then no interaction check runs.
+    interactions: InteractionService | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +80,7 @@ class PipelineOutput:
     warnings: list[Warning] = field(default_factory=list)
     emergency_category: EmergencyCategory | None = None
     extraction: PrescriptionExtraction | None = None
+    interactions: InteractionReport | None = None
     # Per-node timings (no text, no values). Set by the graph; returned only to the demo client.
     debug_trace: list[TraceEntry] | None = None
 

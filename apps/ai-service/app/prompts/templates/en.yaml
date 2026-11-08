@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v4
+version: reply_templates_v5
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -68,3 +68,7 @@ texts:
     Which medicine do you want a generic for? Send its name, for example: "Dolo 650 ka generic batao".
   generic_query_unavailable: |-
     I cannot check my medicine list right now. Please try again in a little while.
+  interaction.ask_names: |-
+    Which medicines do you want to check? Send their names, for example: "Dolo aur Combiflam saath le sakte hain?"
+  interaction.unavailable: |-
+    I cannot check for interactions right now. Please try again in a little while, and tell your doctor or pharmacist about all your medicines.

@@ -43,6 +43,12 @@ describe('parseCommand', () => {
     ['dawai', 'meds'],
     ['dawaiyan', 'meds'],
     ['दवाई', 'meds'],
+    ['check', 'check'],
+    ['CHECK', 'check'],
+    ['Check!', 'check'],
+    ['jaanch karo', 'check'],
+    ['जांच करो', 'check'],
+    ['जाँच करो', 'check'],
   ])('%p -> %s', (text, expected) => {
     expect(parseCommand(text)).toBe(expected);
   });
@@ -54,6 +60,9 @@ describe('parseCommand', () => {
     'stop taking dolo',
     'dawai kab leni hai',
     'meds list please',
+    'check my dolo please',
+    'can you check this prescription',
+    'jaanch kab hogi',
     'language is hindi',
     'delete the photo I sent',
     'hello',

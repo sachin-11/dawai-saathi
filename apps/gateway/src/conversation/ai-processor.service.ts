@@ -11,17 +11,14 @@ import { MessagesService } from '../messaging/messages.service';
 import { MAX_INTERACTIVE_BODY_LENGTH, WhatsAppClient } from '../messaging/whatsapp.client';
 import type { InboundJobData } from '../queues/queue.constants';
 import { type UserState, UsersService } from '../users/users.service';
+import { InteractionFlowService } from './interaction-flow.service';
+import { AI_ERROR_REPLY_INDEX } from './reply-indexes';
 import type { ReplySession } from './replies.service';
 
 /** Presigned media URLs handed to the AI service live for 5 minutes (CLAUDE.md §12). */
 export const PRESIGNED_URL_TTL_SECONDS = 300;
 
-/**
- * The error reply uses a fixed, high reply index. Together with the deterministic outbound job id
- * (`<messageId>_<index>`) the user gets AT MOST ONE error message per inbound message, no matter how
- * many times the job is retried.
- */
-export const AI_ERROR_REPLY_INDEX = 99;
+export { AI_ERROR_REPLY_INDEX } from './reply-indexes';
 
 /** What the AI service is given, plus the S3 key of the stored file (null for text). */
 interface PreparedInput {
@@ -51,6 +48,7 @@ export class AiProcessor {
     private readonly whatsapp: WhatsAppClient,
     private readonly audit: AuditService,
     private readonly prescriptions: PrescriptionService,
+    private readonly interactionFlow: InteractionFlowService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(AiProcessor.name);
@@ -92,6 +90,7 @@ export class AiProcessor {
       // promise "saved" for something that was not.
       const documentId = await this.savePrescription(user, job, response, prepared.s3Key);
       await this.sendReply(response, session, documentId);
+      await this.offerInteractionDetails(response, session, documentId);
       this.logResponse(job, response);
       return 'ai_reply';
     } catch (error) {
@@ -183,6 +182,7 @@ export class AiProcessor {
       s3Key,
       extraction,
       meta: response.meta,
+      interactions: response.interactions ?? null,
     });
     this.logger.info(
       {
@@ -192,6 +192,8 @@ export class AiProcessor {
         status: saved.status,
         medicines: extraction.medicines?.length ?? 0,
         created: saved.created,
+        interaction_findings: response.interactions?.findings?.length ?? 0,
+        warnings_created: saved.warningsCreated,
       },
       'prescription saved',
     );
@@ -223,6 +225,22 @@ export class AiProcessor {
     // text and the buttons follow with a short prompt, so they are never silently dropped.
     await session.rawText(text);
     await session.rawButtonsWithPrompt('common.next_step', buttons);
+  }
+
+  /**
+   * M11: WhatsApp allows three buttons and the prescription reply already uses them, so the
+   * "Interaction details" button follows in a short message of its own, only when there is something
+   * to show (never for a typed question: that reply already lists everything it found).
+   */
+  private async offerInteractionDetails(
+    response: ProcessResponse,
+    session: ReplySession,
+    documentId: string | null,
+  ): Promise<void> {
+    const report = response.interactions;
+    if (!documentId || response.intent !== 'prescription' || !report) return;
+    if (!report.database_ok || (report.findings?.length ?? 0) === 0) return;
+    await this.interactionFlow.offerDetails(session, documentId);
   }
 
   /** The category only: never the text. A failing audit write must not hide the help message. */

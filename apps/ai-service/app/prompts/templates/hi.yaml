@@ -1,5 +1,5 @@
 # Static reply texts (Hindi). Keep in sync with en.yaml (same keys, same version).
-version: reply_templates_v4
+version: reply_templates_v5
 texts:
   help: |-
     मैं दवाई साथी हूँ 💊
@@ -68,3 +68,7 @@ texts:
     आप किस दवाई का जेनेरिक जानना चाहते हैं? उसका नाम भेजें, जैसे: "Dolo 650 ka generic batao"।
   generic_query_unavailable: |-
     अभी मैं दवाइयों की सूची नहीं देख पा रहा। कृपया थोड़ी देर बाद फिर कोशिश करें।
+  interaction.ask_names: |-
+    आप किन दवाइयों की जाँच करवाना चाहते हैं? उनके नाम भेजें, जैसे: "Dolo aur Combiflam saath le sakte hain?"
+  interaction.unavailable: |-
+    अभी मैं इंटरैक्शन की जाँच नहीं कर पा रहा। कृपया थोड़ी देर बाद फिर कोशिश करें, और अपने डॉक्टर या फ़ार्मासिस्ट को अपनी सभी दवाइयाँ बताएँ।

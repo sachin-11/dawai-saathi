@@ -159,6 +159,7 @@ async def confidence_gate(state: GraphState, ctx: PipelineContext) -> dict[str, 
         return {
             **static_reply("rx.other", Intent.other),
             "rx_extraction": None,
+            "interaction_report": None,
             "gate_failure": gate.failure,
         }
     if gate.failure is not None:
@@ -168,6 +169,7 @@ async def confidence_gate(state: GraphState, ctx: PipelineContext) -> dict[str, 
             **static_reply("rx.unreadable", Intent.prescription),
             "rx_extraction": gate.extraction,
             "warnings": gate.warnings,
+            "interaction_report": None,  # nothing readable: no interaction claim, no persisted warning
             "gate_failure": gate.failure,
         }
     return {

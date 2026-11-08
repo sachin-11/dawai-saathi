@@ -274,7 +274,7 @@ class TestBranches:
         path = await self.path(image_request(), [CLASSIFY_RX, extraction(DOLO), lines("Dolo 650")])
         assert path == [
             "prepare_image", "classify", "vision_extract_rx", "validate_rx", "normalize_drugs",
-            "generic_finder", "confidence_gate", "composer", "verifier",
+            "generic_finder", "interaction_check", "confidence_gate", "composer", "verifier",
         ]  # fmt: skip
 
     async def test_the_typed_generic_query_skips_the_gate(self):

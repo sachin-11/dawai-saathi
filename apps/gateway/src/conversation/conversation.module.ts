@@ -5,6 +5,7 @@ import { CaregiversModule } from '../caregivers/caregivers.module';
 import { DeletionModule } from '../deletion/deletion.module';
 import { DevModule } from '../dev/dev.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { MedicationsModule } from '../medications/medications.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
@@ -13,6 +14,7 @@ import { CaregiverFlowService } from './caregiver-flow.service';
 import { CommandHandlersService } from './command-handlers.service';
 import { DeletionFlowService } from './deletion-flow.service';
 import { InboundRouter } from './inbound-router';
+import { InteractionFlowService } from './interaction-flow.service';
 import { OnboardingService } from './onboarding.service';
 import { PendingInputService } from './pending-input.service';
 import { ReminderFlowService } from './reminder-flow.service';
@@ -30,6 +32,7 @@ import { RxActionsService } from './rx-actions.service';
     DocumentsModule,
     RemindersModule,
     CaregiversModule,
+    MedicationsModule,
   ],
   providers: [
     InboundRouter,
@@ -39,6 +42,7 @@ import { RxActionsService } from './rx-actions.service';
     DeletionFlowService,
     RepliesService,
     RxActionsService,
+    InteractionFlowService,
     ReminderFlowService,
     CaregiverFlowService,
     PendingInputService,

@@ -54,9 +54,12 @@ def state_for(request: ProcessRequest, **fields: Any) -> GraphState:
 
 
 async def run_graph(
-    provider: FakeProvider, request: ProcessRequest, catalog: CatalogService | None = None
+    provider: FakeProvider,
+    request: ProcessRequest,
+    catalog: CatalogService | None = None,
+    interactions: Any = None,
 ) -> tuple[PipelineOutput, PipelineContext]:
-    ctx = make_ctx(provider, catalog=catalog)
+    ctx = make_ctx(provider, catalog=catalog, interactions=interactions)
     output = await GraphPipeline().run(request, ctx)
     return output, ctx
 

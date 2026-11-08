@@ -187,6 +187,14 @@ function prescriptionResponse(requestId: string): ProcessResponse {
       status: 'needs_review',
     } as unknown as NonNullable<ProcessResponse['extraction']>,
     warnings: [{ type: 'low_confidence', detail: 'medicine 2: name not clear' }],
+    // M11: `medications.salt_key` is the salt the interaction checker used, nothing else
+    interactions: {
+      findings: [],
+      unchecked: [],
+      resolved: [{ ref: 'rx:0', salt_key: 'paracetamol' }],
+      checked_count: 1,
+      database_ok: true,
+    },
     reply: {
       language: 'en',
       text: '📋 I found 2 medicines in your prescription:\n\n1. Dolo 650 (tablet, 650 mg) — 1 tablet, morning and night, after food, for 5 days\n   💰 A cheaper option with the same salt is available.\n2. I could not read this medicine clearly. Please confirm with your pharmacist.',

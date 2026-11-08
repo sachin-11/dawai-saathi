@@ -18,6 +18,8 @@ from typing import Any
 from app.graph.nodes._util import language_of
 from app.graph.state import GraphState, VerificationResult
 from app.graph.traced import traced_node
+from app.interactions.render import render_block
+from app.interactions.verify import interaction_failures
 from app.pipeline.base import PipelineContext
 from app.safety.disclaimers import DISCLAIMERS
 from app.schemas.catalog import DrugMatch, GenericSuggestion, MatchMethod
@@ -112,6 +114,17 @@ async def collect_failures(state: GraphState, ctx: PipelineContext) -> list[str]
         failures += await generic_failures(match, suggestion, low_confidence=False, ctx=ctx)
         return list(dict.fromkeys(failures))
 
+    if state.intent is Intent.interaction_query:
+        failures += interaction_failures(
+            state.interaction_report,
+            reply.text,
+            language,
+            required=True,
+            whole_reply_blocklist=True,
+            query=True,
+        )
+        return list(dict.fromkeys(failures))
+
     extraction = state.rx_extraction
     if extraction is None:
         return [*failures, "no_extraction"]
@@ -123,13 +136,21 @@ async def collect_failures(state: GraphState, ctx: PipelineContext) -> list[str]
         payload = compose_payload(views)
         lines = state.llm_lines or {}
         failures += verify_items(sorted(lines.items()), payload, language)
-        if len(render_reply_text(views, extraction, language, lines)) > max_body_chars():
+        tail = render_block(state.interaction_report, language) if state.interaction_report else ""
+        if len(render_reply_text(views, extraction, language, lines, tail=tail)) > max_body_chars():
             failures.append("reply_too_long")
     squashed = _squash(reply.text)
     if any(v.name and not v.low and _squash(v.name) not in squashed for v in views):
         failures.append("name_missing")
     if any(v.low for v in views) and LOW_CONFIDENCE_MARKERS[language] not in reply.text:
         failures.append("low_confidence_not_flagged")
+    failures += interaction_failures(
+        state.interaction_report,
+        reply.text,
+        language,
+        required=False,
+        whole_reply_blocklist=False,
+    )
     for medicine, view in zip(extraction.medicines, views, strict=True):
         failures += await generic_failures(
             medicine.match, medicine.generic, low_confidence=view.low, ctx=ctx

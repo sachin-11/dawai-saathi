@@ -103,7 +103,7 @@ class TestSuccess:
         assert body["reply"]["buttons"] == []
         meta = body["meta"]
         assert meta["model"] == "fake-model" and meta["provider"] == "fake"
-        assert meta["prompt_version"] == "reply_templates_v4,emergency_classify_v1,intent_text_v2"
+        assert meta["prompt_version"] == "reply_templates_v5,emergency_classify_v1,intent_text_v2"
         assert meta["fallback_used"] is False
         assert meta["latency_ms"] >= 0 and meta["cost_usd"] == 0
         assert meta["trace_id"] is None  # no Langfuse configured
@@ -220,7 +220,7 @@ class TestValidation:
             (payload(request_id="has space"), "request_id"),
             (payload(request_id="x" * 201), "request_id"),
             (payload(request_id=""), "request_id"),
-            (payload(context={"active_medications": [{"salt": "a"}]}), "strength"),
+            (payload(context={"active_medications": [{"salt": "a", "strength": ""}]}), "strength"),
             ({k: v for k, v in payload().items() if k != "user"}, "user"),
         ],
     )

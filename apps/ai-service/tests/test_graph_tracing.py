@@ -128,7 +128,7 @@ class TestSpansPerNode:
         ]
         assert names == [
             "process", "prepare_image", "classify", "vision_extract_rx", "validate_rx",
-            "normalize_drugs", "generic_finder", "confidence_gate", "composer", "verifier",
+            "normalize_drugs", "generic_finder", "interaction_check", "confidence_gate", "composer", "verifier",
         ]  # fmt: skip
         assert (
             langfuse.by_name("vision_extract_rx").kwargs["trace_context"]["parent_span_id"]

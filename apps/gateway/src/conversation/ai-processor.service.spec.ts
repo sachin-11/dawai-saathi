@@ -16,6 +16,7 @@ import {
   AiProcessor,
   PRESIGNED_URL_TTL_SECONDS,
 } from './ai-processor.service';
+import type { InteractionFlowService } from './interaction-flow.service';
 import type { ReplySession } from './replies.service';
 
 const user: UserState = {
@@ -67,6 +68,7 @@ function setup(): {
   calls: string[];
   audit: { log: jest.Mock };
   prescriptions: { save: jest.Mock };
+  interactionFlow: { offerDetails: jest.Mock };
   session: Record<
     'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawButtonsWithPrompt' | 'rawEmergencyText',
     jest.Mock
@@ -115,6 +117,7 @@ function setup(): {
       created: true,
     }),
   };
+  const interactionFlow = { offerDetails: track('interactionFlow.offerDetails') };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
     messages as unknown as MessagesService,
@@ -124,6 +127,7 @@ function setup(): {
     whatsapp as unknown as WhatsAppClient,
     audit as unknown as AuditService,
     prescriptions as unknown as PrescriptionService,
+    interactionFlow as unknown as InteractionFlowService,
     logger as unknown as PinoLogger,
   );
   return {
@@ -136,6 +140,7 @@ function setup(): {
     whatsapp,
     audit,
     prescriptions,
+    interactionFlow,
     logger,
     calls,
     session,
@@ -530,6 +535,68 @@ describe('AiProcessor: prescriptions (M7)', () => {
     await s.processor.handle(user, imageJob, asSession(s)); // no extraction -> no document id
     expect(s.session.rawButtons).not.toHaveBeenCalled();
     expect(s.session.rawText).toHaveBeenCalledWith('x');
+  });
+
+  describe('interaction warnings (M11)', () => {
+    const report = (findings: unknown[], databaseOk = true) =>
+      ({
+        findings,
+        unchecked: [],
+        resolved: [{ ref: 'rx:0', salt_key: 'paracetamol' }],
+        checked_count: 2,
+        database_ok: databaseOk,
+      }) as NonNullable<ProcessResponse['interactions']>;
+    const withReport = (interactions: ProcessResponse['interactions']): ProcessResponse => ({
+      ...prescriptionResponse(),
+      interactions,
+    });
+
+    it('hands the report to the save and sends the details button as a follow-up', async () => {
+      const s = setup();
+      const interactions = report([{ type: 'duplicate_ingredient' }]);
+      s.ai.process.mockResolvedValue(withReport(interactions));
+      await s.processor.handle(user, imageJob, asSession(s));
+
+      expect(s.prescriptions.save).toHaveBeenCalledWith(expect.objectContaining({ interactions }));
+      expect(s.interactionFlow.offerDetails).toHaveBeenCalledWith(s.session, 'doc-1');
+      expect(s.calls.indexOf('session.rawButtons')).toBeLessThan(
+        s.calls.indexOf('interactionFlow.offerDetails'),
+      );
+    });
+
+    it.each([
+      ['no findings', report([])],
+      ['a failed database check', report([{ type: 'interaction' }], false)],
+      ['no report at all', null],
+    ])('no details button for %s', async (_name, interactions) => {
+      const s = setup();
+      s.ai.process.mockResolvedValue(withReport(interactions));
+      await s.processor.handle(user, imageJob, asSession(s));
+      expect(s.interactionFlow.offerDetails).not.toHaveBeenCalled();
+    });
+
+    it('no details button for a typed question: its reply already lists everything', async () => {
+      const s = setup();
+      s.ai.process.mockResolvedValue({
+        ...aiReply({ text: 'Dolo and Combiflam' }),
+        intent: 'interaction_query',
+        interactions: report([{ type: 'duplicate_ingredient' }]),
+      });
+      await s.processor.handle(user, job(), asSession(s));
+      expect(s.prescriptions.save).not.toHaveBeenCalled();
+      expect(s.interactionFlow.offerDetails).not.toHaveBeenCalled();
+      expect(s.session.rawText).toHaveBeenCalledWith('Dolo and Combiflam');
+    });
+
+    it('sends every stored medicine (with salt_key) as context', async () => {
+      const s = setup();
+      const context = [
+        { salt: '', strength: '', medication_id: 'm1', name: 'Dolo', salt_key: null },
+      ];
+      s.users.activeMedicationSalts.mockResolvedValue(context);
+      await s.processor.handle(user, job(), asSession(s));
+      expect(sentRequest(s).context).toEqual({ active_medications: context });
+    });
   });
 
   it('never logs the reply text or any medicine', async () => {

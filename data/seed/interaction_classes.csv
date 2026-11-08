@@ -1,0 +1,87 @@
+class,salt
+nsaid,ibuprofen
+nsaid,diclofenac
+nsaid,naproxen
+nsaid,aceclofenac
+nsaid,nimesulide
+nsaid,ketorolac
+nsaid,etoricoxib
+nsaid,piroxicam
+nsaid,mefenamic acid
+nsaid,indomethacin
+nsaid,celecoxib
+anticoagulant,warfarin
+anticoagulant,acenocoumarol
+anticoagulant,rivaroxaban
+anticoagulant,apixaban
+anticoagulant,dabigatran
+vka,warfarin
+vka,acenocoumarol
+ace_inhibitor,enalapril
+ace_inhibitor,ramipril
+ace_inhibitor,lisinopril
+ace_inhibitor,perindopril
+ace_inhibitor,captopril
+arb,telmisartan
+arb,losartan
+arb,olmesartan
+arb,valsartan
+arb,irbesartan
+arb,candesartan
+k_sparing,spironolactone
+k_sparing,eplerenone
+k_sparing,amiloride
+nitrate,isosorbide mononitrate
+nitrate,isosorbide dinitrate
+nitrate,glyceryl trinitrate
+pde5,sildenafil
+pde5,tadalafil
+ssri,fluoxetine
+ssri,sertraline
+ssri,escitalopram
+ssri,citalopram
+ssri,paroxetine
+benzodiazepine,alprazolam
+benzodiazepine,clonazepam
+benzodiazepine,diazepam
+benzodiazepine,lorazepam
+opioid,tramadol
+opioid,codeine
+opioid,morphine
+opioid,tapentadol
+fluoroquinolone,ciprofloxacin
+fluoroquinolone,levofloxacin
+fluoroquinolone,ofloxacin
+fluoroquinolone,moxifloxacin
+fluoroquinolone,norfloxacin
+sulfonylurea,glimepiride
+sulfonylurea,gliclazide
+sulfonylurea,glipizide
+sulfonylurea,glibenclamide
+beta_blocker,atenolol
+beta_blocker,metoprolol
+beta_blocker,propranolol
+beta_blocker,bisoprolol
+beta_blocker,carvedilol
+beta_blocker,nebivolol
+corticosteroid,prednisolone
+corticosteroid,dexamethasone
+corticosteroid,methylprednisolone
+metal_cation,calcium carbonate
+metal_cation,calcium
+metal_cation,calcium citrate
+metal_cation,ferrous fumarate
+metal_cation,ferrous ascorbate
+metal_cation,ferrous sulfate
+metal_cation,aluminium hydroxide
+metal_cation,magnesium hydroxide
+alpha_blocker,tamsulosin
+alpha_blocker,doxazosin
+alpha_blocker,alfuzosin
+thiazide,hydrochlorothiazide
+thiazide,chlorthalidone
+thiazide,indapamide
+macrolide_cyp3a4,clarithromycin
+macrolide_cyp3a4,erythromycin
+azole,ketoconazole
+azole,itraconazole

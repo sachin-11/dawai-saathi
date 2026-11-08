@@ -34,6 +34,12 @@ async def classify(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     )
     if intent is Intent.generic_query and ctx.catalog is not None:
         return {"intent": intent}
+    if (
+        intent is Intent.interaction_query
+        and ctx.catalog is not None
+        and ctx.interactions is not None
+    ):
+        return {"intent": intent}
     return static_reply(TEMPLATE_FOR_INTENT.get(intent, "coming_soon"), intent)
 
 

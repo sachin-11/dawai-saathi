@@ -10,6 +10,10 @@ import { AiServiceError } from './ai-client.errors';
 import type {
   GenericDetailsRequest,
   GenericDetailsResponse,
+  InteractionCheckRequest,
+  InteractionCheckResponse,
+  InteractionDetailsRequest,
+  InteractionDetailsResponse,
   ProcessRequest,
   ProcessResponse,
 } from './types';
@@ -46,6 +50,16 @@ function isGenericDetailsResponse(value: unknown): value is GenericDetailsRespon
   const body = value as { reply?: { text?: unknown } | null };
   return (
     typeof body.reply === 'object' && body.reply !== null && typeof body.reply.text === 'string'
+  );
+}
+
+function isInteractionCheckResponse(value: unknown): value is InteractionCheckResponse {
+  if (!isGenericDetailsResponse(value)) return false;
+  const body = value as { interactions?: { findings?: unknown } | null };
+  return (
+    typeof body.interactions === 'object' &&
+    body.interactions !== null &&
+    Array.isArray(body.interactions.findings)
   );
 }
 
@@ -90,6 +104,28 @@ export class AiClient {
     return this.post(
       '/v1/generic-details',
       'ai.generic_details',
+      request,
+      isGenericDetailsResponse,
+    );
+  }
+
+  /** CHECK: all of the user's stored medicines against each other (no model call on the AI side). */
+  async interactionCheck(request: InteractionCheckRequest): Promise<InteractionCheckResponse> {
+    return this.post(
+      '/v1/interaction-check',
+      'ai.interaction_check',
+      request,
+      isInteractionCheckResponse,
+    );
+  }
+
+  /** The "Interaction details" button: the stored warnings rendered from the current rows. */
+  async interactionDetails(
+    request: InteractionDetailsRequest,
+  ): Promise<InteractionDetailsResponse> {
+    return this.post(
+      '/v1/interaction-details',
+      'ai.interaction_details',
       request,
       isGenericDetailsResponse,
     );

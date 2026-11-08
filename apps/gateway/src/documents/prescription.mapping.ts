@@ -148,9 +148,14 @@ export function mapMedications(
   extraction: PrescriptionExtraction,
   clock: ClockTimes,
   now: Date,
+  /**
+   * M11: the salt the interaction checker actually used for medicine `i` (from its report). It is the
+   * ONLY source of `salt_key`: a weak catalog match must never feed a later safety check.
+   */
+  interactionSalts: ReadonlyMap<number, string> = new Map(),
 ): MedicationRow[] {
   const start = todayInIndia(now);
-  return (extraction.medicines ?? []).map((medicine) => {
+  return (extraction.medicines ?? []).map((medicine, index) => {
     const durationDays = medicine.duration_days.value ?? null;
     return {
       rawName: medicine.name.value ?? medicine.raw_text.value ?? 'unreadable',
@@ -167,6 +172,7 @@ export function mapMedications(
       confidence: medicineConfidence(medicine),
       active: !medicine.low_confidence,
       ...matchFields(medicine.match),
+      saltKey: interactionSalts.get(index) ?? null,
     };
   });
 }

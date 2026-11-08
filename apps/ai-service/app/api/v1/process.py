@@ -78,6 +78,7 @@ async def process(
         guard=state.guard,
         redactor=state.redactor,
         catalog=state.catalog,
+        interactions=state.interactions,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):
@@ -133,6 +134,7 @@ async def process(
         emergency_category=output.emergency_category,
         extraction=output.extraction,
         warnings=output.warnings,
+        interactions=output.interactions,
         reply=output.reply,
         meta=meta,
         # Only the demo client, and only when it asked: per-node names and numbers, never content.
