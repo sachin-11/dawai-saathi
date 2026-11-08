@@ -8,6 +8,7 @@ import type { AiProcessor } from './ai-processor.service';
 import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
+import type { InteractionFlowService } from './interaction-flow.service';
 import type { OnboardingService } from './onboarding.service';
 import type { CaregiverFlowService } from './caregiver-flow.service';
 import type { PendingInputService } from './pending-input.service';
@@ -48,6 +49,7 @@ function setup(
   deletion: Record<'request' | 'confirm' | 'cancel', jest.Mock>;
   echoBot: { enabled: boolean; handle: jest.Mock };
   rxActions: { handle: jest.Mock };
+  interactionFlow: { check: jest.Mock; details: jest.Mock };
   ai: { handle: jest.Mock };
   reminderFlow: { list: jest.Mock; handleButton: jest.Mock };
   caregiverFlow: { startAdd: jest.Mock; remove: jest.Mock };
@@ -80,6 +82,10 @@ function setup(
   };
   const ai = { handle: jest.fn().mockResolvedValue('ai_reply') };
   const rxActions = { handle: jest.fn().mockResolvedValue('rx_wrong') };
+  const interactionFlow = {
+    check: jest.fn().mockResolvedValue('check_done'),
+    details: jest.fn().mockResolvedValue('ix_details'),
+  };
   const reminderFlow = {
     list: jest.fn().mockResolvedValue('rem_list'),
     handleButton: jest.fn().mockResolvedValue('rem_ack'),
@@ -98,6 +104,7 @@ function setup(
     commands as unknown as CommandHandlersService,
     deletion as unknown as DeletionFlowService,
     rxActions as unknown as RxActionsService,
+    interactionFlow as unknown as InteractionFlowService,
     reminderFlow as unknown as ReminderFlowService,
     caregiverFlow as unknown as CaregiverFlowService,
     pendingInput as unknown as PendingInputService,
@@ -115,6 +122,7 @@ function setup(
     echoBot,
     ai,
     rxActions,
+    interactionFlow,
     reminderFlow,
     caregiverFlow,
     pendingInput,
@@ -420,6 +428,52 @@ describe('InboundRouter', () => {
       const s = setup(user({ onboardingStep: 'consent' }));
       await s.router.route(rxJob(`rx:wrong:${DOC}`), NOW);
       expect(s.rxActions.handle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('interaction checks (M11)', () => {
+    const DOC = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';
+    const ixJob = (id: string): InboundJobData =>
+      job({ type: 'button', button: { id, title: 'whatever the title says' } });
+
+    it('CHECK re-runs the interaction check on all medicines', async () => {
+      const s = setup(user());
+      await expect(s.router.route(job({ signals: { command: 'check' } }), NOW)).resolves.toBe(
+        'interaction_check',
+      );
+      expect(s.interactionFlow.check).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'user-1' }),
+        s.session,
+      );
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it('CHECK is not available before onboarding is done', async () => {
+      const s = setup(user({ onboardingStep: 'consent' }));
+      await s.router.route(job({ signals: { command: 'check' } }), NOW);
+      expect(s.interactionFlow.check).not.toHaveBeenCalled();
+    });
+
+    it.each([DOC, 'all'])(
+      'routes ix:details:%s to the details flow, never to the AI',
+      async (target) => {
+        const s = setup(user());
+        await expect(s.router.route(ixJob(`ix:details:${target}`), NOW)).resolves.toBe(
+          'interaction_details',
+        );
+        expect(s.interactionFlow.details).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'user-1' }),
+          { target },
+          s.session,
+        );
+        expect(s.ai.handle).not.toHaveBeenCalled();
+      },
+    );
+
+    it('a malformed ix id is not a details button', async () => {
+      const s = setup(user());
+      await s.router.route(ixJob('ix:details:not-an-id'), NOW);
+      expect(s.interactionFlow.details).not.toHaveBeenCalled();
     });
   });
 

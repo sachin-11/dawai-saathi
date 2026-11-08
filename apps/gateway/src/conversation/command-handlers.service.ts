@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service';
+import { MedicationWarningsService } from '../medications/medication-warnings.service';
 import { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import {
   type ActiveMedicationLine,
@@ -18,6 +19,7 @@ export class CommandHandlersService {
     private readonly users: UsersService,
     private readonly audit: AuditService,
     private readonly schedules: ReminderScheduleService,
+    private readonly warnings: MedicationWarningsService,
   ) {}
 
   help(session: ReplySession): Promise<void> {
@@ -73,13 +75,15 @@ export class CommandHandlersService {
       return;
     }
     const today = await this.schedules.todayStatus(user.id);
+    // M11: a medicine that is part of an active interaction / duplicate warning gets a marker.
+    const flagged = await this.warnings.medicationIdsWithWarnings(user.id);
     // One message: separate replies could arrive out of order.
     await session.textLines(
-      'meds.list_header',
+      flagged.size > 0 ? 'meds.list_header_warn' : 'meds.list_header',
       medications.map((medication) => ({
         key: 'meds.item' as const,
         params: {
-          name: medication.name,
+          name: flagged.has(medication.id) ? `⚠️ ${medication.name}` : medication.name,
           timings:
             this.describeToday(today.get(medication.id)) ??
             this.describeSchedule(medication, session),

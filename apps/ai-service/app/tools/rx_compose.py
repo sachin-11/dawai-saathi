@@ -281,6 +281,7 @@ def render_reply_text(
     extraction: PrescriptionExtraction,
     language: Language,
     llm_lines: dict[int, str] | None = None,
+    tail: str = "",
 ) -> str:
     notes: list[str] = []
     if any("duplicate_name" in m.validation_notes for m in extraction.medicines):
@@ -297,7 +298,19 @@ def render_reply_text(
     except TemplateError:
         # A broken template is a bug in our code, never in the data; fail loudly.
         raise
-    return re.sub(r"\n{3,}", "\n\n", body).strip()
+    return _with_tail(re.sub(r"\n{3,}", "\n\n", body).strip(), tail)
+
+
+def _with_tail(body: str, tail: str) -> str:
+    """Append the interaction block (M11). It is a safety message: if the whole text would be too long
+    for the disclaimer, the MEDICINE list is shortened, never the block."""
+    tail = tail.strip()
+    if not tail:
+        return body
+    room = max_body_chars() - len(tail) - 2
+    if len(body) > room:
+        body = body[: max(room - 1, 0)].rstrip() + "…"
+    return f"{body}\n\n{tail}"
 
 
 # ---------------------------------------------------------------- the LLM step

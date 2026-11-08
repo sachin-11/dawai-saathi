@@ -14,6 +14,11 @@ from app.graph import routing as r
 from app.graph.nodes.classify import classify
 from app.graph.nodes.composer import composer
 from app.graph.nodes.emergency_guard import emergency_classifier, emergency_guard
+from app.graph.nodes.interaction_nodes import (
+    extract_interaction_query,
+    interaction_check,
+    match_query_medicines,
+)
 from app.graph.nodes.prepare_image import prepare_image
 from app.graph.nodes.redact import redact
 from app.graph.nodes.rx_nodes import (
@@ -48,6 +53,9 @@ def build_graph() -> CompiledGraph:
         (r.GENERIC_FINDER, generic_finder),
         (r.CONFIDENCE_GATE, confidence_gate),
         (r.EXTRACT_QUERY, extract_query),
+        (r.EXTRACT_INTERACTION_QUERY, extract_interaction_query),
+        (r.MATCH_QUERY_MEDICINES, match_query_medicines),
+        (r.INTERACTION_CHECK, interaction_check),
         (r.COMPOSER, composer),
         (r.VERIFIER, verifier),
         (r.TEMPLATES, templates),
@@ -84,6 +92,7 @@ def build_graph() -> CompiledGraph:
         {
             r.VISION_EXTRACT_RX: r.VISION_EXTRACT_RX,
             r.EXTRACT_QUERY: r.EXTRACT_QUERY,
+            r.EXTRACT_INTERACTION_QUERY: r.EXTRACT_INTERACTION_QUERY,
             r.TEMPLATES: r.TEMPLATES,
         },
     )
@@ -110,6 +119,25 @@ def build_graph() -> CompiledGraph:
     graph.add_conditional_edges(
         r.GENERIC_FINDER,
         r.after_generic_finder,
+        {
+            r.INTERACTION_CHECK: r.INTERACTION_CHECK,
+            r.COMPOSER: r.COMPOSER,
+            r.TEMPLATES: r.TEMPLATES,
+        },
+    )
+    graph.add_conditional_edges(
+        r.EXTRACT_INTERACTION_QUERY,
+        r.after_extract_interaction_query,
+        {r.MATCH_QUERY_MEDICINES: r.MATCH_QUERY_MEDICINES, r.TEMPLATES: r.TEMPLATES},
+    )
+    graph.add_conditional_edges(
+        r.MATCH_QUERY_MEDICINES,
+        r.after_match_query_medicines,
+        {r.INTERACTION_CHECK: r.INTERACTION_CHECK, r.TEMPLATES: r.TEMPLATES},
+    )
+    graph.add_conditional_edges(
+        r.INTERACTION_CHECK,
+        r.after_interaction_check,
         {r.CONFIDENCE_GATE: r.CONFIDENCE_GATE, r.COMPOSER: r.COMPOSER, r.TEMPLATES: r.TEMPLATES},
     )
     graph.add_conditional_edges(

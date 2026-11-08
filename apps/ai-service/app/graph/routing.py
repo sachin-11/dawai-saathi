@@ -28,6 +28,9 @@ NORMALIZE_DRUGS = "normalize_drugs"
 GENERIC_FINDER = "generic_finder"
 CONFIDENCE_GATE = "confidence_gate"
 EXTRACT_QUERY = "extract_query"
+EXTRACT_INTERACTION_QUERY = "extract_interaction_query"
+MATCH_QUERY_MEDICINES = "match_query_medicines"
+INTERACTION_CHECK = "interaction_check"
 COMPOSER = "composer"
 VERIFIER = "verifier"
 TEMPLATES = "templates"
@@ -69,6 +72,8 @@ def after_classify(state: GraphState) -> str:
         return VISION_EXTRACT_RX
     if state.intent is Intent.generic_query:
         return EXTRACT_QUERY
+    if state.intent is Intent.interaction_query:
+        return EXTRACT_INTERACTION_QUERY
     return TEMPLATES  # unreachable: classify sets a template key for everything else
 
 
@@ -93,7 +98,22 @@ def after_normalize_drugs(state: GraphState) -> str:
 def after_generic_finder(state: GraphState) -> str:
     if state.template_key:
         return TEMPLATES
-    return COMPOSER if state.intent is Intent.generic_query else CONFIDENCE_GATE
+    return COMPOSER if state.intent is Intent.generic_query else INTERACTION_CHECK
+
+
+def after_extract_interaction_query(state: GraphState) -> str:
+    return _templated_or(state, MATCH_QUERY_MEDICINES)
+
+
+def after_match_query_medicines(state: GraphState) -> str:
+    return _templated_or(state, INTERACTION_CHECK)
+
+
+def after_interaction_check(state: GraphState) -> str:
+    """A question goes straight to the composer; a prescription still passes the confidence gate."""
+    if state.template_key:
+        return TEMPLATES
+    return COMPOSER if state.intent is Intent.interaction_query else CONFIDENCE_GATE
 
 
 def after_confidence_gate(state: GraphState) -> str:

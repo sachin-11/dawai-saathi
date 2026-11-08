@@ -64,6 +64,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/interaction-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Interaction Check
+     * @description CHECK: every stored medicine against every other one (all findings, not only new ones).
+     */
+    post: operations['interaction_check_v1_interaction_check_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/interaction-details': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Interaction Details
+     * @description The details message for stored warnings, rendered from the CURRENT interaction rows.
+     */
+    post: operations['interaction_details_v1_interaction_details_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/process': {
     parameters: {
       query?: never;
@@ -90,10 +130,18 @@ export interface components {
   schemas: {
     /** ActiveMedication */
     ActiveMedication: {
+      /** Medication Id */
+      medication_id?: string | null;
+      /** Name */
+      name?: string | null;
       /** Salt */
-      salt: string;
+      salt?: string | null;
+      /** Salt Key */
+      salt_key?: string | null;
       /** Strength */
-      strength: string;
+      strength?: string | null;
+      /** Strength Key */
+      strength_key?: string | null;
     };
     /** DateField */
     DateField: {
@@ -318,6 +366,104 @@ export interface components {
       | 'greeting'
       | 'out_of_scope'
       | 'other';
+    /** InteractionCheckRequest */
+    InteractionCheckRequest: {
+      language: components['schemas']['Language'];
+      /** Medications */
+      medications?: components['schemas']['ActiveMedication'][];
+      /** Request Id */
+      request_id: string;
+    };
+    /** InteractionCheckResponse */
+    InteractionCheckResponse: {
+      interactions: components['schemas']['InteractionReport'];
+      reply: components['schemas']['Reply'];
+      /** Request Id */
+      request_id: string;
+    };
+    /** InteractionDetailsRequest */
+    InteractionDetailsRequest: {
+      /**
+       * Checked Count
+       * @default 0
+       */
+      checked_count: number;
+      language: components['schemas']['Language'];
+      /** Request Id */
+      request_id: string;
+      /** Unchecked */
+      unchecked?: components['schemas']['UncheckedMedicine'][];
+      /** Warnings */
+      warnings?: components['schemas']['StoredWarning'][];
+    };
+    /** InteractionDetailsResponse */
+    InteractionDetailsResponse: {
+      reply: components['schemas']['Reply'];
+      /** Request Id */
+      request_id: string;
+    };
+    /** InteractionFinding */
+    InteractionFinding: {
+      /** Effect Code */
+      effect_code?: string | null;
+      /**
+       * Hi Reviewed
+       * @default false
+       */
+      hi_reviewed: boolean;
+      /** Interaction Id */
+      interaction_id?: string | null;
+      /**
+       * Involves New
+       * @default true
+       */
+      involves_new: boolean;
+      /** Labels */
+      labels?: string[];
+      /** Management En */
+      management_en?: string | null;
+      /** Management Hi */
+      management_hi?: string | null;
+      /**
+       * Management Key
+       * @enum {string}
+       */
+      management_key: 'major' | 'moderate' | 'minor' | 'duplicate' | 'duplicate_overdose';
+      /** Medication Refs */
+      medication_refs?: string[];
+      /** Salt A */
+      salt_a: string;
+      /** Salt B */
+      salt_b: string;
+      /** Severity */
+      severity?: ('minor' | 'moderate' | 'major') | null;
+      /** Source Name */
+      source_name?: string | null;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: 'interaction' | 'duplicate_ingredient';
+    };
+    /** InteractionReport */
+    InteractionReport: {
+      /**
+       * Checked Count
+       * @default 0
+       */
+      checked_count: number;
+      /**
+       * Database Ok
+       * @default true
+       */
+      database_ok: boolean;
+      /** Findings */
+      findings?: components['schemas']['InteractionFinding'][];
+      /** Resolved */
+      resolved?: components['schemas']['ResolvedMedicine'][];
+      /** Unchecked */
+      unchecked?: components['schemas']['UncheckedMedicine'][];
+    };
     /**
      * Language
      * @enum {string}
@@ -437,6 +583,7 @@ export interface components {
       emergency_category?: components['schemas']['EmergencyCategory'] | null;
       extraction?: components['schemas']['PrescriptionExtraction'] | null;
       intent: components['schemas']['Intent'];
+      interactions?: components['schemas']['InteractionReport'] | null;
       meta: components['schemas']['Meta'];
       reply: components['schemas']['Reply'];
       /** Request Id */
@@ -494,6 +641,31 @@ export interface components {
        */
       include_trace: boolean;
     };
+    /**
+     * ResolvedMedicine
+     * @description The salt the checker used for one medicine ("rx:<index>" for a new one). The gateway stores it
+     *     on the saved medication when that has no `salt_key` yet, so the NEXT prescription sees it.
+     */
+    ResolvedMedicine: {
+      /** Ref */
+      ref: string;
+      /** Salt Key */
+      salt_key: string;
+    };
+    /** StoredWarning */
+    StoredWarning: {
+      /** Labels */
+      labels?: string[];
+      /** Salt A */
+      salt_a: string;
+      /** Salt B */
+      salt_b: string;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: 'interaction' | 'duplicate_ingredient';
+    };
     /** TextField */
     TextField: {
       /**
@@ -539,6 +711,13 @@ export interface components {
       /** Tokens Out */
       tokens_out?: number | null;
     };
+    /** UncheckedMedicine */
+    UncheckedMedicine: {
+      /** Label */
+      label?: string | null;
+      /** Ref */
+      ref: string;
+    };
     /** UserContext */
     UserContext: {
       /** Age */
@@ -557,7 +736,7 @@ export interface components {
      * WarningType
      * @enum {string}
      */
-    WarningType: 'low_confidence' | 'interaction' | 'critical_value';
+    WarningType: 'low_confidence' | 'interaction' | 'duplicate_ingredient' | 'critical_value';
   };
   responses: never;
   parameters: never;
@@ -638,6 +817,86 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['GenericDetailsResponse'];
+        };
+      };
+      /** @description Missing or wrong X-Service-Token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  interaction_check_v1_interaction_check_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        'x-service-token'?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InteractionCheckRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InteractionCheckResponse'];
+        };
+      };
+      /** @description Missing or wrong X-Service-Token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  interaction_details_v1_interaction_details_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        'x-service-token'?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InteractionDetailsRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InteractionDetailsResponse'];
         };
       };
       /** @description Missing or wrong X-Service-Token */

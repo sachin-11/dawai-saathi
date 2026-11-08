@@ -4,20 +4,81 @@
       "ActiveMedication": {
         "additionalProperties": false,
         "properties": {
+          "medication_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medication Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "salt": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Salt",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salt"
+          },
+          "salt_key": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salt Key"
           },
           "strength": {
-            "maxLength": 50,
-            "minLength": 1,
-            "title": "Strength",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength"
+          },
+          "strength_key": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength Key"
           }
         },
-        "required": ["salt", "strength"],
         "title": "ActiveMedication",
         "type": "object"
       },
@@ -572,6 +633,268 @@
         "title": "Intent",
         "type": "string"
       },
+      "InteractionCheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "medications": {
+            "items": {
+              "$ref": "#/components/schemas/ActiveMedication"
+            },
+            "maxItems": 50,
+            "title": "Medications",
+            "type": "array"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "language"],
+        "title": "InteractionCheckRequest",
+        "type": "object"
+      },
+      "InteractionCheckResponse": {
+        "properties": {
+          "interactions": {
+            "$ref": "#/components/schemas/InteractionReport"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "interactions", "reply"],
+        "title": "InteractionCheckResponse",
+        "type": "object"
+      },
+      "InteractionDetailsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Checked Count",
+            "type": "integer"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "unchecked": {
+            "items": {
+              "$ref": "#/components/schemas/UncheckedMedicine"
+            },
+            "maxItems": 50,
+            "title": "Unchecked",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/StoredWarning"
+            },
+            "maxItems": 100,
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": ["request_id", "language"],
+        "title": "InteractionDetailsRequest",
+        "type": "object"
+      },
+      "InteractionDetailsResponse": {
+        "properties": {
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "reply"],
+        "title": "InteractionDetailsResponse",
+        "type": "object"
+      },
+      "InteractionFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "effect_code": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Code"
+          },
+          "hi_reviewed": {
+            "default": false,
+            "title": "Hi Reviewed",
+            "type": "boolean"
+          },
+          "interaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interaction Id"
+          },
+          "involves_new": {
+            "default": true,
+            "title": "Involves New",
+            "type": "boolean"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Labels",
+            "type": "array"
+          },
+          "management_en": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Management En"
+          },
+          "management_hi": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Management Hi"
+          },
+          "management_key": {
+            "enum": ["major", "moderate", "minor", "duplicate", "duplicate_overdose"],
+            "title": "Management Key",
+            "type": "string"
+          },
+          "medication_refs": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Medication Refs",
+            "type": "array"
+          },
+          "salt_a": {
+            "maxLength": 200,
+            "title": "Salt A",
+            "type": "string"
+          },
+          "salt_b": {
+            "maxLength": 200,
+            "title": "Salt B",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": ["minor", "moderate", "major"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "type": {
+            "enum": ["interaction", "duplicate_ingredient"],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": ["type", "salt_a", "salt_b", "management_key"],
+        "title": "InteractionFinding",
+        "type": "object"
+      },
+      "InteractionReport": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Checked Count",
+            "type": "integer"
+          },
+          "database_ok": {
+            "default": true,
+            "title": "Database Ok",
+            "type": "boolean"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/InteractionFinding"
+            },
+            "maxItems": 100,
+            "title": "Findings",
+            "type": "array"
+          },
+          "resolved": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedMedicine"
+            },
+            "maxItems": 50,
+            "title": "Resolved",
+            "type": "array"
+          },
+          "unchecked": {
+            "items": {
+              "$ref": "#/components/schemas/UncheckedMedicine"
+            },
+            "maxItems": 50,
+            "title": "Unchecked",
+            "type": "array"
+          }
+        },
+        "title": "InteractionReport",
+        "type": "object"
+      },
       "Language": {
         "enum": ["hi", "en"],
         "title": "Language",
@@ -868,6 +1191,16 @@
           "intent": {
             "$ref": "#/components/schemas/Intent"
           },
+          "interactions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InteractionReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "meta": {
             "$ref": "#/components/schemas/Meta"
           },
@@ -991,6 +1324,55 @@
           }
         },
         "title": "RequestOptions",
+        "type": "object"
+      },
+      "ResolvedMedicine": {
+        "additionalProperties": false,
+        "description": "The salt the checker used for one medicine (\"rx:<index>\" for a new one). The gateway stores it\non the saved medication when that has no `salt_key` yet, so the NEXT prescription sees it.",
+        "properties": {
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "salt_key": {
+            "maxLength": 200,
+            "title": "Salt Key",
+            "type": "string"
+          }
+        },
+        "required": ["ref", "salt_key"],
+        "title": "ResolvedMedicine",
+        "type": "object"
+      },
+      "StoredWarning": {
+        "additionalProperties": false,
+        "properties": {
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Labels",
+            "type": "array"
+          },
+          "salt_a": {
+            "maxLength": 200,
+            "title": "Salt A",
+            "type": "string"
+          },
+          "salt_b": {
+            "maxLength": 200,
+            "title": "Salt B",
+            "type": "string"
+          },
+          "type": {
+            "enum": ["interaction", "duplicate_ingredient"],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": ["type", "salt_a", "salt_b"],
+        "title": "StoredWarning",
         "type": "object"
       },
       "TextField": {
@@ -1124,6 +1506,30 @@
         "title": "TraceEntry",
         "type": "object"
       },
+      "UncheckedMedicine": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": ["ref"],
+        "title": "UncheckedMedicine",
+        "type": "object"
+      },
       "UserContext": {
         "additionalProperties": false,
         "properties": {
@@ -1176,7 +1582,7 @@
         "type": "object"
       },
       "WarningType": {
-        "enum": ["low_confidence", "interaction", "critical_value"],
+        "enum": ["low_confidence", "interaction", "duplicate_ingredient", "critical_value"],
         "title": "WarningType",
         "type": "string"
       }
@@ -1290,6 +1696,114 @@
         },
         "summary": "Generic Details",
         "tags": ["generic"]
+      }
+    },
+    "/v1/interaction-check": {
+      "post": {
+        "description": "CHECK: every stored medicine against every other one (all findings, not only new ones).",
+        "operationId": "interaction_check_v1_interaction_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or wrong X-Service-Token"
+          },
+          "422": {
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Interaction Check",
+        "tags": ["interactions"]
+      }
+    },
+    "/v1/interaction-details": {
+      "post": {
+        "description": "The details message for stored warnings, rendered from the CURRENT interaction rows.",
+        "operationId": "interaction_details_v1_interaction_details_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionDetailsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or wrong X-Service-Token"
+          },
+          "422": {
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Interaction Details",
+        "tags": ["interactions"]
       }
     },
     "/v1/process": {

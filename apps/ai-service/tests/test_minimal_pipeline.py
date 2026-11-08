@@ -151,7 +151,7 @@ class TestIntentAndTemplates:
         assert system.role == "system" and "Choose exactly one intent" in system.content
         assert all(intent.value in system.content for intent in ClassifiedIntent)
         assert ctx.usage.prompt_versions == [
-            "reply_templates_v4",
+            "reply_templates_v5",
             "emergency_classify_v1",
             "intent_text_v2",
         ]
@@ -320,7 +320,7 @@ class TestMediaInput:
         assert output.emergency is False
         assert output.reply.text == TEMPLATES.get(Language.hi, "received_media")
         assert ctx.usage.cost_usd == 0 and ctx.usage.model is None
-        assert ctx.usage.prompt_versions == ["reply_templates_v4"]
+        assert ctx.usage.prompt_versions == ["reply_templates_v5"]
 
     async def test_the_emergency_guard_never_runs_on_image_input(self):
         """Text from a document is history ("chest pain" in a report), not a message from the user."""

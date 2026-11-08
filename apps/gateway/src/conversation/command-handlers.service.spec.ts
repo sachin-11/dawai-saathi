@@ -1,3 +1,4 @@
+import type { MedicationWarningsService } from '../medications/medication-warnings.service';
 import type { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import type { AuditService } from '../audit/audit.service';
 import type { UserState, UsersService } from '../users/users.service';
@@ -19,6 +20,7 @@ function setup(): {
   users: Record<'setLanguage' | 'setRemindersEnabled' | 'activeMedications', jest.Mock>;
   audit: { log: jest.Mock };
   schedules: Record<'suspendAll' | 'resumeAll' | 'todayStatus', jest.Mock>;
+  warnings: { medicationIdsWithWarnings: jest.Mock };
   session: Record<'text' | 'buttons' | 'textLines' | 'useLanguage' | 'translate', jest.Mock>;
 } {
   const users = {
@@ -31,6 +33,9 @@ function setup(): {
     suspendAll: jest.fn().mockResolvedValue(0),
     resumeAll: jest.fn().mockResolvedValue(undefined),
     todayStatus: jest.fn().mockResolvedValue(new Map()),
+  };
+  const warnings = {
+    medicationIdsWithWarnings: jest.fn().mockResolvedValue(new Set<string>()),
   };
   const session = {
     text: jest.fn().mockResolvedValue(undefined),
@@ -48,10 +53,12 @@ function setup(): {
       users as unknown as UsersService,
       audit as unknown as AuditService,
       schedules as unknown as ReminderScheduleService,
+      warnings as unknown as MedicationWarningsService,
     ),
     users,
     audit,
     schedules,
+    warnings,
     session,
   };
 }
@@ -131,6 +138,31 @@ describe('CommandHandlersService', () => {
       await s.handlers.setReminders({ ...user, remindersEnabled: false }, false, asSession(s));
       expect(s.audit.log).not.toHaveBeenCalled();
       expect(s.session.text).toHaveBeenCalledWith('reminders.disabled');
+    });
+  });
+
+  describe('MEDS with warnings (M11)', () => {
+    it('marks a medicine that is part of an active warning and uses the hint header', async () => {
+      const s = setup();
+      s.users.activeMedications.mockResolvedValue([
+        { id: 'm1', name: 'Dolo 650', timings: [], frequencyPerDay: 2, asNeeded: false },
+        { id: 'm2', name: 'Pantop', timings: [], frequencyPerDay: 1, asNeeded: false },
+      ]);
+      s.warnings.medicationIdsWithWarnings.mockResolvedValue(new Set(['m1']));
+      await s.handlers.meds(user, asSession(s));
+      expect(s.session.textLines).toHaveBeenCalledWith('meds.list_header_warn', [
+        { key: 'meds.item', params: { name: '⚠️ Dolo 650', timings: 'meds.when_times:2' } },
+        { key: 'meds.item', params: { name: 'Pantop', timings: 'meds.when_times:1' } },
+      ]);
+    });
+
+    it('keeps the plain header when nothing is flagged', async () => {
+      const s = setup();
+      s.users.activeMedications.mockResolvedValue([
+        { id: 'm1', name: 'Dolo 650', timings: ['08:00'], frequencyPerDay: 1, asNeeded: false },
+      ]);
+      await s.handlers.meds(user, asSession(s));
+      expect(s.session.textLines.mock.calls[0]?.[0]).toBe('meds.list_header');
     });
   });
 

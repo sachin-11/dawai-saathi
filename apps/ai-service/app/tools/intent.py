@@ -19,6 +19,8 @@ from app.schemas.process import Intent
 
 INTENT_PROMPT_ID = "intent_text_v2"
 GENERIC_EXTRACT_PROMPT_ID = "generic_query_extract_v1"
+INTERACTION_EXTRACT_PROMPT_ID = "interaction_query_extract_v1"
+MAX_QUERY_MEDICINES = 4
 # Below this the classification is treated as "other": a guess must not trigger a specific answer.
 MIN_INTENT_CONFIDENCE = 0.5
 
@@ -142,3 +144,43 @@ def clean_name(raw: str | None) -> str | None:
     )
     name = re.sub(r"\s+", " ", kept).strip()[:60]
     return name or None
+
+
+class InteractionQueryExtract(BaseModel):
+    """Structured output of `interaction_query_extract_v1`: names copied out of the message."""
+
+    medicine_names: list[str] = Field(default_factory=list, max_length=10)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+async def extract_interaction_names(
+    redacted_text: str,
+    *,
+    router: LLMRouter,
+    prompts: PromptRegistry,
+    usage: RequestUsage,
+    deadline: Deadline,
+) -> list[str]:
+    """The medicine names copied out of "Dolo aur Combiflam saath le sakte hain?" (deduplicated, at
+    most `MAX_QUERY_MEDICINES`). Empty when the model is unsure: the caller then asks for the names."""
+    prompt = prompts.load(INTERACTION_EXTRACT_PROMPT_ID)
+    result: LLMResult = await router.generate(
+        prompt.model_role,
+        [prompt.to_message(), Message("user", f"<message>\n{redacted_text}\n</message>")],
+        name="interaction_query_extract",
+        temperature=prompt.temperature,
+        max_tokens=150,
+        response_model=InteractionQueryExtract,
+        prompt_version=prompt.version,
+        deadline=deadline,
+    )
+    usage.add(result, prompt.version)
+    parsed = result.parsed
+    if not isinstance(parsed, InteractionQueryExtract) or parsed.confidence < MIN_INTENT_CONFIDENCE:
+        return []
+    names: list[str] = []
+    for raw in parsed.medicine_names:
+        name = clean_name(raw)
+        if name and name.casefold() not in {n.casefold() for n in names}:
+            names.append(name)
+    return names[:MAX_QUERY_MEDICINES]

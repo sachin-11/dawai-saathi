@@ -190,6 +190,9 @@ graph TD;
 	generic_finder(generic_finder)
 	confidence_gate(confidence_gate)
 	extract_query(extract_query)
+	extract_interaction_query(extract_interaction_query)
+	match_query_medicines(match_query_medicines)
+	interaction_check(interaction_check)
 	composer(composer)
 	verifier(verifier)
 	templates(templates)
@@ -198,6 +201,7 @@ graph TD;
 	__start__ -.-> emergency_guard;
 	__start__ -.-> prepare_image;
 	__start__ -.-> transcribe;
+	classify -.-> extract_interaction_query;
 	classify -.-> extract_query;
 	classify -.-> templates;
 	classify -.-> vision_extract_rx;
@@ -208,11 +212,18 @@ graph TD;
 	emergency_classifier -.-> templates;
 	emergency_guard -.-> redact;
 	emergency_guard -.-> templates;
+	extract_interaction_query -.-> match_query_medicines;
+	extract_interaction_query -.-> templates;
 	extract_query -.-> normalize_drugs;
 	extract_query -.-> templates;
 	generic_finder -.-> composer;
-	generic_finder -.-> confidence_gate;
+	generic_finder -.-> interaction_check;
 	generic_finder -.-> templates;
+	interaction_check -.-> composer;
+	interaction_check -.-> confidence_gate;
+	interaction_check -.-> templates;
+	match_query_medicines -.-> interaction_check;
+	match_query_medicines -.-> templates;
 	normalize_drugs -.-> generic_finder;
 	normalize_drugs -.-> templates;
 	prepare_image -.-> classify;
@@ -291,6 +302,45 @@ Settings: `DRUG_TRGM_MIN`, `DRUG_MATCH_MIN`, `DRUG_VECTOR_MIN`, `MIN_SAVINGS_PCT
 `PINECONE_INDEX_HOST`, `EMBEDDING_*` (see `.env.example`). The Pinecone and embedding-API code is tested
 against mocked HTTP only.
 
+## Interaction checks (M11)
+
+When you send a prescription, the AI service checks the new medicines against each other AND against
+every medicine you already have stored from **earlier prescriptions and other doctors**, and warns about:
+
+* **the same ingredient twice** (two brands of paracetamol from two doctors): a real overdose risk. It
+  never gives a dose; it says "both contain paracetamol, ask your doctor or pharmacist";
+* **known interactions** from the `interactions` table, worded by severity (major: "talk to your doctor
+  today", moderate: "some caution is needed", minor: only in the details view).
+
+The bot never says "stop this medicine". It says what is known and sends you to a doctor or pharmacist.
+**No row, no claim:** a language model never states an interaction. "Nothing found" is worded as "not in
+my list, which does not mean there is none", and a medicine that could not be looked up is named, never
+called safe. Source, licence reasoning and the partial coverage: [`data/SOURCES.md`](./data/SOURCES.md).
+
+```bash
+make migrate                # m11_interactions: new interactions columns + medication_warnings
+make seed                   # also loads data/seed/interactions_core.csv (idempotent)
+make eval-interactions      # 135 offline cases; every safety gate must be 0
+```
+
+**On WhatsApp**
+
+| What | Result |
+|---|---|
+| Send a prescription | Reply with the usual 3 buttons + the interaction notes; if there are any, a short follow-up message with the **Interaction details** button (`ix:details:<document id>`) |
+| `Dolo aur Combiflam saath le sakte hain?` | A typed question: names are matched in the catalog, then checked; nothing is saved |
+| `CHECK` / `jaanch karo` | Re-checks all your active medicines and keeps the stored warnings up to date |
+| `MEDS` | A warning sign marks medicines that are part of an active warning |
+| **Something is wrong** on a prescription | Its medicines are switched off and their warnings are resolved |
+
+**Try it:** send two prescriptions that both contain paracetamol (with the fake LLM the second reply shows
+the duplicate-ingredient warning), then type `Dolo aur Combiflam saath le sakte hain?` and `CHECK`.
+Hindi wording is unreviewed: see `data/review/` (CSV files for a pharmacist to approve; put approved
+lines in `data/review/interactions_hi_reviewed.csv`, columns `salt_a,salt_b,management_hi`).
+
+Endpoints (internal, service token): `POST /v1/interaction-check` (CHECK) and `POST /v1/interaction-details`
+(the details button). Neither calls a model.
+
 ## Conversation flow (M4)
 
 Every first-time number goes through the same short path, and **nothing is processed before consent**:
@@ -355,13 +405,14 @@ Tests: `make test` (unit, fake clock) and `make test-integration` (`reminders.in
 | `make eval-emergency` | Emergency-detection eval (rules, then rules + classifier) |
 | `make seed` / `make embed` | Load the medicine catalog / embed it for the vector fallback (see M8 section) |
 | `make eval-matcher` | Drug matching + generic finder eval (all safety gates must be zero) |
+| `make eval-interactions` | Interaction checker eval (135 cases, every safety gate must be zero) |
 | `make eval-rx` | Prescription eval on synthetic images (`MODE=fake-noisy`, or `MODE=real` with your keys) |
 | `make seed` | Load catalog datasets |
 | `make eval` | Run evaluation suite → `evals/reports/` |
 
 ## User commands (on WhatsApp)
 
-`HELP` · `MEDS` · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
+`HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
 
 ## Privacy
 

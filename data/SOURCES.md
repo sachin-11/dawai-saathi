@@ -29,6 +29,40 @@ There is no brand dataset with a verified licence. Consequences:
 * Prices are approximate MRPs from the date shown (`price_source_date`) and go stale. Re-run `make seed`
   with a fresh list; the upsert is idempotent per `(source, source_ref)`.
 
+# Interaction data sources (M11)
+
+**Licences below were NOT verified by us** (no terms page was opened; written from memory, so treat
+every cell as "check before relying"). The approved decision (2026-11-08): the only ingested source is
+our own **curated core list**, backed by public drug labels and the ONC list as citations. DDInter and
+DrugBank are NOT used.
+
+| # | Source | Content | Format / update | Licence / terms (unverified) | How we use it | Status |
+|---|---|---|---|---|---|---|
+| 1 | **Curated core list** `data/seed/interactions_core.csv` + `interaction_classes.csv` | 89 rows (class macros such as `@nsaid`, `@anticoagulant` expand to the 796+ stored pairs): pair, severity, effect code, mechanism, citation per row | CSV in the repo | Our own content (facts re-worded, no text copied) | The ONLY interaction source in `interactions` (`source` = "Dawai Saathi curated list from drug labels (pharmacist review pending)", `source_version` = `core-v1`) | **UNREVIEWED by a pharmacist or doctor. Citations are general ("FDA/DailyMed <drug> label, Drug Interactions section"), written from memory and NOT checked against the label text.** Coverage is PARTIAL |
+| 2 | **DDInter 2.0** (Central South University) | Pairs with Major / Moderate / Minor | CSV downloads | Reportedly CC BY-NC-SA 4.0 or similar academic terms: non-commercial and share-alike would conflict with a commercial launch | Not used | Not ingested. Needs a terms check first, then a separate `source` value so it can be removed cleanly |
+| 3 | **ONC High-Priority DDI list** (Phansalkar et al., JAMIA 2012) | About 15 high-priority pairs/classes, US-centric | Journal article, no machine-readable file | Journal copyright; facts are not copyrightable but wording is | Cited as background for a few rows; no text copied | Static (2012) |
+| 4 | **openFDA / DailyMed drug labels** | Free-text "Drug Interactions" sections | JSON API | Public domain per openFDA, with a disclaimer | Reference for checking the core list; no automatic pair extraction | **Not yet used for checking: a reviewer should compare each row with its label** |
+| 5 | **DrugBank** | Most complete | XML/CSV | Free for non-commercial academic use only; commercial licence needed | **Not used** | Needs your confirmation and a licence |
+| 6 | **RxNav / NLM Interaction API** | n/a | n/a | Discontinued in 2024 | Not an option | n/a |
+
+## Honest gaps
+
+* Coverage is **partial**. A pair with no row is "not found in our list", never "safe": the bot says so
+  every time (`app/interactions/render.py`, enforced by the verifier and the eval).
+* The checker works on the **salt** of a medicine. A medicine is only checked when its salt is certain:
+  a confident catalog match, a brand-name prefix ("Dolo" for Dolo 650), or a name that is exactly a salt
+  the interaction table knows ("Warfarin"). Everything else is reported as "could not be checked".
+  The curated brand list has only 73 brands, so many Indian brand names are NOT checkable until the
+  catalog grows (see the list of salts without a product in `data/reports/<date>-interactions.md`).
+* Hindi text: effect sentences (`app/interactions/effects.py`) and management lines are written by us
+  and have to be reviewed (`data/review/interaction_effects_hi_review.csv`,
+  `data/review/interactions_hi_review.csv`). Until a row is reviewed its Hindi management line is the
+  generic "ask your doctor or pharmacist" sentence (`interactions.hi_reviewed = false`).
+* `aspirin x clopidogrel` is stored as **minor** because doctors prescribe it together on purpose; it
+  appears in the details view and in a typed question, not in a prescription reply.
+* Updating the data: edit the CSV, `make seed` (idempotent; rows of this source that disappeared from
+  the CSV are removed), re-run `make eval-interactions`.
+
 ## Download log
 
 | Dataset | Downloaded | By | Note |

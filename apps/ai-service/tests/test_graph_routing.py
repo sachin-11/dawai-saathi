@@ -102,7 +102,27 @@ class TestEdges:
             (r.after_normalize_drugs, {"template_key": "generic_query_unavailable"}, r.TEMPLATES),
             # generic_finder: the typed query skips the gate
             (r.after_generic_finder, {"intent": Intent.generic_query}, r.COMPOSER),
-            (r.after_generic_finder, {"intent": Intent.prescription}, r.CONFIDENCE_GATE),
+            (r.after_generic_finder, {"intent": Intent.prescription}, r.INTERACTION_CHECK),
+            # interaction_check: a question goes straight to the composer, a prescription to the gate
+            (r.after_interaction_check, {"intent": Intent.prescription}, r.CONFIDENCE_GATE),
+            (r.after_interaction_check, {"intent": Intent.interaction_query}, r.COMPOSER),
+            (r.after_interaction_check, {"template_key": "x"}, r.TEMPLATES),
+            (
+                r.after_extract_interaction_query,
+                {"interaction_names": ["a", "b"]},
+                r.MATCH_QUERY_MEDICINES,
+            ),
+            (
+                r.after_extract_interaction_query,
+                {"template_key": "interaction.ask_names"},
+                r.TEMPLATES,
+            ),
+            (r.after_match_query_medicines, {"interaction_names": ["a", "b"]}, r.INTERACTION_CHECK),
+            (
+                r.after_match_query_medicines,
+                {"template_key": "interaction.unavailable"},
+                r.TEMPLATES,
+            ),
             (r.after_generic_finder, {"template_key": "generic_query_unavailable"}, r.TEMPLATES),
             # confidence_gate
             (r.after_confidence_gate, {}, r.COMPOSER),
@@ -166,6 +186,7 @@ class TestTopology:
             r.EMERGENCY_GUARD, r.REDACT, r.EMERGENCY_CLASSIFIER, r.TRANSCRIBE, r.PREPARE_IMAGE,
             r.CLASSIFY, r.VISION_EXTRACT_RX, r.VALIDATE_RX, r.NORMALIZE_DRUGS, r.GENERIC_FINDER,
             r.CONFIDENCE_GATE, r.EXTRACT_QUERY, r.COMPOSER, r.VERIFIER, r.TEMPLATES, r.RX_FALLBACK,
+            r.EXTRACT_INTERACTION_QUERY, r.MATCH_QUERY_MEDICINES, r.INTERACTION_CHECK,
         }  # fmt: skip
         reachable, frontier = {"__start__"}, ["__start__"]
         while frontier:
@@ -185,4 +206,4 @@ class TestTopology:
     def test_nothing_reaches_the_composer_without_passing_the_catalog_or_the_gate(self):
         graph = build_graph().get_graph()
         into_composer = {e.source for e in graph.edges if e.target == r.COMPOSER}
-        assert into_composer == {r.GENERIC_FINDER, r.CONFIDENCE_GATE}
+        assert into_composer == {r.GENERIC_FINDER, r.CONFIDENCE_GATE, r.INTERACTION_CHECK}

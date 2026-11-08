@@ -178,13 +178,24 @@ describe('mapMedications', () => {
     expect(row).toMatchObject({
       drugId: DRUG,
       salt: 'paracetamol',
-      saltKey: 'paracetamol',
+      // M11: `salt_key` is the salt the interaction checker used, never a raw catalog match
+      saltKey: null,
       strengthKey: '650mg',
       formKey: 'tablet',
       releaseType: 'ir',
       matchScore: 1,
       matchMethod: 'exact',
     });
+  });
+
+  it('takes salt_key ONLY from the interaction report, by medicine index (M11)', () => {
+    const rows = mapMedications(
+      extraction(medicine({ match: { ...MATCH } }), medicine({ match: { ...MATCH } })),
+      CLOCK,
+      NOW,
+      new Map([[1, 'paracetamol']]),
+    );
+    expect(rows.map((row) => row.saltKey)).toEqual([null, 'paracetamol']);
   });
 
   it('copes with a response that omits the medicines list', () => {

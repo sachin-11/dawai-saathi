@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import type { GenericDetailsRequest, ProcessMeta } from '../ai-client/types';
+import type { GenericDetailsRequest, InteractionReport, ProcessMeta } from '../ai-client/types';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
+import { MedicationWarningsService } from '../medications/medication-warnings.service';
 import {
   type ClockTimes,
   mapMedications,
@@ -18,6 +19,8 @@ export interface SavedPrescription {
   status: DocumentStatusValue;
   /** False when this inbound message had already been saved (a retried job): nothing was inserted. */
   created: boolean;
+  /** M11: how many interaction warnings this save stored (null when nothing was saved). */
+  warningsCreated: number | null;
 }
 
 /** The AI service puts this literal in its button ids; the gateway swaps in the real document id. */
@@ -27,6 +30,18 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isUuid(value: string): boolean {
   return UUID.test(value);
+}
+
+/** `rx:<i>` -> the salt the checker used for medicine i of the prescription (M11). */
+export function interactionSalts(
+  report: InteractionReport | null | undefined,
+): Map<number, string> {
+  const salts = new Map<number, string>();
+  for (const item of report?.resolved ?? []) {
+    const match = /^rx:(\d{1,3})$/.exec(item.ref);
+    if (match) salts.set(Number(match[1]), item.salt_key);
+  }
+  return salts;
 }
 
 /**
@@ -40,6 +55,7 @@ export class PrescriptionService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly warnings: MedicationWarningsService,
     @Inject(APP_CONFIG) env: Env,
   ) {
     this.clock = {
@@ -61,6 +77,8 @@ export class PrescriptionService {
     s3Key: string;
     extraction: PrescriptionExtraction;
     meta: Pick<ProcessMeta, 'model' | 'prompt_version'>;
+    /** M11: the interaction report of this prescription (null when no check ran). */
+    interactions?: InteractionReport | null;
     now?: Date;
   }): Promise<SavedPrescription> {
     const { extraction } = input;
@@ -76,6 +94,7 @@ export class PrescriptionService {
             documentId: existing.id,
             status: existing.status as DocumentStatusValue,
             created: false,
+            warningsCreated: null,
           };
         }
 
@@ -95,19 +114,32 @@ export class PrescriptionService {
         });
 
         // A failed read has no usable medicines: keep the document (history, admin review), save none.
+        let warningsCreated = 0;
         if (status !== 'failed') {
-          const rows = mapMedications(extraction, this.clock, input.now ?? new Date());
-          if (rows.length > 0) {
-            await tx.medication.createMany({
-              data: rows.map((row) => ({
-                ...row,
-                userId: input.userId,
-                documentId: document.id,
-              })),
+          const rows = mapMedications(
+            extraction,
+            this.clock,
+            input.now ?? new Date(),
+            interactionSalts(input.interactions),
+          );
+          // One insert per medicine: the warnings need the new ids (a prescription has few medicines).
+          const savedIds: string[] = [];
+          for (const row of rows) {
+            const saved = await tx.medication.create({
+              data: { ...row, userId: input.userId, documentId: document.id },
+              select: { id: true },
             });
+            savedIds.push(saved.id);
           }
+          const stats = await this.warnings.recordFindings(
+            tx,
+            input.userId,
+            input.interactions,
+            savedIds,
+          );
+          warningsCreated = stats.created;
         }
-        return { documentId: document.id, status, created: true };
+        return { documentId: document.id, status, created: true, warningsCreated };
       });
     } catch (error) {
       // Two workers raced on the same message: the unique index let one win; return its document.
@@ -120,6 +152,7 @@ export class PrescriptionService {
           documentId: existing.id,
           status: existing.status as DocumentStatusValue,
           created: false,
+          warningsCreated: null,
         };
       }
       throw error;
@@ -141,10 +174,20 @@ export class PrescriptionService {
       });
       if (!document) return null;
       await tx.document.update({ where: { id: document.id }, data: { status: 'needs_review' } });
+      const active = await tx.medication.findMany({
+        where: { documentId: document.id, userId, active: true },
+        select: { id: true },
+      });
       const result = await tx.medication.updateMany({
         where: { documentId: document.id, userId, active: true },
         data: { active: false },
       });
+      // M11: a switched-off medicine no longer takes part in a combination.
+      await this.warnings.resolveForMedications(
+        tx,
+        userId,
+        active.map((m) => m.id),
+      );
       return result.count;
     });
   }

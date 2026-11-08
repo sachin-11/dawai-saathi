@@ -181,12 +181,13 @@ model User {
   /// such users. This is only an in-flight marker; the job then HARD-deletes the row (§6).
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(6)
 
-  caregivers        Caregiver[]
-  messages          Message[]
-  documents         Document[]
-  medications       Medication[]
-  reminders         Reminder[]
-  reminderSchedules ReminderSchedule[]
+  caregivers         Caregiver[]
+  messages           Message[]
+  documents          Document[]
+  medications        Medication[]
+  reminders          Reminder[]
+  medicationWarnings MedicationWarning[]
+  reminderSchedules  ReminderSchedule[]
 
   @@map("users")
 }
@@ -435,16 +436,68 @@ enum MatchMethod {
 }
 
 model Interaction {
-  id       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Invariant (CHECK in migration): saltA < saltB, so each pair is stored once.
-  saltA    String              @map("salt_a")
-  saltB    String              @map("salt_b")
-  severity InteractionSeverity
-  summary  String
-  source   String
+  saltA         String              @map("salt_a")
+  saltB         String              @map("salt_b")
+  severity      InteractionSeverity
+  summary       String
+  source        String
+  /// M11: curated core list. Salts are canonical keys (same as drugs.salt_key components).
+  mechanism     String?
+  /// Stable code of the clinical effect (bleeding, serotonin_syndrome, ...). The bot words it from a
+  /// reviewed table keyed by this code; the Hindi wording never comes from a model.
+  effectCode    String              @default("") @map("effect_code")
+  managementEn  String              @default("") @map("management_en")
+  /// Generic safe Hindi line until a human reviewed the text (hi_reviewed).
+  managementHi  String              @default("") @map("management_hi")
+  hiReviewed    Boolean             @default(false) @map("hi_reviewed")
+  evidenceLevel String?             @map("evidence_level")
+  sourceRef     String?             @map("source_ref")
+  sourceVersion String?             @map("source_version")
+
+  warnings MedicationWarning[]
 
   @@unique([saltA, saltB])
   @@map("interactions")
+}
+
+enum MedicationWarningType {
+  interaction
+  duplicate_ingredient
+
+  @@map("medication_warning_type")
+}
+
+enum MedicationWarningStatus {
+  active
+  acknowledged
+  resolved
+
+  @@map("medication_warning_status")
+}
+
+/// M11: findings of the interaction checker, so they can be listed and are not repeated.
+/// A partial UNIQUE index (user_id, type, salt_a, salt_b) WHERE status = 'active' is hand-written in
+/// the migration (Prisma cannot model it); `prisma migrate dev` proposes to drop it: delete that line.
+model MedicationWarning {
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String                  @map("user_id") @db.Uuid
+  type          MedicationWarningType
+  medicationIds String[]                @map("medication_ids") @db.Uuid
+  saltA         String                  @map("salt_a")
+  saltB         String                  @map("salt_b")
+  /// Null for a duplicate ingredient (same salt twice, no pair severity).
+  severity      InteractionSeverity?
+  interactionId String?                 @map("interaction_id") @db.Uuid
+  status        MedicationWarningStatus @default(active)
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interaction Interaction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@map("medication_warnings")
 }
 
 model LabTest {

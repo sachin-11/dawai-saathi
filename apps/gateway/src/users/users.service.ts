@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import type { ActiveMedicationContext } from '../ai-client/types';
 import { CryptoService } from '../common/crypto/crypto.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 
@@ -17,6 +18,9 @@ export interface UserState {
   /** Set while an erasure (DELETE) is in flight. */
   deletedAt: Date | null;
 }
+
+/** The AI contract accepts at most 50 stored medicines as context. */
+const MAX_CONTEXT_MEDICATIONS = 50;
 
 const USER_SELECT = {
   id: true,
@@ -142,15 +146,34 @@ export class UsersService {
     }));
   }
 
-  /** `{salt, strength}` of the user's active medicines: the context sent to the AI service. */
-  async activeMedicationSalts(userId: string): Promise<{ salt: string; strength: string }[]> {
+  /**
+   * ALL of the user's active medicines (from every prescription and doctor): the context sent to
+   * the AI service. M11 needs the ones without a salt too, so they are reported as "could not be
+   * checked" instead of silently skipped; `salt_key` is only set where the interaction checker
+   * resolved it with certainty.
+   */
+  async activeMedicationSalts(userId: string): Promise<ActiveMedicationContext[]> {
     const rows = await this.prisma.medication.findMany({
-      where: { userId, active: true, salt: { not: null }, strength: { not: null } },
-      select: { salt: true, strength: true },
+      where: { userId, active: true },
+      orderBy: { id: 'asc' },
+      take: MAX_CONTEXT_MEDICATIONS,
+      select: {
+        id: true,
+        rawName: true,
+        salt: true,
+        strength: true,
+        saltKey: true,
+        strengthKey: true,
+      },
     });
-    return rows.flatMap((row) =>
-      row.salt && row.strength ? [{ salt: row.salt, strength: row.strength }] : [],
-    );
+    return rows.map((row) => ({
+      salt: row.salt,
+      strength: row.strength,
+      medication_id: row.id,
+      name: row.rawName.slice(0, 200),
+      salt_key: row.saltKey,
+      strength_key: row.strengthKey,
+    }));
   }
 
   /**

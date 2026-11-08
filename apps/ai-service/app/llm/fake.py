@@ -6,6 +6,7 @@ back to a keyword heuristic for the one structured task that exists in M5: inten
 """
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,7 +37,18 @@ _INTENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     ("lab_question", ("lab report", "blood test", "report", "रिपोर्ट", "hba1c", "tsh")),
-    ("interaction_query", ("interaction", "saath me le sakta", "together safe")),
+    (
+        "interaction_query",
+        (
+            "interaction",
+            "saath me le sakta",
+            "together safe",
+            "saath le sak",
+            "take together",
+            "saath lena",
+            "ek saath",
+        ),
+    ),
     ("generic_query", ("generic", "sasta", "cheaper", "alternative")),
     (
         "prescription_question",
@@ -115,6 +127,57 @@ def _fake_generic_extract(messages: Sequence[Message]) -> dict[str, Any]:
     return {"medicine_name": name, "strength": strength, "confidence": 0.9 if name else 0.2}
 
 
+_INTERACTION_SPLIT = re.compile(
+    r"\s*(?:,|\+|&|\baur\b|\band\b|\bke saath\b|\bke sath\b|\bsaath\b|\bwith\b|\bya\b|\bor\b)\s*",
+    re.IGNORECASE,
+)
+_INTERACTION_FILLER = frozenset(
+    {
+        "le",
+        "sakte",
+        "sakta",
+        "sakti",
+        "hain",
+        "hai",
+        "kya",
+        "ek",
+        "tablet",
+        "tab",
+        "ko",
+        "me",
+        "main",
+        "lena",
+        "lene",
+        "safe",
+        "together",
+        "can",
+        "i",
+        "take",
+        "is",
+        "it",
+        "ka",
+        "ki",
+        "ke",
+        "ok",
+        "to",
+        "okay",
+    }
+)
+
+
+def _fake_interaction_extract(messages: Sequence[Message]) -> dict[str, Any]:
+    """Offline stand-in for `interaction_query_extract_v1`: splits on 'aur', 'and', commas ... and
+    drops filler words. It copies words from the message and nothing else."""
+    last = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    text = last.replace("<message>", " ").replace("</message>", " ").replace("?", " ")
+    names: list[str] = []
+    for part in _INTERACTION_SPLIT.split(text):
+        words = [w for w in part.split() if w.lower() not in _INTERACTION_FILLER]
+        if words:
+            names.append(" ".join(words))
+    return {"medicine_names": names[:4], "confidence": 0.9 if names else 0.2}
+
+
 @dataclass(frozen=True, slots=True)
 class FakeRule:
     """If `match` (case-insensitive) occurs in the last user message, answer with `response`."""
@@ -142,6 +205,8 @@ def default_fake_response(
     if "items" in fields:
         raw_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
         return fake_compose([m.content for m in messages], raw_user)
+    if "medicine_names" in fields:
+        return json.dumps(_fake_interaction_extract(messages))
     if "medicine_name" in fields:
         return json.dumps(_fake_generic_extract(messages))
     if "is_emergency" in response_model.model_fields:

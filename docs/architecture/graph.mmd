@@ -17,6 +17,9 @@ graph TD;
 	generic_finder(generic_finder)
 	confidence_gate(confidence_gate)
 	extract_query(extract_query)
+	extract_interaction_query(extract_interaction_query)
+	match_query_medicines(match_query_medicines)
+	interaction_check(interaction_check)
 	composer(composer)
 	verifier(verifier)
 	templates(templates)
@@ -25,6 +28,7 @@ graph TD;
 	__start__ -.-> emergency_guard;
 	__start__ -.-> prepare_image;
 	__start__ -.-> transcribe;
+	classify -.-> extract_interaction_query;
 	classify -.-> extract_query;
 	classify -.-> templates;
 	classify -.-> vision_extract_rx;
@@ -35,11 +39,18 @@ graph TD;
 	emergency_classifier -.-> templates;
 	emergency_guard -.-> redact;
 	emergency_guard -.-> templates;
+	extract_interaction_query -.-> match_query_medicines;
+	extract_interaction_query -.-> templates;
 	extract_query -.-> normalize_drugs;
 	extract_query -.-> templates;
 	generic_finder -.-> composer;
-	generic_finder -.-> confidence_gate;
+	generic_finder -.-> interaction_check;
 	generic_finder -.-> templates;
+	interaction_check -.-> composer;
+	interaction_check -.-> confidence_gate;
+	interaction_check -.-> templates;
+	match_query_medicines -.-> interaction_check;
+	match_query_medicines -.-> templates;
 	normalize_drugs -.-> generic_finder;
 	normalize_drugs -.-> templates;
 	prepare_image -.-> classify;
