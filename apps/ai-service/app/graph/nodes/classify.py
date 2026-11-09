@@ -8,6 +8,7 @@ from app.graph.nodes._util import static_reply, track
 from app.graph.state import GraphState
 from app.graph.traced import traced_node
 from app.pipeline.base import PipelineContext
+from app.safety.budget import busy_update, is_restricted
 from app.safety.commands import load_command_table
 from app.schemas.process import InputType, Intent
 from app.tools.classify_image import IMAGE_CLASSIFY_PROMPT_ID, classify_image
@@ -25,6 +26,9 @@ def _timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
 async def classify(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     if state.images:
         return await _classify_image(state, ctx)
+
+    if is_restricted(state):  # M15: no model call for text questions when the budget is tight
+        return busy_update(state, "budget.busy", "text")
 
     if state.request.input.type is InputType.audio:
         # M13: a spoken command ("meds dikhao", "le li") is recognised by the shared alias table, on
@@ -60,6 +64,8 @@ async def _classify_image(state: GraphState, ctx: PipelineContext) -> dict[str, 
     track(ctx, result, IMAGE_CLASSIFY_PROMPT_ID)
     kind = classification.kind
     update: dict[str, Any] = {"image_kind": kind}
+    if kind == "lab_report" and is_restricted(state):  # M15: lab reports wait in essential mode
+        return {**update, **busy_update(state, "budget.busy", "lab")}
     if kind == "lab_report":
         if ctx.labs is None:  # no lab catalog wired (tests / a rollback): the old placeholder reply
             return {**update, **static_reply("rx.lab_report", Intent.lab_report)}

@@ -68,7 +68,10 @@ class TestValidation:
 
     def test_real_mode_is_allowed_in_production(self):
         s = make_settings(
-            NODE_ENV="production", SERVICE_TOKEN="a-real-production-token", LLM_MODE="real"
+            NODE_ENV="production",
+            SERVICE_TOKEN="a-real-production-token",
+            LLM_MODE="real",
+            METRICS_TOKEN="metrics-token-123456",
         )
         assert s.environment == "production"
 

@@ -4,6 +4,7 @@ import { PinoLogger } from 'nestjs-pino';
 
 import { RedisService } from '../common/redis/redis.service';
 import { withTimeout } from '../common/timeout/with-timeout';
+import { withTrace } from '../telemetry/trace-context';
 import { INBOUND_QUEUE, type InboundJobData } from './queue.constants';
 
 /** If Redis does not answer in time, fail the webhook (HTTP 500) so Meta retries later. */
@@ -37,7 +38,7 @@ export class InboundQueue implements OnModuleDestroy {
     const queue = this.getQueue();
     await withTimeout(
       () =>
-        queue.add(data.type, data, {
+        queue.add(data.type, withTrace(data), {
           ...INBOUND_JOB_OPTIONS,
           // BullMQ forbids ':' in custom ids; real wamid values never contain it, but be safe.
           jobId: data.waMessageId.replaceAll(':', '_'),

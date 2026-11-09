@@ -1,5 +1,5 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { type Job, Worker } from 'bullmq';
+import type { Job, Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
 import { InboundRouter } from '../conversation/inbound-router';
@@ -7,6 +7,7 @@ import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
 import { INBOUND_QUEUE, type InboundJobData } from './queue.constants';
+import { WorkerFactory } from '../telemetry/worker-factory.service';
 
 /**
  * Consumer of the `inbound` queue. Every job goes through the InboundRouter (M4): emergency check,
@@ -20,6 +21,7 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redis: RedisService,
     private readonly router: InboundRouter,
+    private readonly workers: WorkerFactory,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
   ) {
@@ -32,7 +34,7 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    this.worker = new Worker<InboundJobData>(INBOUND_QUEUE, (job) => this.process(job), {
+    this.worker = this.workers.create<InboundJobData>(INBOUND_QUEUE, (job) => this.process(job), {
       // Workers need blocking commands that must never give up: maxRetriesPerRequest: null.
       connection: this.redis.createConnection({ maxRetriesPerRequest: null }),
       concurrency: 5,
@@ -68,10 +70,6 @@ export class InboundWorker implements OnModuleInit, OnModuleDestroy {
 
   /** Waits for in-flight jobs to finish, then stops. */
   async onModuleDestroy(): Promise<void> {
-    try {
-      await this.worker?.close();
-    } catch {
-      // Redis may already be gone during shutdown.
-    }
+    await this.workers.close(this.worker);
   }
 }

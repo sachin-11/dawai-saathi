@@ -24,7 +24,11 @@ export type AuditAction =
   | 'consent_updated'
   | 'voice_replies_enabled'
   | 'voice_replies_disabled'
-  | 'user_deleted';
+  | 'user_deleted'
+  | 'user_blocked'
+  | 'user_unblocked'
+  | 'dlq_retry'
+  | 'dlq_purge';
 
 export type AuditValue =
   string | number | boolean | null | AuditValue[] | { [key: string]: AuditValue };

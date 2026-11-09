@@ -525,6 +525,41 @@ _Latest full offline run: 2026-11-09 at `f401ec7`. Fake modes check the plumbing
 | e2e_conversations | fake | 14 | 3/3 | PASS | scenario_pass_rate 100.0% |
 <!-- eval-summary:end -->
 
+## Observability, limits and cost guard (M15)
+
+One WhatsApp message is **one trace**: webhook → queue → worker → AI service → every graph node → outbound send. Metrics are Prometheus, logs are JSON with the same `trace_id`. All of it is PHI-safe by construction (an attribute allowlist, low-cardinality labels, redacted logs).
+
+```bash
+make up-obs        # + Grafana :3003, Prometheus, Tempo (traces), Loki (logs), Alertmanager, OTel Collector, Langfuse :3002
+# point the apps at it (apps/gateway and apps/ai-service read the same variables):
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318  OTEL_SAMPLE_RATIO=1  METRICS_TOKEN=local-dev-metrics-token
+make check-obs     # alert rules + dashboards + runbooks are consistent with the metrics the apps really export
+```
+
+| What | Where |
+|------|-------|
+| Six dashboards (overview/SLOs, queues, AI and cost, WhatsApp, reminders, safety) | Grafana → folder **Dawai Saathi** (provisioned from `infra/observability/grafana/`) |
+| One message, end to end | Grafana → Explore → **Tempo**, search `service.name=gateway`; the span attribute `dawai.langfuse_trace_id` jumps to Langfuse, and Langfuse's trace output carries `otel_trace_id` |
+| Metrics | `GET /metrics` on both apps, `Authorization: Bearer $METRICS_TOKEN` (required in production, never public) |
+| SLOs, burn-rate alerts | [`docs/slo.md`](docs/slo.md), [`infra/observability/alerts.yml`](infra/observability/alerts.yml) |
+| What to do when an alert fires | [`docs/runbooks/`](docs/runbooks/README.md) (one per alert) |
+| Alerts locally | `docker logs -f dawai-alert-sink` |
+
+**Dead letters.** A job that runs out of attempts is moved to `<queue>-dlq` (`inbound`, `outbound`, `reminders`, `user-deletion`) without its payload. The user of an inbound job is told to try again exactly once. A stuck erasure alerts at once. Operator commands (each is written to `audit_logs`):
+
+```bash
+pnpm --filter @dawai/gateway cli dlq:list --queue inbound
+pnpm --filter @dawai/gateway cli dlq:retry --queue user-deletion
+pnpm --filter @dawai/gateway cli dlq:purge --queue outbound
+pnpm --filter @dawai/gateway cli user:unblock --user <uuid>
+```
+
+**Rate limits** (per user, Redis sliding window): `RL_MSG_PER_MIN` 10, `RL_MSG_PER_DAY` 200, `RL_DOCS_PER_DAY` 20, `RL_VOICE_PER_DAY` 30, 3 caregiver invitations a day. One friendly notice, then silence. **Emergencies, `DELETE` and `HELP` bypass every limit and every block.** Repeated limited windows block a user for `RL_BLOCK_HOURS` (migration `m15_blocking`).
+
+**Cost guard.** `LLM_DAILY_BUDGET_USD` (Asia/Kolkata day) → state `normal` < 70% < `economy` < 90% < `essential` < 100% = `exhausted`; `USER_DAILY_COST_USD` caps one person; `MAX_COST_PER_REQUEST_USD` stops one oversized request. Emergencies are answered in every state: the emergency rules and templates never read the budget. Details: [`docs/modules/M15.md`](docs/modules/M15.md).
+
+**Load smoke test** (k6, fake providers, mock Graph API): `node infra/loadtest/mock-graph.js`, seed users (`apps/gateway/scripts/seed-loadtest-users.ts`), `make load-smoke`.
+
 ## User commands (on WhatsApp)
 
 `HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `VOICE ON` / `VOICE OFF` · `DELETE` (the same commands also work as voice notes)

@@ -1,0 +1,29 @@
+# Local Prometheus (M15). The apps run on the host (`make dev`) or in containers; both are reachable as
+# host.docker.internal here. /metrics needs the bearer token in ./metrics_token (= METRICS_TOKEN in .env).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: gateway
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+  - job_name: ai-service
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
+    static_configs:
+      - targets: ['host.docker.internal:8000']

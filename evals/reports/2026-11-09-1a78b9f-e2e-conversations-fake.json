@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-09",
+  "git_sha": "1a78b9f",
+  "dirty": true,
+  "scope": "e2e_conversations, mode fake",
+  "passed": false,
+  "runs": [
+    {
+      "suite": "e2e_conversations",
+      "mode": "fake",
+      "passed": false,
+      "aborted": null,
+      "cases": 14,
+      "dataset_hash": "f77283f2bbc3",
+      "prompt_versions": [
+        "reply_templates (gateway i18n + AI templates)"
+      ],
+      "models": {},
+      "metrics": {
+        "scenarios_total": 14.0,
+        "scenario_pass_rate": 0.428571,
+        "scenarios_failed": 8.0,
+        "steps_failed": 8.0,
+        "duration_s": 297.74818,
+        "cost_usd_total": 0.0,
+        "cost_per_case_usd": 0.0
+      },
+      "cost_usd": 0.0,
+      "latency_p50_ms": 0.0,
+      "latency_p95_ms": 0.0,
+      "hard_gates": [
+        {
+          "metric": "scenarios_total",
+          "rule": ">= 12",
+          "value": 14.0,
+          "passed": true
+        },
+        {
+          "metric": "scenario_pass_rate",
+          "rule": "== 1.0",
+          "value": 0.42857142857142855,
+          "passed": false
+        },
+        {
+          "metric": "steps_failed",
+          "rule": "<= 0",
+          "value": 8.0,
+          "passed": false
+        }
+      ],
+      "soft": [],
+      "failing_examples": [
+        {
+          "id": "new_user_prescription_reminder_delete",
+          "why": "step 3 (send image: rx_003)",
+          "snippet": "button rx:reminders: missing (got: none); button rx:generic: missing (got: none)"
+        },
+        {
+          "id": "reminder_outside_the_24h_window_is_a_template",
+          "why": "step 0 (send image: rx_004)",
+          "snippet": "no reply contains \"Dolo 650\"; seen: user=[\"text:Reading it now… this takes abo\","
+        },
+        {
+          "id": "prescription_and_generic_details",
+          "why": "step 0 (send image: rx_000)",
+          "snippet": "button rx:generic: missing (got: none); no reply contains \"Dolo 650\"; no reply c"
+        },
+        {
+          "id": "duplicate_ingredient_across_two_prescriptions",
+          "why": "step 1 (send image: rx_001)",
+          "snippet": "0 documents, expected 2; 0 medications, expected at least 2; no active duplicate"
+        },
+        {
+          "id": "lab_report_twice_and_reports_command",
+          "why": "step 0 (send image: lab_a)",
+          "snippet": "no reply contains \"not a doctor\"; seen: user=[\"text:Reading it now… this takes a"
+        },
+        {
+          "id": "delete_in_the_middle_of_a_flow",
+          "why": "step 0 (send image: rx_002)",
+          "snippet": "0 medications, expected at least 1; state: {\"reminders\":[],\"misses\":0,\"reminders"
+        },
+        {
+          "id": "voice_note_commands",
+          "why": "step 1 (send audio: meds)",
+          "snippet": "no reply contains \"Dolo 650\"; seen: user=[\"text:You have no active medicines s\"]"
+        },
+        {
+          "id": "caregiver_invite_and_missed_dose_alert",
+          "why": "step 6 (advance_time 18:00 next day)",
+          "snippet": "the caregiver got nothing; caregiver template caregiver_missed_dose_alert not se"
+        }
+      ]
+    }
+  ]
+}

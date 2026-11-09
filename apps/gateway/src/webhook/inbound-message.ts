@@ -36,8 +36,24 @@ export interface StatusUpdate {
   errorCode?: number;
 }
 
+/**
+ * M15: events about the NUMBER or its templates (not about a user): quality rating changes, messaging
+ * limit tier changes, template approvals / rejections. Machine tokens only.
+ */
+export interface AccountEvent {
+  kind: 'quality' | 'account' | 'template';
+  /** Upper-case Meta event token (`DOWNGRADE`, `REJECTED`, ...), or `OTHER`. */
+  event: string;
+  /** Messaging tier token such as `TIER_1K`, when Meta sends one. */
+  limit?: string;
+  /** Template name (lower-case, digits, underscore), for template events. */
+  templateName?: string;
+}
+
 export interface ParsedWebhook {
   messages: InboundMessage[];
+  /** M15: number / template health events. */
+  accountEvents: AccountEvent[];
   statuses: StatusUpdate[];
   /** Messages/statuses addressed to another phone number id (ignored). */
   foreignCount: number;

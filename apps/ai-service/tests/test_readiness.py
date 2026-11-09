@@ -27,7 +27,10 @@ async def test_ready_returns_200_when_db_answers(app: FastAPI, client: AsyncClie
     app.state.db = _StubDatabase("ok")
     res = await client.get("/health/ready")
     assert res.status_code == 200
-    assert res.json() == {"status": "ok", "checks": {"db": "ok", "llm_config": "ok"}}
+    assert res.json() == {
+        "status": "ok",
+        "checks": {"db": "ok", "llm_config": "ok", "llm_circuits": "closed"},
+    }
 
 
 async def test_ready_returns_503_when_db_fails(app: FastAPI, client: AsyncClient) -> None:
@@ -36,7 +39,7 @@ async def test_ready_returns_503_when_db_fails(app: FastAPI, client: AsyncClient
     assert res.status_code == 503
     assert res.json() == {
         "status": "degraded",
-        "checks": {"db": "fail", "llm_config": "ok"},
+        "checks": {"db": "fail", "llm_config": "ok", "llm_circuits": "closed"},
     }
 
 
@@ -50,7 +53,7 @@ async def test_ready_returns_503_against_an_unreachable_real_engine(client: Asyn
     # No stub: the real engine points at 127.0.0.1:1, so the check must fail fast, not hang.
     res = await client.get("/health/ready")
     assert res.status_code == 503
-    assert res.json()["checks"] == {"db": "fail", "llm_config": "ok"}
+    assert res.json()["checks"] == {"db": "fail", "llm_config": "ok", "llm_circuits": "closed"}
 
 
 async def test_live_ignores_dependencies(app: FastAPI, client: AsyncClient) -> None:

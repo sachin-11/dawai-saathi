@@ -41,6 +41,10 @@ _ENV_KEYS = (
     "NODE_TIMEOUT_FAST_S",
     "GRAPH_RECURSION_LIMIT",
     "DEMO_SERVICE_TOKEN",
+    "METRICS_TOKEN",
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_SAMPLE_RATIO",
+    "MAX_COST_PER_REQUEST_USD",
 )
 
 # Nothing listens here: unit tests must never need (or accidentally reach) a real database.

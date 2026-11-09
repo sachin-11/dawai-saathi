@@ -1653,6 +1653,12 @@
             "title": "Db",
             "type": "string"
           },
+          "llm_circuits": {
+            "default": "closed",
+            "enum": ["closed", "partial", "open"],
+            "title": "Llm Circuits",
+            "type": "string"
+          },
           "llm_config": {
             "enum": ["ok", "fail"],
             "title": "Llm Config",
@@ -1747,6 +1753,12 @@
       "RequestOptions": {
         "additionalProperties": false,
         "properties": {
+          "budget_state": {
+            "default": "normal",
+            "enum": ["normal", "economy", "essential", "exhausted"],
+            "title": "Budget State",
+            "type": "string"
+          },
           "include_trace": {
             "default": false,
             "title": "Include Trace",
@@ -2202,6 +2214,40 @@
           }
         },
         "summary": "Ready",
+        "tags": ["health"]
+      }
+    },
+    "/health/startup": {
+      "get": {
+        "description": "Startup probe (M15): 503 until the spaCy / Presidio models are loaded, so an orchestrator does\nnot kill a container that is still warming up.",
+        "operationId": "startup_health_startup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Startup Health Startup Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Startup",
         "tags": ["health"]
       }
     },

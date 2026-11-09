@@ -192,9 +192,49 @@ describe('parseWebhook', () => {
     });
   });
 
-  it('ignores change fields other than "messages"', () => {
-    const body = { entry: [{ changes: [{ field: 'account_update', value: {} }] }] };
-    const parsed = parseWebhook(body, PHONE_NUMBER_ID);
-    expect(parsed).toEqual({ messages: [], statuses: [], foreignCount: 0, invalidCount: 0 });
+  it('ignores change fields it does not know', () => {
+    const body = { entry: [{ changes: [{ field: 'something_else', value: {} }] }] };
+    expect(parseWebhook(body, PHONE_NUMBER_ID)).toEqual({
+      messages: [],
+      accountEvents: [],
+      statuses: [],
+      foreignCount: 0,
+      invalidCount: 0,
+    });
+  });
+
+  describe('number and template health events (M15)', () => {
+    const parse = (field: string, value: unknown) =>
+      parseWebhook({ entry: [{ changes: [{ field, value }] }] }, PHONE_NUMBER_ID).accountEvents;
+
+    it('reads a quality downgrade with the tier', () => {
+      expect(
+        parse('phone_number_quality_update', {
+          display_phone_number: '+91 98765 43210',
+          event: 'DOWNGRADE',
+          current_limit: 'TIER_1K',
+        }),
+      ).toEqual([{ kind: 'quality', event: 'DOWNGRADE', limit: 'TIER_1K' }]);
+    });
+
+    it('reads a template rejection and keeps only the template name', () => {
+      expect(
+        parse('message_template_status_update', {
+          event: 'REJECTED',
+          message_template_name: 'dose_reminder',
+          reason: 'INVALID_FORMAT',
+        }),
+      ).toEqual([{ kind: 'template', event: 'REJECTED', templateName: 'dose_reminder' }]);
+    });
+
+    it('never carries the phone number or free text into the event', () => {
+      const [event] = parse('account_update', {
+        phone_number: '+919876543210',
+        event: 'verified account!!',
+        message_template_name: 'Has Spaces And 9876543210',
+      });
+      expect(JSON.stringify(event)).not.toMatch(/9876|Spaces/);
+      expect(event).toEqual({ kind: 'account', event: 'OTHER' });
+    });
   });
 });

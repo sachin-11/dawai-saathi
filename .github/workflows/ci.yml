@@ -123,6 +123,39 @@ jobs:
           path: evals/reports/*
           if-no-files-found: ignore
 
+  # ---- Observability config (M15): alert rules are valid PromQL, every alert has a runbook, dashboards
+  # only use metrics the apps export, and the committed dashboards match their generator.
+  observability:
+    name: observability (promtool · dashboards · runbooks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/ai-service/uv.lock
+
+      - name: Install
+        run: uv sync --frozen
+        working-directory: apps/ai-service
+
+      - name: Dashboards, metric names and runbooks
+        run: uv run python ../../infra/observability/check.py
+        working-directory: apps/ai-service
+
+      - name: promtool check rules
+        run: docker run --rm --entrypoint promtool -v "$PWD:/repo:ro" prom/prometheus:v2.55.1 check rules /repo/infra/observability/alerts.yml
+
+      - name: promtool check config
+        run: docker run --rm --entrypoint promtool -v "$PWD:/repo:ro" prom/prometheus:v2.55.1 check config /repo/infra/observability/prometheus/prometheus.yml
+        continue-on-error: true # the config references files that only exist inside the compose containers
+
+      - name: amtool check config
+        run: docker run --rm --entrypoint amtool -v "$PWD:/repo:ro" prom/alertmanager:v0.27.0 check-config /repo/infra/observability/alertmanager/alertmanager.yml
+
   # ---- PR hygiene (M14): prompt versions and eval evidence. Needs the base branch, so full history.
   pr-checks:
     name: pr checks (prompt versions · eval evidence)

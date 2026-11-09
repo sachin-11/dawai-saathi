@@ -1,0 +1,77 @@
+# OpenTelemetry Collector (M15): traces from both apps -> Tempo, JSON log files -> Loki.
+#
+# The apps already do tail sampling (errors and emergencies always, OTEL_SAMPLE_RATIO of the rest) and
+# scrub PHI before they export. In production (M17) the same decision can instead be made here with
+# the `tail_sampling` processor; an example is kept below, switched off.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Logs of containers (Linux / Docker Desktop VM path) ...
+  filelog/docker:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    include_file_path: false
+    start_at: end
+    operators:
+      - type: json_parser # the docker wrapper: {"log": "<app json>\n", "stream": ..., "time": ...}
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+      - type: move
+        from: attributes.log
+        to: body
+      - type: json_parser # our own structured line: level, service, request_id, trace_id, event, ...
+        parse_from: body
+        if: 'body matches "^\\{"'
+        on_error: send_quiet
+
+  # ... and the apps when they run on the host: `pnpm dev 2>&1 | tee logs/gateway.log`
+  filelog/host:
+    include: [/var/log/dawai/*.log]
+    start_at: end
+    operators:
+      - type: json_parser
+        if: 'body matches "^\\{"'
+        on_error: send_quiet
+
+processors:
+  batch: {}
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+  transform/logs:
+    log_statements:
+      - context: log
+        statements:
+          - set(resource.attributes["service.name"], attributes["service"]) where attributes["service"] != nil
+          - set(severity_text, attributes["level"]) where attributes["level"] != nil
+          - set(trace_id.string, attributes["trace_id"]) where attributes["trace_id"] != nil
+  # tail_sampling:   # production example (not used locally)
+  #   decision_wait: 10s
+  #   policies:
+  #     - {name: errors, type: status_code, status_code: {status_codes: [ERROR]}}
+  #     - {name: emergencies, type: string_attribute, string_attribute: {key: dawai.emergency, values: ['true']}}
+  #     - {name: ratio, type: probabilistic, probabilistic: {sampling_percentage: 20}}
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
+    logs:
+      receivers: [filelog/docker, filelog/host]
+      processors: [memory_limiter, transform/logs, batch]
+      exporters: [otlphttp/loki]

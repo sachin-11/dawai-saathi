@@ -58,7 +58,7 @@ const reply = (requestId: string, overrides: Partial<ProcessResponse> = {}): Pro
   reply: { language: 'en', text: 'VOICE-ANSWER', buttons: [] },
   meta: {
     model: 'fake-model',
-    prompt_version: 'reply_templates_v8',
+    prompt_version: 'reply_templates_v9',
     latency_ms: 5,
     cost_usd: 0,
     trace_id: null,
@@ -392,7 +392,7 @@ describe('voice notes (integration)', () => {
     );
     const before = aiRequests.length;
     await sendVoice(phone);
-    expect(aiRequests[before]?.options?.want_spoken).toBeUndefined();
+    expect(aiRequests[before]?.options?.want_spoken).toBe(false);
   });
 
   it('the stored voice note lives under the user media prefix, so DELETE erases it with the rest', async () => {

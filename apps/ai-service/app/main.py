@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import health
+from app.api import health, metrics
 from app.api.errors import ApiError
 from app.api.limits import BodySizeLimitMiddleware
 from app.api.v1 import router as v1_router
@@ -28,6 +28,7 @@ from app.llm.stt.router import STTRouter
 from app.llm.tts import TTSRouter
 from app.llm.types import LLMConfigError
 from app.observability.logging import configure_logging
+from app.observability.otel import install_otel, instrument_app
 from app.observability.request_id import RequestIdMiddleware, current_request_id
 from app.observability.tracing import Tracer, build_tracer, observe_llm_call
 from app.pipeline.base import Pipeline
@@ -43,6 +44,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Build Presidio + the spaCy model ONCE, before the first request. A missing model aborts boot.
     redactor: Redactor = app.state.redactor
     redactor.warm_up()
+    app.state.started = True
     yield
     # Graceful shutdown: send pending traces, close pooled DB connections.
     tracer: Tracer = app.state.tracer
@@ -64,7 +66,8 @@ def create_app(
 ) -> FastAPI:
     """Build the app. The keyword arguments let tests inject fakes; production uses the defaults."""
     settings = settings or get_settings()
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, env=settings.environment)
+    install_otel(settings)
 
     is_prod = settings.environment == "production"
     app = FastAPI(
@@ -102,7 +105,9 @@ def create_app(
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
 
+    instrument_app(app, settings)
     app.include_router(health.router)
+    app.include_router(metrics.router)
     app.include_router(v1_router)
     return app
 

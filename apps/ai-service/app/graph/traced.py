@@ -18,11 +18,13 @@ from typing import Any, Protocol
 
 import structlog
 from langgraph.runtime import Runtime
+from opentelemetry.trace import StatusCode
 
 from app.graph.errors import NodeTimeoutError
 from app.graph.state import GraphState, NodeError, NodeStatus, NodeTiming
 from app.llm.types import LLMError
 from app.observability.metrics import METRICS
+from app.observability.otel import get_tracer
 from app.observability.tracing import clear_current_span, current_session
 from app.pipeline.base import PipelineContext
 
@@ -40,12 +42,34 @@ class GraphNode(Protocol):
     ) -> dict[str, Any]: ...
 
 
+# Nodes that never stop for the per-request cost cap: they are free (no model) or safety-critical.
+COST_CAP_EXEMPT = frozenset(
+    {
+        "emergency_guard",
+        "emergency_classifier",
+        "redact",
+        "composer",
+        "templates",
+        "rx_fallback",
+        "verifier",
+    }
+)
+
 # A node may return {"_status": "fallback"} to say it recovered on its own (e.g. template reply).
 STATUS_KEY = "_status"
 
 
 def _error_code(error: BaseException) -> str:
     return error.kind if isinstance(error, LLMError) else type(error).__name__
+
+
+def _over_cost_cap(name: str, timeout: str, spent: float, ctx: PipelineContext) -> bool:
+    """M15: stop BEFORE a node that would push the request past MAX_COST_PER_REQUEST_USD."""
+    cap = ctx.settings.max_cost_per_request_usd
+    if cap is None or name in COST_CAP_EXEMPT:
+        return False
+    projected = spent + (ctx.settings.cost_estimate_vision_usd if timeout == "vision" else 0.0)
+    return projected > cap
 
 
 def traced_node(
@@ -65,6 +89,7 @@ def traced_node(
             versions0 = len(usage.prompt_versions)
             started = time.perf_counter()
             limit = min(ctx.settings.node_timeout_s(timeout), ctx.deadline.remaining())
+            otel_span = get_tracer().start_span(f"graph.{name}", attributes={"dawai.node": name})
             status: NodeStatus = "ok"
             update: dict[str, Any] = {}
             extra_errors: list[NodeError] = []
@@ -72,8 +97,12 @@ def traced_node(
             try:
                 if limit <= 0:
                     raise TimeoutError
-                async with asyncio.timeout(limit):
-                    update = await fn(state, ctx)
+                if _over_cost_cap(name, timeout, usage.cost_usd, ctx):
+                    METRICS.budget_limited(ctx.budget_label, "request_cap")
+                    update = {"template_key": "budget.too_big"}
+                else:
+                    async with asyncio.timeout(limit):
+                        update = await fn(state, ctx)
                 if update.pop(STATUS_KEY, None) == "fallback":
                     status = "fallback"
             except TimeoutError:
@@ -118,6 +147,15 @@ def traced_node(
                     },
                 )
             clear_current_span()
+            otel_span.set_attribute("dawai.node.status", status)
+            otel_span.set_attribute("dawai.node.latency_ms", latency_ms)
+            otel_span.set_attribute("dawai.node.cost_usd", timing.cost_usd)
+            if timing.model:
+                otel_span.set_attribute("dawai.node.model", timing.model)
+            if failure is not None or status in ("error", "timeout"):
+                otel_span.set_status(StatusCode.ERROR)
+                otel_span.set_attribute("error.type", _error_code(failure) if failure else status)
+            otel_span.end()
             if failure is not None:
                 raise failure
 

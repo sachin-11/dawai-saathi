@@ -12,8 +12,11 @@ from app.api.auth import Caller, identify_caller
 from app.api.errors import ApiError, api_error_from_llm
 from app.config import Settings
 from app.graph.errors import NodeTimeoutError
+from app.llm.budget_router import EconomyRouter
 from app.llm.router import Deadline, LLMRouter
 from app.llm.types import LLMError
+from app.observability.metrics import METRICS
+from app.observability.otel import current_trace_ids, mark_current_span
 from app.observability.tracing import Tracer, bind_session
 from app.pipeline.base import Pipeline, PipelineContext, RequestUsage
 from app.prompts.registry import PromptRegistry, TemplateStore
@@ -61,12 +64,28 @@ async def process(
     prompts: PromptRegistry = state.prompts
     templates: TemplateStore = state.templates
 
+    budget_state = body.options.budget_state
+    METRICS.budget_seen(budget_state)
+    if budget_state != "normal":
+        # Economy and worse: cheap model for text calls, no spoken replies (CLAUDE.md M15).
+        body = body.model_copy(
+            update={"options": body.options.model_copy(update={"want_spoken": False})}
+        )
+        llm = EconomyRouter(llm)  # type: ignore[assignment]
+
     # The id from the body is the one the gateway correlates with: bind it for every log line.
     structlog.contextvars.bind_contextvars(request_id=body.request_id)
     started = time.perf_counter()
     session = tracer.start(body.request_id, "process", _input_summary(body))
     bind_session(session)
 
+    otel_trace_id, _ = current_trace_ids()
+    mark_current_span(
+        request_id=body.request_id,
+        input_type=body.input.type.value,
+        langfuse_trace_id=session.trace_id,
+        budget_state=budget_state,
+    )
     usage = RequestUsage()
     ctx = PipelineContext(
         settings=settings,
@@ -81,12 +100,13 @@ async def process(
         interactions=state.interactions,
         labs=state.labs,
         stt=state.stt,
+        budget_label=budget_state,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):
             output = await pipeline.run(body, ctx)
     except TimeoutError:
-        session.finish({"error": "PROCESS_TIMEOUT"})
+        session.finish({"error": "PROCESS_TIMEOUT", "otel_trace_id": otel_trace_id})
         raise ApiError(504, "PROCESS_TIMEOUT", "Processing took too long") from None
     except NodeTimeoutError as error:
         session.finish({"error": "NODE_TIMEOUT", "node": error.node})
@@ -108,8 +128,18 @@ async def process(
         provider=usage.provider,
         fallback_used=usage.fallback_used,
     )
+    mark_current_span(
+        intent=output.intent.value,
+        emergency=output.emergency,
+        cost_usd=meta.cost_usd,
+        model=meta.model or "none",
+        fallback_used=meta.fallback_used,
+    )
+    if output.extraction is not None:
+        METRICS.extraction_confidence(output.extraction.kind, output.extraction.overall_confidence)
     session.finish(
         {
+            "otel_trace_id": otel_trace_id,
             "intent": output.intent.value,
             "emergency": output.emergency,
             "latency_ms": latency_ms,

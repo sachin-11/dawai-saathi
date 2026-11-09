@@ -43,6 +43,8 @@ async def templates(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
 @traced_node("rx_fallback", timeout="fast")
 async def rx_fallback_renderer(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     failures = state.verification.failures if state.verification else []
+    for failure_code in failures:
+        METRICS.verifier_failure(failure_code.split(":")[0][:48])
     METRICS.count_fallback("verifier_failed")
     log.warning("composer_grounding_failed", reasons=failures)  # codes only, never text
     drop_generics = any(code.startswith(_GENERIC_PREFIX) for code in failures)

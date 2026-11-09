@@ -89,6 +89,23 @@ class Settings(BaseSettings):
     # A SECOND token, held by the web demo only: it may ask `/v1/process` for a per-node trace.
     demo_service_token: OptionalSecret = Field(default=None, validation_alias="DEMO_SERVICE_TOKEN")
 
+    # ---- M15: observability and cost guard
+    otel_exporter_otlp_endpoint: Optional_ = Field(
+        default=None, validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
+    otel_sample_ratio: float = Field(
+        default=0.2, ge=0.0, le=1.0, validation_alias="OTEL_SAMPLE_RATIO"
+    )
+    # /metrics needs `Authorization: Bearer <token>`; required in production (never public).
+    metrics_token: OptionalSecret = Field(default=None, validation_alias="METRICS_TOKEN")
+    # A request whose spend (or projected next vision call) would pass this is stopped politely.
+    max_cost_per_request_usd: float | None = Field(
+        default=None, gt=0, validation_alias="MAX_COST_PER_REQUEST_USD"
+    )
+    cost_estimate_vision_usd: float = Field(
+        default=0.03, ge=0, validation_alias="COST_ESTIMATE_VISION_USD"
+    )
+
     # ---- M5: LLM layer
     # `fake` is deterministic and offline (tests, local dev). Production must use `real`.
     llm_mode: LLMMode = Field(default="fake", validation_alias="LLM_MODE")
@@ -241,6 +258,10 @@ class Settings(BaseSettings):
                 raise ValueError("LLM_MODE: the fake LLM is not allowed in production")
             if not self.redaction_enabled:
                 raise ValueError("REDACTION_ENABLED: must be true in production")
+            if self.metrics_token is None:
+                raise ValueError("METRICS_TOKEN: required in production")
+            if self.metrics_token.get_secret_value().startswith("local-dev"):
+                raise ValueError("METRICS_TOKEN: placeholder value is not allowed in production")
         demo_token = self.demo_service_token
         if demo_token is not None:
             if len(demo_token.get_secret_value()) < 16:

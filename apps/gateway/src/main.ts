@@ -1,3 +1,5 @@
+// Telemetry first: the auto-instrumentations patch modules when they are first required.
+import './telemetry/bootstrap';
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';

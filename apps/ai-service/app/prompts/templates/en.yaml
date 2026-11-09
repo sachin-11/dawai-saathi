@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v8
+version: reply_templates_v9
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -112,3 +112,15 @@ texts:
     I read {total} results from your report, and {abnormal} are outside the lab's range. The full details are in the message. Please show the report to your doctor.
   spoken.lab_critical: |-
     One or more values may need attention soon. Please contact your doctor today.
+  budget.busy: |-
+    I am very busy right now and cannot read new files or questions at the moment. Please try again in a few hours.
+
+    🚨 In an emergency, call 112 or 108 right away.
+  budget.busy_voice: |-
+    I cannot listen to voice notes right now. Please type your message, or try again in a few hours.
+
+    🚨 In an emergency, call 112 or 108 right away.
+  budget.too_big: |-
+    This file is too large for me to read in one go. Please send fewer pages (one or two at a time) or a clearer, closer photo.
+
+    I am not a doctor. Ask your doctor or pharmacist before changing a dose or stopping a medicine.

@@ -2,6 +2,7 @@ import { Injectable, Module, type OnModuleDestroy } from '@nestjs/common';
 import { type JobsOptions, Queue } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
+import { withTrace } from '../telemetry/trace-context';
 import { RedisService } from '../common/redis/redis.service';
 import { withTimeout } from '../common/timeout/with-timeout';
 import { epochSeconds } from './clock';
@@ -98,7 +99,7 @@ export class ReminderQueue implements OnModuleDestroy {
   ): Promise<void> {
     const delay = runAt ? Math.max(0, runAt.getTime() - now.getTime()) : 0;
     await withTimeout(
-      () => this.getQueue().add(name, data, { ...BASE_OPTIONS, jobId, delay }),
+      () => this.getQueue().add(name, withTrace(data), { ...BASE_OPTIONS, jobId, delay }),
       ENQUEUE_TIMEOUT_MS,
     );
   }

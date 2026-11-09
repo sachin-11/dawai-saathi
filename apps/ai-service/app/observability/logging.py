@@ -12,6 +12,7 @@ import structlog
 from structlog.typing import Processor
 
 from app.config import LogLevel
+from app.observability.otel import add_trace_context
 from app.safety.redaction import redact_value
 
 SILENT: Final = logging.CRITICAL + 10
@@ -40,11 +41,14 @@ def redact_sensitive_fields(
     return event_dict
 
 
-def configure_logging(level: LogLevel, service: str = "ai-service") -> None:
+def configure_logging(
+    level: LogLevel, service: str = "ai-service", env: str = "development"
+) -> None:
     numeric_level = _LEVELS[level]
 
     shared: list[Processor] = [
         structlog.contextvars.merge_contextvars,
+        add_trace_context,
         redact_sensitive_fields,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
@@ -65,7 +69,7 @@ def configure_logging(level: LogLevel, service: str = "ai-service") -> None:
         foreign_pre_chain=shared,
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            _add_service(service),
+            _add_service(service, env),
             structlog.processors.JSONRenderer(),
         ],
     )
@@ -85,11 +89,12 @@ def configure_logging(level: LogLevel, service: str = "ai-service") -> None:
     logging.getLogger("uvicorn.access").disabled = True
 
 
-def _add_service(service: str) -> Processor:
+def _add_service(service: str, env: str) -> Processor:
     def processor(
         _logger: object, _method: str, event_dict: structlog.typing.EventDict
     ) -> structlog.typing.EventDict:
         event_dict.setdefault("service", service)
+        event_dict.setdefault("env", env)
         return event_dict
 
     return processor

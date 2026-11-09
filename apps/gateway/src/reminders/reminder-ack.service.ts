@@ -1,5 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
+import { MetricsService } from '../telemetry/metrics.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
@@ -30,6 +31,7 @@ export class ReminderAckService {
     private readonly prisma: PrismaService,
     private readonly queue: ReminderQueue,
     @Inject(APP_CONFIG) private readonly env: Env,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   /** The slot a plain text answer refers to: the latest reminder sent within the last 2 hours. */
@@ -126,6 +128,7 @@ export class ReminderAckService {
       data: { status: 'taken', ackAt: now },
     });
     if (open.count + late.count > 0) {
+      this.metrics?.reminderAck.inc({ status: 'taken' }, open.count + late.count);
       // Any taken dose ends the "missed in a row" streak.
       await this.prisma.user.updateMany({ where: { id: userId }, data: { consecutiveMisses: 0 } });
       return open.count > 0 ? 'taken' : 'taken_late';
@@ -138,6 +141,7 @@ export class ReminderAckService {
       where: { userId, scheduledAt: slot, status: { in: ['sent', 'snoozed'] } },
       data: { status: 'skipped', ackAt: now },
     });
+    if (result.count > 0) this.metrics?.reminderAck.inc({ status: 'skipped' }, result.count);
     return result.count > 0 ? 'skipped' : this.noChange(userId, slot);
   }
 

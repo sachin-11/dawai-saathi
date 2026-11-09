@@ -22,6 +22,7 @@ import { isWithinWindow, WindowClosedError } from './window';
 /** The part of a BullMQ job `deliver` needs (keeps it easy to test without Redis). */
 export interface OutboundJobLike {
   data: OutboundJobData;
+  opts?: { priority?: number };
   updateData(data: OutboundJobData): Promise<void>;
 }
 
@@ -86,6 +87,7 @@ export class OutboundService {
         sourceMessageId: request.sourceMessageId,
         replyIndex: request.replyIndex,
         requestId: request.requestId ?? '',
+        ...(request.latency ? { latency: request.latency } : {}),
       },
       request.priority !== undefined ? { priority: request.priority } : {},
     );
@@ -99,7 +101,7 @@ export class OutboundService {
    * right away, so a retry after a later failure never sends that part again, it only repeats the
    * (idempotent) database insert.
    */
-  async deliver(job: OutboundJobLike): Promise<void> {
+  async deliver(job: OutboundJobLike): Promise<{ kind: OutboundContent['kind'] }> {
     const { userId, requestId } = job.data;
     const stored = JSON.parse(this.crypto.decrypt(job.data.payload)) as StoredPayload;
 
@@ -195,5 +197,6 @@ export class OutboundService {
         break;
       }
     }
+    return { kind: content.kind };
   }
 }

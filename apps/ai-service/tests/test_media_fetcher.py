@@ -64,6 +64,7 @@ class TestValidateUrl:
             NODE_ENV="production",
             LLM_MODE="real",
             SERVICE_TOKEN="a-real-production-token",
+            METRICS_TOKEN="metrics-token-123456",
         )
         with pytest.raises(MediaRejectedError) as info:
             validate_media_url("http://media.example.com/x", prod)

@@ -10,6 +10,8 @@ import type { WhatsAppClient } from '../messaging/whatsapp.client';
 import type { PinoLogger } from 'nestjs-pino';
 import type { InboundJobData } from '../queues/queue.constants';
 import type { UserState } from '../users/users.service';
+import { BudgetService } from '../limits/budget.service';
+import { RateLimitService } from '../limits/rate-limit.service';
 import { AiProcessor, LISTENING_ACK_MIN_BYTES } from './ai-processor.service';
 import type { InteractionFlowService } from './interaction-flow.service';
 import type { ReplySession } from './replies.service';
@@ -97,6 +99,7 @@ function setup(options: { tts?: boolean; bytes?: number } = {}) {
     rawButtonsWithPrompt: track('session.rawButtonsWithPrompt'),
     rawEmergencyText: track('session.rawEmergencyText'),
     rawAudio: track('session.rawAudio'),
+    markIntent: jest.fn(),
   };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
@@ -112,6 +115,12 @@ function setup(options: { tts?: boolean; bytes?: number } = {}) {
       previousResults: jest.fn().mockResolvedValue([]),
     } as unknown as LabReportService,
     { offerDetails: jest.fn() } as unknown as InteractionFlowService,
+    {
+      userOverCap: jest.fn().mockResolvedValue(false),
+      snapshot: jest.fn().mockResolvedValue({ state: 'normal', spentUsd: 0, ratio: 0 }),
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as BudgetService,
+    { costCapNotice: jest.fn().mockResolvedValue(true) } as unknown as RateLimitService,
     logger as unknown as PinoLogger,
     { TTS_ENABLED: options.tts ?? false },
   );
@@ -227,7 +236,7 @@ describe('AiProcessor: spoken replies (M13)', () => {
     s.ai.process.mockResolvedValue(spokenResponse());
     await s.processor.handle(user({ voiceReplies: false }), voiceJob(), s.asSession);
     const request = s.ai.process.mock.calls[0]?.[0] as { options?: { want_spoken?: boolean } };
-    expect(request.options?.want_spoken).toBeUndefined();
+    expect(request.options?.want_spoken).toBe(false);
     expect(s.ai.synthesize).not.toHaveBeenCalled();
   });
 

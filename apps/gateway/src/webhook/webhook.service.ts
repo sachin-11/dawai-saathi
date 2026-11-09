@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 
 import { CaregiverInboundService } from '../caregivers/caregiver-inbound.service';
@@ -12,8 +12,10 @@ import type { InboundJobData } from '../queues/queue.constants';
 import { InboundQueue } from '../queues/inbound.queue';
 import { parseCaregiverAddNumber } from '../conversation/commands';
 import { classifyInbound, type MessageSignals } from '../conversation/signals';
+import { MetricsService } from '../telemetry/metrics.service';
+import { markEmergency } from '../telemetry/trace-context';
 import { UsersService } from '../users/users.service';
-import type { InboundMessage } from './inbound-message';
+import type { AccountEvent, InboundMessage } from './inbound-message';
 import { parseWebhook } from './whatsapp.parser';
 
 export interface WebhookSummary {
@@ -36,6 +38,7 @@ export class WebhookService {
     private readonly pending: PendingStore,
     private readonly crypto: CryptoService,
     private readonly logger: PinoLogger,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger.setContext(WebhookService.name);
   }
@@ -50,8 +53,10 @@ export class WebhookService {
 
     // Statuses describe OUR outbound messages: update delivery state, never create user messages.
     for (const status of parsed.statuses) {
+      this.countBlockSignal(status.errorCode);
       await this.statuses.apply(status);
     }
+    for (const event of parsed.accountEvents) this.recordAccountEvent(event);
     if (parsed.foreignCount > 0) {
       this.logger.info(
         { count: parsed.foreignCount },
@@ -79,6 +84,42 @@ export class WebhookService {
     };
   }
 
+  /** Delivery failures that mean "this person does not want / cannot get our messages". */
+  private countBlockSignal(errorCode: number | undefined): void {
+    if (errorCode === 131026 || errorCode === 131050) {
+      this.metrics?.waUserBlockSignals.inc({ code: String(errorCode) });
+    }
+  }
+
+  private recordAccountEvent(event: AccountEvent): void {
+    const label = event.event.toLowerCase().slice(0, 32);
+    if (event.kind === 'template') {
+      const status = ['approved', 'rejected', 'paused', 'disabled', 'pending'].includes(label)
+        ? label
+        : 'other';
+      this.metrics?.waTemplateStatus.inc({ status });
+    } else {
+      const known = ['upgrade', 'downgrade', 'flagged', 'unflagged', 'onboarding'].includes(label);
+      this.metrics?.waAccountEvents.inc({ kind: `${event.kind}_${known ? label : 'other'}` });
+      if (event.kind === 'quality') {
+        this.metrics?.setQuality(
+          label === 'flagged' ? 'flagged' : label === 'downgrade' ? 'downgraded' : 'ok',
+        );
+      }
+    }
+    // The line the runbook's alert keys on: tokens only, never a message.
+    this.logger.warn(
+      {
+        event: 'whatsapp_account_event',
+        kind: event.kind,
+        meta_event: event.event,
+        limit: event.limit,
+        template: event.templateName,
+      },
+      'whatsapp number or template event',
+    );
+  }
+
   /** Returns true if the message had already been stored (redelivery). */
   private async processMessage(message: InboundMessage, requestId: string): Promise<boolean> {
     // M10: a caregiver's YES / NO / STOP ALERTS is recognised by their number BEFORE onboarding: a
@@ -95,6 +136,8 @@ export class WebhookService {
       storeBody: user.onboardingStep === 'done',
     });
     const signals = classifyInbound(message);
+    this.metrics?.waInbound.inc({ type: message.type });
+    if (signals.emergency) markEmergency(); // keeps this trace whatever the sampling ratio
     if (user.onboardingStep === 'done') {
       await this.captureText(user.id, message, signals);
     }

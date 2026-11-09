@@ -5,6 +5,7 @@ import type { Writable } from 'node:stream';
 import { APP_CONFIG } from '../../config/config.constants';
 import type { Env } from '../../config/env.schema';
 import { LOG_STREAM, LogStreamModule } from './log-stream';
+import { currentTraceIds } from '../../telemetry/trace-context';
 import { resolveRequestId } from './request-id';
 
 /**
@@ -20,7 +21,9 @@ import { resolveRequestId } from './request-id';
       useFactory: (env: Env, stream: Writable | undefined) => {
         const options = {
           level: env.LOG_LEVEL,
-          base: { service: 'gateway' },
+          base: { service: 'gateway', env: env.NODE_ENV },
+          // M15: every line inside a span carries trace_id / span_id (same field names as the AI service).
+          mixin: () => currentTraceIds() ?? {},
           genReqId: resolveRequestId,
           customAttributeKeys: { reqId: 'request_id' },
           quietReqLogger: true,

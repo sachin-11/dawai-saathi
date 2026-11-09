@@ -30,6 +30,7 @@ from app.llm.types import LLMConfigError, LLMError
 from app.media.fetcher import MediaRejectedError, fetch_media
 from app.observability.metrics import METRICS
 from app.pipeline.base import PipelineContext
+from app.safety.budget import busy_update, is_restricted
 from app.safety.translit import has_devanagari, to_roman
 from app.schemas.process import Intent
 
@@ -52,6 +53,8 @@ def language_hint(state: GraphState, ctx: PipelineContext) -> LanguageHint:
 async def transcribe(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     payload = state.request.input
     assert payload.media_url is not None and payload.mime is not None  # noqa: S101 - contract
+    if is_restricted(state):  # M15: speech costs money; the busy text names 112/108
+        return busy_update(state, "budget.busy_voice", "voice")
     if ctx.stt is None:
         return static_reply("voice.stt_unavailable", Intent.other)
 

@@ -21,6 +21,8 @@ export interface UserState {
   voiceReplies: boolean;
   /** Set while an erasure (DELETE) is in flight. */
   deletedAt: Date | null;
+  /** M15: set by the abuse guard; the router ignores the user (but not emergencies, DELETE, HELP). */
+  blockedUntil?: Date | null | undefined;
 }
 
 /** The AI contract accepts at most 50 stored medicines as context. */
@@ -35,6 +37,7 @@ const USER_SELECT = {
   consentVersion: true,
   voiceReplies: true,
   deletedAt: true,
+  blockedUntil: true,
 } as const;
 
 export interface ActiveMedicationLine {

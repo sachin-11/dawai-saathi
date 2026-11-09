@@ -12,7 +12,9 @@ import structlog
 from app.graph.nodes._util import emergency_update
 from app.graph.state import GraphState
 from app.graph.traced import traced_node
+from app.observability.metrics import METRICS
 from app.pipeline.base import PipelineContext
+from app.safety.budget import budget_state_of
 from app.safety.emergency_guard import (
     EmergencyResult,
     transcript_user_texts,
@@ -24,6 +26,9 @@ log = structlog.get_logger("emergency")
 
 
 def _log_detected(result: EmergencyResult) -> None:
+    METRICS.emergency_detected(
+        result.category.value if result.category else "unknown", result.source or "unknown"
+    )
     # Category, source and a count: never the matched words.
     log.warning(
         "emergency_detected",
@@ -59,6 +64,8 @@ def _classifier_timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, 
 
 @traced_node("emergency_classifier", timeout="cheap", on_timeout=_classifier_timed_out)
 async def emergency_classifier(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
+    if budget_state_of(state) == "exhausted":  # M15: the RULES already ran and decide alone
+        return {}
     result = await ctx.guard.classify(
         state.redacted_text or "",
         router=ctx.router,
