@@ -1,0 +1,311 @@
+# Prometheus recording + alerting rules (M15). Portable: every expression uses plain PromQL over the
+# metrics both apps export, so M17 can translate them to CloudWatch metric math / alarms one by one.
+# Checked in CI with `promtool check rules` (make check-obs). Every alert has a runbook (docs/runbooks/).
+#
+# SLOs (docs/slo.md):
+#   SLO1  95% of prescription replies within 30 s, 99% of text replies within 10 s
+#   SLO2  99.5% of inbound messages are served (none dead-lettered / silently dropped)
+#   SLO3  99% of reminders handed to the outbound queue within 2 min of their time
+#
+# Burn rate = (observed bad ratio) / (1 - SLO). Page: 1h AND 5m window burn >= 14.4 (budget gone in
+# ~2 days); ticket: 6h AND 30m window burn >= 6 (budget gone in ~5 days). The long window says "this
+# is real", the short one says "it is still happening", so an alert resets quickly after a fix.
+
+groups:
+  - name: slo_recording
+    interval: 30s
+    rules:
+      # ---- SLO1a: prescription / lab-report replies slower than 30 s (bad ratio)
+      - record: slo:reply_slow_documents:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent=~"prescription|lab_report",le="30000"}[5m]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent=~"prescription|lab_report"}[5m]))
+          )
+      - record: slo:reply_slow_documents:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent=~"prescription|lab_report",le="30000"}[30m]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent=~"prescription|lab_report"}[30m]))
+          )
+      - record: slo:reply_slow_documents:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent=~"prescription|lab_report",le="30000"}[1h]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent=~"prescription|lab_report"}[1h]))
+          )
+      - record: slo:reply_slow_documents:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent=~"prescription|lab_report",le="30000"}[6h]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent=~"prescription|lab_report"}[6h]))
+          )
+      # ---- SLO1b: text replies slower than 10 s
+      - record: slo:reply_slow_text:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent!~"prescription|lab_report",le="10000"}[5m]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent!~"prescription|lab_report"}[5m]))
+          )
+      - record: slo:reply_slow_text:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent!~"prescription|lab_report",le="10000"}[30m]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent!~"prescription|lab_report"}[30m]))
+          )
+      - record: slo:reply_slow_text:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent!~"prescription|lab_report",le="10000"}[1h]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent!~"prescription|lab_report"}[1h]))
+          )
+      - record: slo:reply_slow_text:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(reply_latency_ms_bucket{job="gateway",intent!~"prescription|lab_report",le="10000"}[6h]))
+            / sum(rate(reply_latency_ms_count{job="gateway",intent!~"prescription|lab_report"}[6h]))
+          )
+      # ---- SLO2: inbound messages that ended in the dead-letter queue / total inbound
+      - record: slo:inbound_unserved:ratio_rate5m
+        expr: |
+          (sum(rate(dlq_moved_total{job="gateway",queue="inbound"}[5m])) or vector(0))
+          / clamp_min(sum(rate(wa_inbound_total{job="gateway"}[5m])), 1e-9)
+      - record: slo:inbound_unserved:ratio_rate30m
+        expr: |
+          (sum(rate(dlq_moved_total{job="gateway",queue="inbound"}[30m])) or vector(0))
+          / clamp_min(sum(rate(wa_inbound_total{job="gateway"}[30m])), 1e-9)
+      - record: slo:inbound_unserved:ratio_rate1h
+        expr: |
+          (sum(rate(dlq_moved_total{job="gateway",queue="inbound"}[1h])) or vector(0))
+          / clamp_min(sum(rate(wa_inbound_total{job="gateway"}[1h])), 1e-9)
+      - record: slo:inbound_unserved:ratio_rate6h
+        expr: |
+          (sum(rate(dlq_moved_total{job="gateway",queue="inbound"}[6h])) or vector(0))
+          / clamp_min(sum(rate(wa_inbound_total{job="gateway"}[6h])), 1e-9)
+      # ---- SLO3: reminders handed over more than 2 minutes late
+      - record: slo:reminder_late:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(reminder_lag_ms_bucket{job="gateway",le="120000"}[5m]))
+            / sum(rate(reminder_lag_ms_count{job="gateway"}[5m]))
+          )
+      - record: slo:reminder_late:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(reminder_lag_ms_bucket{job="gateway",le="120000"}[30m]))
+            / sum(rate(reminder_lag_ms_count{job="gateway"}[30m]))
+          )
+      - record: slo:reminder_late:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(reminder_lag_ms_bucket{job="gateway",le="120000"}[1h]))
+            / sum(rate(reminder_lag_ms_count{job="gateway"}[1h]))
+          )
+      - record: slo:reminder_late:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(reminder_lag_ms_bucket{job="gateway",le="120000"}[6h]))
+            / sum(rate(reminder_lag_ms_count{job="gateway"}[6h]))
+          )
+      # ---- helpers for the dashboards
+      - record: dawai:reply_latency_ms:p95
+        expr: histogram_quantile(0.95, sum by (intent, le) (rate(reply_latency_ms_bucket{job="gateway"}[5m])))
+      - record: dawai:reply_latency_ms:p50
+        expr: histogram_quantile(0.5, sum by (intent, le) (rate(reply_latency_ms_bucket{job="gateway"}[5m])))
+      - record: dawai:queue_wait_ms:p95
+        expr: histogram_quantile(0.95, sum by (queue, le) (rate(queue_wait_ms_bucket{job="gateway"}[5m])))
+      - record: dawai:llm_error_ratio:rate5m
+        expr: |
+          (sum(rate(llm_calls_total{job="ai-service",status!="ok"}[5m])) or vector(0))
+          / clamp_min(sum(rate(llm_calls_total{job="ai-service"}[5m])), 1e-9)
+
+  - name: slo_burn_rate
+    rules:
+      # SLO1a: documents within 30 s, 95%  -> budget 0.05
+      - alert: ReplySlowDocumentsFastBurn
+        expr: |
+          slo:reply_slow_documents:ratio_rate1h > (14.4 * 0.05) and slo:reply_slow_documents:ratio_rate5m > (14.4 * 0.05)
+        labels: { severity: page, slo: reply_latency_documents }
+        annotations:
+          summary: 'Prescription/lab replies are burning the 30 s SLO budget fast'
+          description: 'More than 72% of document replies took over 30 s in the last hour and the last 5 minutes.'
+          runbook_url: docs/runbooks/reply-latency.md
+      - alert: ReplySlowDocumentsSlowBurn
+        expr: |
+          slo:reply_slow_documents:ratio_rate6h > (6 * 0.05) and slo:reply_slow_documents:ratio_rate30m > (6 * 0.05)
+        labels: { severity: ticket, slo: reply_latency_documents }
+        annotations:
+          summary: 'Prescription/lab replies are slowly burning the 30 s SLO budget'
+          description: 'More than 30% of document replies took over 30 s over the last 6 hours.'
+          runbook_url: docs/runbooks/reply-latency.md
+      # SLO1b: text within 10 s, 99% -> budget 0.01
+      - alert: ReplySlowTextFastBurn
+        expr: |
+          slo:reply_slow_text:ratio_rate1h > (14.4 * 0.01) and slo:reply_slow_text:ratio_rate5m > (14.4 * 0.01)
+        labels: { severity: page, slo: reply_latency_text }
+        annotations:
+          summary: 'Text replies are burning the 10 s SLO budget fast'
+          description: 'More than 14% of text replies took over 10 s in the last hour and the last 5 minutes.'
+          runbook_url: docs/runbooks/reply-latency.md
+      - alert: ReplySlowTextSlowBurn
+        expr: |
+          slo:reply_slow_text:ratio_rate6h > (6 * 0.01) and slo:reply_slow_text:ratio_rate30m > (6 * 0.01)
+        labels: { severity: ticket, slo: reply_latency_text }
+        annotations:
+          summary: 'Text replies are slowly burning the 10 s SLO budget'
+          description: 'More than 6% of text replies took over 10 s over the last 6 hours.'
+          runbook_url: docs/runbooks/reply-latency.md
+      # SLO2: 99.5% served -> budget 0.005
+      - alert: InboundUnservedFastBurn
+        expr: |
+          slo:inbound_unserved:ratio_rate1h > (14.4 * 0.005) and slo:inbound_unserved:ratio_rate5m > (14.4 * 0.005)
+        labels: { severity: page, slo: inbound_served }
+        annotations:
+          summary: 'Inbound messages are being dead-lettered (SLO 99.5% served)'
+          description: 'More than 7% of inbound messages ended in the dead-letter queue.'
+          runbook_url: docs/runbooks/dlq-not-empty.md
+      - alert: InboundUnservedSlowBurn
+        expr: |
+          slo:inbound_unserved:ratio_rate6h > (6 * 0.005) and slo:inbound_unserved:ratio_rate30m > (6 * 0.005)
+        labels: { severity: ticket, slo: inbound_served }
+        annotations:
+          summary: 'Some inbound messages are being dead-lettered (SLO 99.5% served)'
+          description: 'More than 3% of inbound messages ended in the dead-letter queue over 6 hours.'
+          runbook_url: docs/runbooks/dlq-not-empty.md
+      # SLO3: reminders within 2 min, 99% -> budget 0.01
+      - alert: ReminderLateFastBurn
+        expr: |
+          slo:reminder_late:ratio_rate1h > (14.4 * 0.01) and slo:reminder_late:ratio_rate5m > (14.4 * 0.01)
+        labels: { severity: page, slo: reminder_timeliness }
+        annotations:
+          summary: 'Reminders are going out late (SLO: 99% within 2 min)'
+          description: 'More than 14% of reminders were handed over more than 2 minutes late.'
+          runbook_url: docs/runbooks/reminder-lag.md
+      - alert: ReminderLateSlowBurn
+        expr: |
+          slo:reminder_late:ratio_rate6h > (6 * 0.01) and slo:reminder_late:ratio_rate30m > (6 * 0.01)
+        labels: { severity: ticket, slo: reminder_timeliness }
+        annotations:
+          summary: 'Reminders are often a little late'
+          description: 'More than 6% of reminders were more than 2 minutes late over 6 hours.'
+          runbook_url: docs/runbooks/reminder-lag.md
+
+  - name: thresholds
+    rules:
+      - alert: WebhookServerErrors
+        expr: |
+          sum(rate(webhook_responses_total{job="gateway",status="5xx"}[5m]))
+          / clamp_min(sum(rate(webhook_responses_total{job="gateway"}[5m])), 1e-9) > 0.01
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: 'More than 1% of webhook calls fail with 5xx'
+          description: 'Meta retries a failed webhook, so messages are delayed, not lost, while this lasts.'
+          runbook_url: docs/runbooks/webhook-5xx.md
+      - alert: QueueWaitHigh
+        expr: dawai:queue_wait_ms:p95{queue=~"inbound|outbound"} > 60000
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: 'Jobs wait over 60 s in the {{ $labels.queue }} queue (p95)'
+          description: 'Workers are too slow, stuck, or not running.'
+          runbook_url: docs/runbooks/queue-wait.md
+      - alert: DeadLetterQueueNotEmpty
+        expr: max by (queue) (dlq_size{job="gateway",queue!="user-deletion"}) > 0
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: 'The {{ $labels.queue }} dead-letter queue has jobs'
+          description: 'A job ran out of attempts. List it with `pnpm --filter @dawai/gateway cli dlq:list --queue {{ $labels.queue }}`.'
+          runbook_url: docs/runbooks/dlq-not-empty.md
+      - alert: UserErasureDeadLetter
+        expr: max(dlq_size{job="gateway",queue="user-deletion"}) > 0
+        labels: { severity: page, priority: high }
+        annotations:
+          summary: 'A user erasure (DELETE) is stuck: legal obligation'
+          description: 'Erasure is required by the DPDP Act. Retry with the CLI and find out why it failed.'
+          runbook_url: docs/runbooks/user-erasure-stuck.md
+      - alert: LlmErrorRateHigh
+        expr: dawai:llm_error_ratio:rate5m > 0.10
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: 'More than 10% of LLM calls fail'
+          description: 'Provider outage, rate limit, or bad credentials. Check which provider and status.'
+          runbook_url: docs/runbooks/llm-errors.md
+      - alert: AllLlmProvidersDown
+        expr: |
+          count(llm_circuit_open{job="ai-service"} == 1) >= count(llm_circuit_open{job="ai-service"})
+          and count(llm_circuit_open{job="ai-service"}) > 0
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: 'Every LLM provider circuit is open'
+          description: 'Templates, emergency rules and the catalog still work; reading documents and questions do not.'
+          runbook_url: docs/runbooks/llm-errors.md
+      - alert: WhatsAppTokenError
+        expr: increase(wa_api_errors_total{job="gateway",code="190"}[5m]) > 0
+        labels: { severity: page }
+        annotations:
+          summary: 'WhatsApp rejects our access token (error 190)'
+          description: 'Every send will fail until the token is replaced.'
+          runbook_url: docs/runbooks/whatsapp-token.md
+      - alert: LlmBudgetBurn80
+        expr: budget_spend_ratio{job="gateway"} > 0.8
+        for: 1m
+        labels: { severity: ticket }
+        annotations:
+          summary: "More than 80% of today's LLM budget is spent"
+          description: 'At 70% the service switches to economy mode, at 90% to essential, at 100% to templates only.'
+          runbook_url: docs/runbooks/llm-budget.md
+      - alert: EmergencyReplyFailing
+        expr: increase(emergency_outbound_total{job="gateway",status="failed"}[5m]) > 0
+        labels: { severity: page, priority: high }
+        annotations:
+          summary: 'An emergency reply (112/108 message) failed to send'
+          description: 'This is the most important message the service sends.'
+          runbook_url: docs/runbooks/emergency-reply-failing.md
+      - alert: ReminderLagHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(reminder_lag_ms_bucket{job="gateway"}[10m]))) > 300000
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: 'Reminders are more than 5 minutes late (p95)'
+          description: 'The reminder planner or the delayed jobs are not running on time.'
+          runbook_url: docs/runbooks/reminder-lag.md
+
+  - name: whatsapp_number_health
+    rules:
+      - alert: WhatsAppQualityDropped
+        expr: max(wa_quality_state{job="gateway",state=~"flagged|downgraded"}) == 1
+        labels: { severity: page }
+        annotations:
+          summary: 'Meta lowered the quality rating or messaging limit of our number'
+          description: 'Reduce proactive messages and review templates.'
+          runbook_url: docs/runbooks/whatsapp-quality.md
+      - alert: WhatsAppTemplateRejected
+        expr: increase(wa_template_status_total{job="gateway",status=~"rejected|paused|disabled"}[1h]) > 0
+        labels: { severity: ticket }
+        annotations:
+          summary: 'A WhatsApp message template was rejected, paused or disabled'
+          description: 'Reminders and caregiver alerts outside the 24 h window depend on templates.'
+          runbook_url: docs/runbooks/whatsapp-quality.md
+      - alert: WhatsAppUserBlockSignals
+        expr: sum(increase(wa_user_block_signals_total{job="gateway"}[1d])) > 5
+        labels: { severity: ticket }
+        annotations:
+          summary: 'Several users blocked us or opted out today'
+          description: 'Check how many reminders go to users who never answer.'
+          runbook_url: docs/runbooks/whatsapp-quality.md
+
+  - name: scrape_health
+    rules:
+      - alert: TargetDown
+        expr: up{job=~"gateway|ai-service"} == 0
+        for: 2m
+        labels: { severity: page }
+        annotations:
+          summary: '{{ $labels.job }} is not reachable by Prometheus'
+          description: 'The service is down or /metrics rejects our token.'
+          runbook_url: docs/runbooks/target-down.md

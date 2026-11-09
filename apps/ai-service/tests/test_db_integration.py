@@ -187,5 +187,8 @@ async def test_ready_endpoint_returns_200(ro_settings: Settings) -> None:
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get("/health/ready")
         assert res.status_code == 200
-        assert res.json() == {"status": "ok", "checks": {"db": "ok", "llm_config": "ok"}}
+        assert res.json() == {
+            "status": "ok",
+            "checks": {"db": "ok", "llm_config": "ok", "llm_circuits": "closed"},
+        }
     await app.state.db.dispose()

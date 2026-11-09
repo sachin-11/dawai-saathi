@@ -11,8 +11,12 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { StorageModule } from './common/storage/storage.module';
 import { AppConfigModule } from './config/config.module';
+import { APP_CONFIG } from './config/config.constants';
+import type { Env } from './config/env.schema';
 import { HealthModule } from './health/health.module';
+import { LimitsModule } from './limits/limits.module';
 import { QueuesModule } from './queues/queues.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
@@ -25,8 +29,13 @@ import { WebhookModule } from './webhook/webhook.module';
     CryptoModule,
     PendingModule,
     AuditModule,
+    TelemetryModule,
+    LimitsModule,
     // Opt-in per controller (see WebhookController); in-memory counters, per instance.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [APP_CONFIG],
+      useFactory: (env: Env) => [{ ttl: 60_000, limit: env.WEBHOOK_RATE_LIMIT_PER_MIN }],
+    }),
     QueuesModule,
     HealthModule,
     WebhookModule,

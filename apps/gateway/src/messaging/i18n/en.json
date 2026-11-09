@@ -136,5 +136,11 @@
   "voice.off": "🔇 Spoken replies are OFF. Send VOICE ON to turn them on again.",
   "voice.unavailable": "Spoken replies are not available right now. You can still send voice notes, and I will answer in text.",
   "voice.no_open_reminder": "I do not see a reminder waiting for an answer right now.",
-  "voice.command_unavailable": "I understood a command, but it needs to be typed. Send HELP to see the commands."
+  "voice.command_unavailable": "I understood a command, but it needs to be typed. Send HELP to see the commands.",
+  "rate_limit.minute": "You are sending messages very fast. Please wait a minute and send again.\n\n🚨 In an emergency, call 112 or 108 right away.",
+  "rate_limit.day": "You have reached today's message limit. Please try again tomorrow.\n\n🚨 In an emergency, call 112 or 108 right away.",
+  "rate_limit.docs": "You have sent the maximum number of files for today. Please send more tomorrow.\n\n🚨 In an emergency, call 112 or 108 right away.",
+  "rate_limit.voice": "You have sent the maximum number of voice notes for today. Please type your message, or try again tomorrow.\n\n🚨 In an emergency, call 112 or 108 right away.",
+  "rate_limit.cost_user": "You have used up today's share of my reading time. Please try again tomorrow.\n\n🚨 In an emergency, call 112 or 108 right away.",
+  "blocked.notice": "Because of unusual activity I have paused this chat for a while. Please try again later.\n\n🚨 In an emergency, call 112 or 108 right away. You can still send DELETE or HELP."
 }

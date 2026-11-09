@@ -44,7 +44,47 @@ describe('validateEnv', () => {
       REMINDER_ACK_TIMEOUT_MIN: 60,
       CAREGIVER_ALERT_AFTER_MISSES: 2,
       DAILY_SUMMARY_ENABLED: false,
+      OTEL_SAMPLE_RATIO: 0.2,
+      WEBHOOK_RATE_LIMIT_PER_MIN: 6000,
+      SHUTDOWN_GRACE_S: 25,
+      RL_MSG_PER_MIN: 10,
+      RL_MSG_PER_DAY: 200,
+      RL_DOCS_PER_DAY: 20,
+      RL_VOICE_PER_DAY: 30,
+      RL_CAREGIVER_INVITES_PER_DAY: 3,
+      RL_BLOCK_AFTER_WINDOWS: 5,
+      RL_BLOCK_HOURS: 24,
+      BUDGET_ECONOMY_PCT: 70,
+      BUDGET_ESSENTIAL_PCT: 90,
     });
+  });
+
+  it('requires METRICS_TOKEN and LLM_DAILY_BUDGET_USD in production', () => {
+    const prod = {
+      ...valid,
+      NODE_ENV: 'production',
+      SERVICE_TOKEN: 'a-real-production-token-123456',
+      PHONE_HASH_PEPPER: 'a-real-pepper-value-123456',
+      WA_VERIFY_TOKEN: 'a-real-verify-token-123456',
+      WA_APP_SECRET: 'a-real-app-secret-123456',
+      WA_ACCESS_TOKEN: 'a-real-access-token-123456',
+      ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+    };
+    expect(() => validateEnv(prod)).toThrow(/METRICS_TOKEN/);
+    expect(() => validateEnv(prod)).toThrow(/LLM_DAILY_BUDGET_USD/);
+    expect(() =>
+      validateEnv({ ...prod, METRICS_TOKEN: 'x'.repeat(24), LLM_DAILY_BUDGET_USD: '5' }),
+    ).not.toThrow();
+    // the public dev token from .env.example must not be accepted in production
+    expect(() =>
+      validateEnv({ ...prod, METRICS_TOKEN: 'local-dev-metrics-token', LLM_DAILY_BUDGET_USD: '5' }),
+    ).toThrow(/METRICS_TOKEN: placeholder value/);
+  });
+
+  it('economy threshold must stay below the essential threshold', () => {
+    expect(() => validateEnv({ ...valid, BUDGET_ECONOMY_PCT: '95' })).toThrow(
+      /BUDGET_ESSENTIAL_PCT/,
+    );
   });
 
   it('coerces PORT and MEDIA_RETENTION_DAYS from strings', () => {

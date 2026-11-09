@@ -152,12 +152,18 @@ class RequestContext(_Strict):
     previous_lab_results: list[PreviousLabResult] = Field(default_factory=list, max_length=600)
 
 
+BudgetState = Literal["normal", "economy", "essential", "exhausted"]
+
+
 class RequestOptions(_Strict):
     # Ask for `debug_trace` in the response. Honoured ONLY for the demo client (DEMO_SERVICE_TOKEN);
     # the gateway never sets it, and for any other caller it is ignored.
     include_trace: bool = False
     # M13: the user has spoken replies on: also return `spoken_text` when the reply may be spoken.
     want_spoken: bool = False
+    # M15: where the gateway's daily LLM budget stands. The AI service degrades accordingly; the
+    # emergency rules and the emergency template never depend on it.
+    budget_state: BudgetState = "normal"
 
 
 class ProcessRequest(_Strict):

@@ -4,6 +4,7 @@ import { PinoLogger } from 'nestjs-pino';
 
 import { RedisService } from '../common/redis/redis.service';
 import { withTimeout } from '../common/timeout/with-timeout';
+import { withTrace } from '../telemetry/trace-context';
 import type { OutboundJobData } from './outbound.types';
 
 export const OUTBOUND_QUEUE = 'outbound';
@@ -43,7 +44,7 @@ export class OutboundQueue implements OnModuleDestroy {
     const queue = this.getQueue();
     await withTimeout(
       () =>
-        queue.add('send', data, {
+        queue.add('send', withTrace(data), {
           ...OUTBOUND_JOB_OPTIONS,
           ...(options.priority !== undefined ? { priority: options.priority } : {}),
           jobId: outboundJobId(data.sourceMessageId, data.replyIndex),

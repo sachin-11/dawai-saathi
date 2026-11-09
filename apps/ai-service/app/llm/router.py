@@ -37,6 +37,7 @@ from app.llm.types import (
     ModelRole,
     RawResult,
 )
+from app.observability.metrics import METRICS
 
 _logger = structlog.get_logger(__name__)
 
@@ -157,6 +158,8 @@ class LLMRouter:
                     will_fall_back=index < len(self._slots) - 1,
                 )
                 continue
+            if index > 0:
+                METRICS.llm_fallback()
             return replace(result, fallback_used=index > 0)
 
         raise LLMUnavailableError("no LLM provider could answer") from last_error
@@ -367,7 +370,30 @@ class LLMRouter:
             )
         )
 
+    def _role_of(self, record: LLMCallRecord) -> str:
+        for slot in self._slots:
+            if slot.provider.name == record.provider:
+                for role, model in slot.models.items():
+                    if model == record.model:
+                        return role
+        return "unknown"
+
+    @property
+    def circuits(self) -> dict[str, bool]:
+        """provider name -> True when its circuit breaker is open (used by /health and metrics)."""
+        return {slot.provider.name: slot.breaker.is_open for slot in self._slots}
+
     def _report(self, record: LLMCallRecord) -> None:
+        METRICS.llm_attempt(
+            provider=record.provider,
+            model=record.model,
+            role=self._role_of(record),
+            status="ok" if record.ok else (record.error_kind or "error"),
+            latency_ms=record.latency_ms,
+            tokens_in=record.input_tokens,
+            tokens_out=record.output_tokens,
+            cost_usd=record.cost_usd,
+        )
         # Content (prompts, images, output) is never logged here: only the numbers.
         _logger.info(
             "llm_call",

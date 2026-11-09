@@ -49,6 +49,6 @@ import { RxActionsService } from './rx-actions.service';
     CaregiverFlowService,
     PendingInputService,
   ],
-  exports: [InboundRouter],
+  exports: [InboundRouter, RepliesService],
 })
 export class ConversationModule {}

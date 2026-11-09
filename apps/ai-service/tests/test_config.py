@@ -18,7 +18,9 @@ def test_valid_settings_with_defaults() -> None:
 
 
 def test_app_env_takes_precedence_over_node_env() -> None:
-    s = load_settings(**VALID, APP_ENV="production", LLM_MODE="real")
+    s = load_settings(
+        **VALID, APP_ENV="production", LLM_MODE="real", METRICS_TOKEN="metrics-token-123456"
+    )
     assert s.environment == "production"
 
 
@@ -46,10 +48,28 @@ def test_missing_everything_reports_all_issues() -> None:
     assert len(exc_info.value.issues) >= 3
 
 
+def test_metrics_token_is_required_in_production() -> None:
+    with pytest.raises(ConfigError, match="METRICS_TOKEN"):
+        load_settings(**VALID, APP_ENV="production", LLM_MODE="real")
+
+
+def test_placeholder_metrics_token_rejected_in_production() -> None:
+    with pytest.raises(ConfigError, match="METRICS_TOKEN"):
+        load_settings(
+            **VALID, APP_ENV="production", LLM_MODE="real", METRICS_TOKEN="local-dev-metrics-token"
+        )
+
+
 def test_placeholder_token_rejected_in_production() -> None:
     with pytest.raises(ConfigError, match="placeholder"):
         load_settings(
-            **{**VALID, "NODE_ENV": "production", "SERVICE_TOKEN": "change-me", "LLM_MODE": "real"}
+            **{
+                **VALID,
+                "NODE_ENV": "production",
+                "SERVICE_TOKEN": "change-me",
+                "LLM_MODE": "real",
+                "METRICS_TOKEN": "metrics-token-123456",
+            }
         )
 
 

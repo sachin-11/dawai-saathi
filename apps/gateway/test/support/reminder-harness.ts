@@ -28,6 +28,7 @@ import {
   type ReminderJobData,
   type ReminderQueue,
 } from '../../src/reminders/reminder.queue';
+import { WorkerFactory } from '../../src/telemetry/worker-factory.service';
 import { ReminderWorker } from '../../src/reminders/reminder.worker';
 import { epochSeconds } from '../../src/reminders/clock';
 import { INTEGRATION_ENV, prepareTestDatabase } from './integration-env';
@@ -232,6 +233,7 @@ export function createHarness(overrides: Record<string, string> = {}): Harness {
   const worker = new ReminderWorker(
     {} as unknown as RedisService,
     asQueue,
+    {} as unknown as WorkerFactory,
     dispatch,
     planner,
     caregivers,

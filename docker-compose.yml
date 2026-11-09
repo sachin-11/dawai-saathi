@@ -1,7 +1,7 @@
 # Local infrastructure for Dawai Saathi (CLAUDE.md §3, §14 M1).
 #
 #   make up        -> postgres, redis, minio (+ one-shot bucket init)
-#   make up-obs    -> the above + Langfuse (profile "observability")
+#   make up-obs    -> the above + Langfuse + Grafana/Prometheus/Tempo/Loki/Alertmanager (profile "observability")
 #
 # Every credential comes from .env with a safe LOCAL-ONLY default. Never reuse these defaults
 # outside your machine. Containers are prefixed "dawai-" so they don't clash with other projects.
@@ -207,6 +207,103 @@ services:
       NEXTAUTH_URL: http://localhost:${LANGFUSE_PORT:-3002}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-local-dev-nextauth-secret}
 
+  # ------------------------------------------------------------ M15 observability (profile: observability)
+  # Traces: apps -> otel-collector -> tempo.  Logs: JSON files -> otel-collector -> loki.
+  # Metrics: prometheus scrapes /metrics (bearer token). Alerts: prometheus -> alertmanager -> alert-sink.
+  # Everything is provisioned from infra/observability (dashboards, datasources, rules). UI: Grafana :3003.
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.116.1
+    container_name: dawai-otel-collector
+    command: ['--config=/etc/otelcol/config.yaml']
+    user: '0:0' # reads the Docker json logs
+    volumes:
+      - ./infra/observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./logs:/var/log/dawai:ro
+    ports:
+      - '${OTLP_GRPC_PORT:-4317}:4317'
+      - '${OTLP_HTTP_PORT:-4318}:4318'
+    depends_on: [tempo, loki]
+
+  tempo:
+    profiles: [observability]
+    image: grafana/tempo:2.6.1
+    container_name: dawai-tempo
+    command: ['-config.file=/etc/tempo/tempo.yaml']
+    user: '0:0'
+    volumes:
+      - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - '${TEMPO_PORT:-3200}:3200'
+
+  loki:
+    profiles: [observability]
+    image: grafana/loki:3.3.1
+    container_name: dawai-loki
+    command: ['-config.file=/etc/loki/loki.yaml']
+    volumes:
+      - ./infra/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    ports:
+      - '${LOKI_PORT:-3100}:3100'
+
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v2.55.1
+    container_name: dawai-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    extra_hosts: ['host.docker.internal:host-gateway']
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/metrics_token:/etc/prometheus/metrics_token:ro
+      - ./infra/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    depends_on: [alertmanager]
+
+  alertmanager:
+    profiles: [observability]
+    image: prom/alertmanager:v0.27.0
+    container_name: dawai-alertmanager
+    # --cluster.listen-address= switches clustering off: a single local instance, and Docker networks
+    # without a private IP otherwise crash it ("unable to initialize gossip mesh").
+    command: ['--config.file=/etc/alertmanager/alertmanager.yml', '--cluster.listen-address=']
+    volumes:
+      - ./infra/observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - '${ALERTMANAGER_PORT:-9093}:9093'
+    depends_on: [alert-sink]
+
+  alert-sink:
+    profiles: [observability]
+    image: python:3.12-alpine
+    container_name: dawai-alert-sink
+    command: ['python', '/app/sink.py']
+    volumes:
+      - ./infra/observability/alert-sink/sink.py:/app/sink.py:ro
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:11.4.0
+    container_name: dawai-grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true' # LOCAL ONLY: no login, full access
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '${GRAFANA_PORT:-3003}:3000'
+    depends_on: [prometheus, tempo, loki]
+
 volumes:
   postgres_data:
   redis_data:
@@ -214,3 +311,7 @@ volumes:
   langfuse_db_data:
   langfuse_clickhouse_data:
   langfuse_clickhouse_logs:
+  tempo_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:

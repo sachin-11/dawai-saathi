@@ -18,6 +18,7 @@ import { InteractionFlowService, parseIxButton } from './interaction-flow.servic
 import { LabActionsService, parseLabButton, parseRepButton } from './lab-actions.service';
 import { parseRxButton, RxActionsService } from './rx-actions.service';
 import { RepliesService, type ReplySession } from './replies.service';
+import { LIMIT_NOTICE, type MessageKind, RateLimitService } from '../limits/rate-limit.service';
 
 /**
  * While an erasure job runs the user is ignored. If that job ever got stuck, this window makes sure
@@ -66,7 +67,10 @@ export type RouteOutcome =
   | 'voice_notice'
   | 'voice_notice_answered'
   | 'voice_replies_changed'
-  | 'voice_command';
+  | 'voice_command'
+  | 'rate_limited'
+  | 'blocked'
+  | 'user_cost_capped';
 
 /**
  * Single entry point for every inbound message after the webhook has stored it (CLAUDE.md §7).
@@ -98,6 +102,7 @@ export class InboundRouter {
     private readonly acks: ReminderAckService,
     private readonly echoBot: EchoBotService,
     private readonly aiProcessor: AiProcessor,
+    private readonly rateLimit: RateLimitService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(InboundRouter.name);
@@ -118,6 +123,7 @@ export class InboundRouter {
       language: user.language,
       messageId: job.messageId,
       requestId: job.requestId,
+      receivedAt: job.receivedAt,
     });
     const buttonId = job.button?.id;
     const command = job.signals?.command;
@@ -146,6 +152,11 @@ export class InboundRouter {
       return 'help';
     }
 
+    // 2b. Blocked users and rate limits (M15). The emergency check, DELETE and HELP ran above, so
+    // neither a block nor a limit can ever stop them.
+    const gated = await this.gate(user, job, session, now);
+    if (gated) return gated;
+
     // 3. Onboarding gate.
     if (user.onboardingStep !== 'done') {
       await this.onboarding.handle(user, job, session);
@@ -154,6 +165,32 @@ export class InboundRouter {
 
     // 4. Commands for onboarded users.
     return this.routeActiveUser(user, job, session);
+  }
+
+  /** Block and per-user limits. One notice, then silence; retries of the same message count once. */
+  private async gate(
+    user: UserState,
+    job: InboundJobData,
+    session: ReplySession,
+    now: Date,
+  ): Promise<RouteOutcome | null> {
+    if (user.blockedUntil && user.blockedUntil.getTime() > now.getTime()) {
+      if (await this.rateLimit.noticeForBlock(user.id, user.blockedUntil, now.getTime())) {
+        await session.text('blocked.notice');
+      }
+      return 'blocked';
+    }
+    const kind: MessageKind =
+      job.type === 'audio'
+        ? 'voice'
+        : job.type === 'image' || job.type === 'document'
+          ? 'document'
+          : 'text';
+    const decision = await this.rateLimit.checkMessage(user.id, kind, now.getTime(), job.messageId);
+    if (decision.allowed) return null;
+    if (decision.notify) await session.text(LIMIT_NOTICE[decision.scope]);
+    if (decision.blocked) await session.text('blocked.notice');
+    return 'rate_limited';
   }
 
   private async routeActiveUser(

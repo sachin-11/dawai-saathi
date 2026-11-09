@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import { validateEnv } from '../src/config/env.schema';
 
 import {
   OFFLINE_ENV,
@@ -155,7 +156,7 @@ describe('WhatsApp webhook (e2e, no infrastructure)', () => {
 
 describe('WhatsApp webhook rate limit (e2e)', () => {
   it('answers 429 after too many requests from one client', async () => {
-    Object.assign(process.env, OFFLINE_ENV);
+    Object.assign(process.env, OFFLINE_ENV, { WEBHOOK_RATE_LIMIT_PER_MIN: '300' });
     const app = (await createApp()) as INestApplication<App>;
     try {
       const server = app.getHttpServer();
@@ -167,7 +168,12 @@ describe('WhatsApp webhook rate limit (e2e)', () => {
       expect(statuses.slice(0, 300).every((status) => status === 403)).toBe(true);
       expect(statuses.slice(300)).toContain(429);
     } finally {
+      delete process.env['WEBHOOK_RATE_LIMIT_PER_MIN'];
       await app.close();
     }
+  });
+
+  it('the limit is configurable: the default is far above real traffic (20 msg/s in the smoke test)', () => {
+    expect(validateEnv({ ...OFFLINE_ENV }).WEBHOOK_RATE_LIMIT_PER_MIN).toBe(6000);
   });
 });

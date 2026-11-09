@@ -1,5 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
+
+import { MetricsService } from '../telemetry/metrics.service';
 
 import { PrismaService } from '../common/prisma/prisma.service';
 import { APP_CONFIG } from '../config/config.constants';
@@ -26,6 +28,7 @@ export class ReminderDispatchService {
     private readonly messages: ReminderMessages,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger.setContext(ReminderDispatchService.name);
   }
@@ -107,6 +110,10 @@ export class ReminderDispatchService {
       where: { id: { in: ids }, status: { in: [...statuses] } },
       data: { status: 'sent', sentAt: now },
     });
+    this.metrics?.remindersSent.inc();
+    if (attempt === 0) {
+      this.metrics?.reminderLag.observe(Math.max(0, now.getTime() - scheduledAt.getTime()));
+    }
     await this.queue.addMissed(
       userId,
       scheduledAt,
@@ -135,6 +142,7 @@ export class ReminderDispatchService {
       data: { status: 'missed' },
     });
     if (result.count === 0) return { missed: 0, consecutiveMisses: null, alerted: false };
+    this.metrics?.reminderAck.inc({ status: 'missed' }, result.count);
 
     const updated = await this.prisma.user.updateMany({
       where: { id: userId },
