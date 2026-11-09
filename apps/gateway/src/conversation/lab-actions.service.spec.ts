@@ -11,6 +11,8 @@ const user: UserState = {
   onboardingStep: 'done',
   consentAt: new Date(),
   remindersEnabled: true,
+  consentVersion: 'v2',
+  voiceReplies: false,
   deletedAt: null,
 };
 const DOC = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';

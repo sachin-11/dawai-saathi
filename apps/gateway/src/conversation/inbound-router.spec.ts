@@ -25,6 +25,8 @@ const user = (overrides: Partial<UserState> = {}): UserState => ({
   onboardingStep: 'done',
   consentAt: new Date('2026-11-01T00:00:00Z'),
   remindersEnabled: true,
+  consentVersion: 'v2',
+  voiceReplies: false,
   deletedAt: null,
   ...overrides,
 });
@@ -46,7 +48,16 @@ function setup(
   router: InboundRouter;
   session: Record<'text' | 'textParts' | 'buttons' | 'emergency' | 'useLanguage', jest.Mock>;
   onboarding: { handle: jest.Mock };
-  commands: Record<'help' | 'askLanguage' | 'setLanguage' | 'setReminders' | 'meds', jest.Mock>;
+  commands: Record<
+    | 'help'
+    | 'askLanguage'
+    | 'setLanguage'
+    | 'setReminders'
+    | 'meds'
+    | 'setVoiceReplies'
+    | 'answerVoiceNotice',
+    jest.Mock
+  >;
   deletion: Record<'request' | 'confirm' | 'cancel', jest.Mock>;
   echoBot: { enabled: boolean; handle: jest.Mock };
   rxActions: { handle: jest.Mock };
@@ -72,6 +83,8 @@ function setup(
     setLanguage: jest.fn().mockResolvedValue(undefined),
     setReminders: jest.fn().mockResolvedValue(undefined),
     meds: jest.fn().mockResolvedValue(undefined),
+    setVoiceReplies: jest.fn().mockResolvedValue(undefined),
+    answerVoiceNotice: jest.fn().mockResolvedValue(undefined),
   };
   const deletion = {
     request: jest.fn().mockResolvedValue(undefined),
@@ -341,7 +354,7 @@ describe('InboundRouter', () => {
       await expect(
         s.router.route(job({ type: 'button', button: { id: 'consent:yes', title: 'x' } }), NOW),
       ).resolves.toBe('welcome_replay');
-      expect(s.session.text).toHaveBeenCalledWith('consent.v1.accepted_welcome');
+      expect(s.session.text).toHaveBeenCalledWith('consent.v2.accepted_welcome');
     });
   });
 
@@ -628,5 +641,93 @@ describe('InboundRouter', () => {
         erasing.router.route(job({ signals: { command: 'caregiver_add' } }), NOW),
       ).resolves.toBe('ignored_deletion_pending');
     });
+  });
+});
+
+describe('InboundRouter: voice (M13)', () => {
+  const voiceJob = job({ type: 'audio' });
+
+  it('runs a spoken MEDS like the typed command', async () => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue({ outcome: 'voice_command', command: 'meds' });
+    await expect(s.router.route(voiceJob, NOW)).resolves.toBe('voice_command');
+    expect(s.commands.meds).toHaveBeenCalledTimes(1);
+  });
+
+  it('spoken DELETE only shows the confirmation (nothing is erased on a transcript)', async () => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue({ outcome: 'voice_command', command: 'delete' });
+    await s.router.route(voiceJob, NOW);
+    expect(s.deletion.request).toHaveBeenCalledTimes(1);
+    expect(s.deletion.confirm).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['reminder_taken', 'taken'],
+    ['reminder_snooze', 'snooze'],
+    ['reminder_skip', 'skip'],
+  ])('spoken %s is applied to the open reminder as "%s"', async (command, kind) => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue({ outcome: 'voice_command', command });
+    s.acks.handleText.mockResolvedValue('taken');
+    await s.router.route(voiceJob, NOW);
+    expect(s.acks.handleText).toHaveBeenCalledWith('user-1', kind, s.session);
+    expect(s.session.text).not.toHaveBeenCalled();
+  });
+
+  it('"le li" with no open reminder says so instead of marking anything', async () => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue({ outcome: 'voice_command', command: 'reminder_taken' });
+    s.acks.handleText.mockResolvedValue(null);
+    await s.router.route(voiceJob, NOW);
+    expect(s.session.text).toHaveBeenCalledWith('voice.no_open_reminder');
+  });
+
+  it('spoken stop reminders / start reminders / voice on / voice off use the typed handlers', async () => {
+    const s = setup(user());
+    for (const command of ['stop_reminders', 'start_reminders', 'voice_on', 'voice_off']) {
+      s.ai.handle.mockResolvedValueOnce({ outcome: 'voice_command', command });
+      await s.router.route(voiceJob, NOW);
+    }
+    expect(s.commands.setReminders.mock.calls.map((c: unknown[]) => c[1] as boolean)).toEqual([
+      false,
+      true,
+    ]);
+    expect(s.commands.setVoiceReplies.mock.calls.map((c: unknown[]) => c[1] as boolean)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it('a command the voice path does not support is explained, never guessed', async () => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue({ outcome: 'voice_command', command: 'caregiver_add' });
+    await s.router.route(voiceJob, NOW);
+    expect(s.session.text).toHaveBeenCalledWith('voice.command_unavailable');
+  });
+
+  it('a normal AI outcome passes straight through', async () => {
+    const s = setup(user());
+    s.ai.handle.mockResolvedValue('ai_reply');
+    await expect(s.router.route(voiceJob, NOW)).resolves.toBe('ai_reply');
+  });
+
+  it('VOICE ON / VOICE OFF typed commands and the notice buttons', async () => {
+    const s = setup(user());
+    await expect(s.router.route(job({ signals: { command: 'voice_on' } }), NOW)).resolves.toBe(
+      'voice_replies_changed',
+    );
+    expect(s.commands.setVoiceReplies).toHaveBeenCalledWith(expect.anything(), true, s.session);
+    await expect(
+      s.router.route(job({ type: 'button', button: { id: 'voice:ok', title: 'x' } }), NOW),
+    ).resolves.toBe('voice_notice_answered');
+    expect(s.commands.answerVoiceNotice).toHaveBeenCalledWith(expect.anything(), true, s.session);
+  });
+
+  it('an emergency signal still comes first', async () => {
+    const s = setup(user());
+    await s.router.route(job({ type: 'audio', signals: { emergency: 'general' } }), NOW);
+    expect(s.session.emergency).toHaveBeenCalled();
+    expect(s.ai.handle).not.toHaveBeenCalled();
   });
 });

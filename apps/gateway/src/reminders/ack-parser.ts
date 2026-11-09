@@ -1,3 +1,4 @@
+import aliasData from '../common/safety/data/command-aliases.json';
 import { normaliseForMatching } from '../common/safety/normalise';
 
 export type AckKind = 'taken' | 'snooze' | 'skip';
@@ -14,26 +15,7 @@ export function parseReminderButton(buttonId: string): { kind: AckKind; epoch: n
   return match ? { kind: match[1] as AckKind, epoch: Number(match[2]) } : null;
 }
 
-const ALIASES: Readonly<Record<AckKind, readonly string[]>> = {
-  taken: [
-    'le li',
-    'lee li',
-    'li',
-    'kha li',
-    'khali',
-    'le liya',
-    'done',
-    'taken',
-    'ha',
-    'haan',
-    'han',
-    'ले ली',
-    'ली',
-    'खा ली',
-  ],
-  snooze: ['baad me', 'baad mein', 'baadme', 'later', 'thodi der baad', 'बाद में'],
-  skip: ['skip', 'nahi', 'nahin', 'nhi', 'chhod do', 'nahi lunga', 'nahi lungi', 'छोड़ें'],
-};
+const ALIASES = aliasData.acks as Readonly<Record<AckKind, readonly string[]>>;
 
 const LOOKUP: ReadonlyMap<string, AckKind> = new Map(
   (Object.entries(ALIASES) as [AckKind, readonly string[]][]).flatMap(([kind, aliases]) =>

@@ -20,3 +20,17 @@ models:
 
   # The offline fake provider is free.
   fake-model: { input_per_mtok: 0.00, output_per_mtok: 0.00, placeholder: false }
+
+# ---- M13: speech. !!! PLACEHOLDERS !!! Replace with the providers' current published prices.
+# Keys are the exact model ids in STT_MODEL_WHISPER / STT_MODEL_SARVAM / TTS_MODEL_*.
+stt_models:
+  whisper-1: { per_minute_usd: 0.006, placeholder: true }
+  saaras:v4: { per_minute_usd: 0.006, placeholder: true }
+  saaras:v3: { per_minute_usd: 0.006, placeholder: true }
+  fake-stt: { per_minute_usd: 0.0, placeholder: false }
+
+tts_models:
+  bulbul:v3: { per_1k_chars_usd: 0.02, placeholder: true }
+  bulbul:v4-flash: { per_1k_chars_usd: 0.02, placeholder: true }
+  tts-1: { per_1k_chars_usd: 0.015, placeholder: true }
+  fake-tts: { per_1k_chars_usd: 0.0, placeholder: false }

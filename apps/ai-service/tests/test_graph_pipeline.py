@@ -106,7 +106,6 @@ SCENARIOS = [
         lambda: [],
         catalog=False,
     ),
-    Scenario("audio", audio_request, lambda: []),
     Scenario(
         "rx_happy",
         image_request,
@@ -267,7 +266,7 @@ class TestBranches:
             "emergency_guard", "redact", "emergency_classifier", "classify", "templates",
         ]  # fmt: skip
 
-    async def test_audio_is_a_placeholder(self):
+    async def test_audio_without_a_speech_provider_gets_a_static_reply(self):
         assert await self.path(audio_request(), []) == ["transcribe", "templates"]
 
     async def test_a_prescription_goes_through_the_whole_chain_then_the_verifier(self):

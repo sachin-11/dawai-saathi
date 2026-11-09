@@ -48,6 +48,8 @@ function setup(step: OnboardingStep): {
     onboardingStep: step,
     consentAt: null,
     remindersEnabled: true,
+    consentVersion: 'v2',
+    voiceReplies: false,
     deletedAt: null,
   };
   const saveInbound = jest

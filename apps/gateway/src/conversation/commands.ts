@@ -1,3 +1,4 @@
+import aliasData from '../common/safety/data/command-aliases.json';
 import { normaliseForMatching } from '../common/safety/normalise';
 
 export type CommandName =
@@ -11,7 +12,10 @@ export type CommandName =
   | 'reports'
   | 'reminders'
   | 'caregiver_add'
-  | 'caregiver_remove';
+  | 'caregiver_remove'
+  // M13: VOICE ON / VOICE OFF (spoken replies)
+  | 'voice_on'
+  | 'voice_off';
 
 /**
  * Stable ids of the interactive buttons we send. Routing uses these ids, NEVER the visible titles
@@ -27,29 +31,19 @@ export const BUTTON_ID = {
   // M10: answer to the "your reminders end tomorrow" question
   renewYes: 'rem:renew:yes',
   renewNo: 'rem:renew:no',
+  // M13: one-time notice for users who consented before voice notes existed (consent v2)
+  voiceOk: 'voice:ok',
+  voiceNo: 'voice:no',
 } as const;
 
 /**
- * Aliases per command. Matching is on the WHOLE normalised message, never a substring: "help me with
- * my medicine" or "please delete this from my prescription" must not trigger HELP / DELETE.
- * Aliases go through the same normaliser as the message, so they can be written naturally.
+ * Aliases per command come from ONE shared file (`packages/contracts/commands/aliases.json`, copied
+ * here by `make safety-data`; a test fails when the copy is stale). The AI service reads the same
+ * file to detect a command in a voice transcript. Matching is on the WHOLE normalised message, never
+ * a substring: "help me with my medicine" or "please delete this from my prescription" must not
+ * trigger HELP / DELETE. Aliases go through the same normaliser as the message.
  */
-const ALIASES: Readonly<Record<CommandName, readonly string[]>> = {
-  help: ['help', 'madad', 'मदद'],
-  language: ['language', 'bhasha', 'भाषा', 'lang'],
-  delete: ['delete', 'delete my data', 'data delete karo', 'डिलीट'],
-  stop_reminders: ['stop reminders', 'stop reminder', 'reminder band karo', 'stop'],
-  start_reminders: ['start reminders', 'start reminder', 'reminder chalu karo'],
-  meds: ['meds', 'dawai', 'dawaiyan', 'दवाई'],
-  // M11: re-run the interaction / duplicate-ingredient check on all active medicines
-  check: ['check', 'jaanch karo', 'jaanch', 'जांच करो', 'जाँच करो', 'जांच'],
-  // M12: the last lab reports, one tap to see a summary again
-  reports: ['reports', 'my reports', 'reports dikhao', 'report dikhao', 'meri reports', 'रिपोर्ट'],
-  reminders: ['reminders', 'reminder list', 'reminder dikhao', 'रिमाइंडर'],
-  // 'caregiver_add' without a number also lands here: the handler explains the format.
-  caregiver_add: ['caregiver', 'caregiver add', 'parivar jodo', 'परिवार जोड़ो'],
-  caregiver_remove: ['caregiver remove', 'caregiver hatao', 'parivar hatao'],
-};
+const ALIASES = aliasData.commands as Readonly<Record<CommandName, readonly string[]>>;
 
 const LOOKUP: ReadonlyMap<string, CommandName> = new Map(
   (Object.entries(ALIASES) as [CommandName, readonly string[]][]).flatMap(([command, aliases]) =>

@@ -59,7 +59,8 @@ class TestInput:
         into_guard = {e.source for e in graph.edges if e.target == r.EMERGENCY_GUARD}
         into_redact = {e.source for e in graph.edges if e.target == r.REDACT}
         into_classifier = {e.source for e in graph.edges if e.target == r.EMERGENCY_CLASSIFIER}
-        assert into_guard == {"__start__"}
+        assert into_guard == {"__start__", r.TRANSCRIBE}  # text, and a voice transcript (M13)
+        assert {e.source for e in graph.edges if e.target == r.TRANSCRIBE} == {"__start__"}
         assert into_redact == {r.EMERGENCY_GUARD}
         assert into_classifier == {r.REDACT}
 

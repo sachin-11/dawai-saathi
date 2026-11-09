@@ -8,7 +8,8 @@ from app.graph.nodes._util import static_reply, track
 from app.graph.state import GraphState
 from app.graph.traced import traced_node
 from app.pipeline.base import PipelineContext
-from app.schemas.process import Intent
+from app.safety.commands import load_command_table
+from app.schemas.process import InputType, Intent
 from app.tools.classify_image import IMAGE_CLASSIFY_PROMPT_ID, classify_image
 from app.tools.intent import TEMPLATE_FOR_INTENT, classify_intent
 
@@ -24,6 +25,13 @@ def _timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
 async def classify(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     if state.images:
         return await _classify_image(state, ctx)
+
+    if state.request.input.type is InputType.audio:
+        # M13: a spoken command ("meds dikhao", "le li") is recognised by the shared alias table, on
+        # the WHOLE utterance, and only AFTER the emergency stages. The gateway executes it.
+        command = load_command_table().detect(state.transcript_redacted, state.redacted_text)
+        if command is not None:
+            return {**static_reply("voice.command_ack", Intent.other), "detected_command": command}
 
     intent = await classify_intent(
         state.redacted_text or "",

@@ -75,7 +75,7 @@ def build_graph() -> CompiledGraph:
     ):
         graph.add_node(name, node)
 
-    # Entry: typed text is guarded; a file is prepared; audio waits for M13.
+    # Entry: typed text is guarded; a file is prepared; a voice note is transcribed, then guarded.
     graph.add_conditional_edges(
         START,
         r.route_input,
@@ -94,7 +94,11 @@ def build_graph() -> CompiledGraph:
         r.after_emergency_classifier,
         {r.CLASSIFY: r.CLASSIFY, r.TEMPLATES: r.TEMPLATES},
     )
-    graph.add_edge(r.TRANSCRIBE, r.TEMPLATES)  # M13 placeholder
+    graph.add_conditional_edges(
+        r.TRANSCRIBE,
+        r.after_transcribe,
+        {r.EMERGENCY_GUARD: r.EMERGENCY_GUARD, r.TEMPLATES: r.TEMPLATES},
+    )
     graph.add_conditional_edges(
         r.PREPARE_IMAGE, r.after_prepare_image, {r.CLASSIFY: r.CLASSIFY, r.TEMPLATES: r.TEMPLATES}
     )

@@ -26,6 +26,8 @@ const user: UserState = {
   onboardingStep: 'done',
   consentAt: new Date(),
   remindersEnabled: true,
+  consentVersion: 'v2',
+  voiceReplies: false,
   deletedAt: null,
 };
 
@@ -136,6 +138,7 @@ function setup(): {
     labReports as unknown as LabReportService,
     interactionFlow as unknown as InteractionFlowService,
     logger as unknown as PinoLogger,
+    { TTS_ENABLED: false },
   );
   return {
     processor,

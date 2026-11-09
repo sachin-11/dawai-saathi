@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v6
+version: reply_templates_v7
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -82,3 +82,29 @@ texts:
     I cannot look up the lab test information right now, so I will not guess. Please send the report again in a little while, and show it to your doctor.
   lab.question_none: |-
     Please tell me which test you want to know about, for example “What is HbA1c?”, or send a clear photo of the report.
+  voice.unclear: |-
+    I could not hear that clearly. Please send the voice note again in a quieter place, speaking a little slower, or type your message.
+
+    🚨 In an emergency, call 112 or 108 right away.
+  voice.stt_unavailable: |-
+    I cannot listen to voice notes right now, so I could not understand your message. Please type it instead.
+
+    🚨 If this is an emergency, call 112 or 108 right away.
+  voice.too_long: |-
+    This voice note is too long for me. Please send a shorter one (under 2 minutes), or type your message.
+  voice.unreadable: |-
+    I could not open this voice note. Please send it again, or type your message.
+  voice.drug_unclear: |-
+    I am not sure I heard the medicine name correctly, and I do not want to guess. Please type the medicine name, or send a photo of the strip or prescription.
+  voice.command_ack: |-
+    👍
+  voice.no_open_reminder: |-
+    I do not see a reminder waiting for an answer right now.
+  voice.you_asked: |-
+    🎧 You asked: “{transcript}”
+  spoken.rx_summary: |-
+    I read {count} medicines on your prescription: {names}. The full details are in the message. Please confirm everything with your doctor or pharmacist.
+  spoken.lab_summary: |-
+    I read {total} results from your report, and {abnormal} are outside the lab's range. The full details are in the message. Please show the report to your doctor.
+  spoken.lab_critical: |-
+    One or more values may need attention soon. Please contact your doctor today.

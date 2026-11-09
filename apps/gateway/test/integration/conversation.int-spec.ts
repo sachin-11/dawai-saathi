@@ -289,7 +289,7 @@ describe('conversation (integration)', () => {
       });
     });
 
-    it('"I agree" activates the user, records consent v1 and audits it', async () => {
+    it('"I agree" activates the user, records consent v2 and audits it', async () => {
       const phone = newPhone();
       await say(phone, text('hi'));
       await say(phone, tap('lang:hi', 'हिन्दी'));
@@ -298,7 +298,7 @@ describe('conversation (integration)', () => {
       expect(bodyText(welcome)).toContain('धन्यवाद');
       const user = await mustUser(phone);
       expect(user.onboardingStep).toBe('done');
-      expect(user.consentVersion).toBe('v1');
+      expect(user.consentVersion).toBe('v2');
       expect(user.consentAt).toBeInstanceOf(Date);
 
       const audit = await prisma.auditLog.findMany({
@@ -306,7 +306,7 @@ describe('conversation (integration)', () => {
         orderBy: { createdAt: 'asc' },
       });
       expect(audit.map((row) => row.action)).toEqual(['language_changed', 'consent_given']);
-      expect(audit[1]?.metadata).toEqual({ version: 'v1' });
+      expect(audit[1]?.metadata).toEqual({ version: 'v2' });
       expect(audit[0]?.metadata).toEqual({ language: 'hi' });
     });
 

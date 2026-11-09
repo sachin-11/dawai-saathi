@@ -244,7 +244,8 @@ graph TD;
 	prepare_image -.-> classify;
 	prepare_image -.-> templates;
 	redact --> emergency_classifier;
-	transcribe --> templates;
+	transcribe -.-> emergency_guard;
+	transcribe -.-> templates;
 	validate_rx --> normalize_drugs;
 	verifier -.-> __end__;
 	verifier -.-> rx_fallback;
@@ -389,6 +390,32 @@ Reference data is **not clinically reviewed**: see `data/SOURCES.md` before any 
 Manual WhatsApp test: send two synthetic lab reports (`evals/datasets/lab_reports/images/`; the second one with a
 repeated test shows a "Since your last report" line), then `reports`, tap `See all tests`, and send `TSH 6.2 matlab kya?`.
 
+## Voice notes (M13)
+
+A voice note (Hindi, English or Hinglish) is turned into text by a speech service and then goes through the **same
+graph as typed text**: emergency guard first (on the transcript in both scripts, also when it is low-confidence), then
+redaction, intent and the usual branches. Replies are text; with `VOICE ON` short answers are also read aloud.
+
+| Piece | Where |
+|---|---|
+| Speech-to-text providers | `STT_PRIMARY` / `STT_FALLBACK` = `whisper` (OpenAI) or `sarvam`; models in `STT_MODEL_WHISPER`, `STT_MODEL_SARVAM` (never hard-coded); keys `OPENAI_API_KEY`, `SARVAM_API_KEY`; prices in `apps/ai-service/app/llm/pricing.yaml` (placeholders) |
+| Limits | `MAX_AUDIO_SECONDS` (120, longer notes are not transcribed), `MAX_MEDIA_MB`, `STT_MIN_CONFIDENCE`, `STT_SARVAM_MAX_S` (Sarvam REST is for short clips; longer notes use the other provider) |
+| ffmpeg | converts formats a provider does not take (and the spoken reply to Ogg/Opus) through pipes, never a temp file; installed in the AI service image. Locally install ffmpeg or set `FFMPEG_PATH` for real mode |
+| Spoken replies | `TTS_ENABLED=true` (gateway and AI service) + `TTS_PRIMARY` (`sarvam` / `openai`) + `TTS_MODEL_*`; each user turns it on with `VOICE ON` and off with `VOICE OFF` (or "awaaz me jawab do"). The text reply always comes too; never spoken: emergencies, generic price lists, help |
+| Commands by voice | "meds dikhao", "reminder band karo", "le li" (only while a reminder is open), "voice off" ... The alias table is shared with typed commands (`packages/contracts/commands/aliases.json`). **DELETE by voice only shows the confirm button** |
+| Consent | `consent v2` names the speech service. Users who agreed to v1 get a one-time notice with two buttons before their first voice note; nothing is sent to a speech service until they agree |
+
+Fake mode (`LLM_MODE=fake`) uses a fake speech provider: no keys, no ffmpeg, no audio needed.
+
+Evals: `make eval-voice` (fake replay of 100 synthetic prompts, CI gate; hard gate: emergency recall on voice 100%).
+Real providers: build the audio (`uv run --project apps/ai-service python evals/scripts/make_synthetic_voice.py`,
+needs a TTS provider and ffmpeg), then `make eval-voice MODE=real` writes the Whisper vs Sarvam table to
+`evals/reports/`. Synthetic TTS speech is easier than real elderly speakers: see `docs/modules/M13.md`.
+
+Manual WhatsApp test: send the voice notes "Dolo 650 ka generic batao" (reply starts with `🎧 Aapne poocha: ...`),
+"meds dikhao", "le li" right after a reminder, and an emergency phrase ("seene me bahut dard ho raha hai": instant
+112/108 text); then `VOICE ON` and one more voice question (text first, then a short voice message).
+
 ## Conversation flow (M4)
 
 Every first-time number goes through the same short path, and **nothing is processed before consent**:
@@ -456,11 +483,12 @@ Tests: `make test` (unit, fake clock) and `make test-integration` (`reminders.in
 | `make eval-interactions` | Interaction checker eval (135 cases, every safety gate must be zero) |
 | `make eval-rx` | Prescription eval on synthetic images (`MODE=fake-noisy`, or `MODE=real` with your keys) |
 | `make seed` | Load catalog datasets |
+| `make eval-voice` | Voice eval (fake replay; `MODE=real` for the Whisper vs Sarvam table) |
 | `make eval` | Run evaluation suite → `evals/reports/` |
 
 ## User commands (on WhatsApp)
 
-`HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
+`HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `VOICE ON` / `VOICE OFF` · `DELETE` (the same commands also work as voice notes)
 
 ## Privacy
 

@@ -12,12 +12,21 @@ const user: UserState = {
   onboardingStep: 'done',
   consentAt: new Date(),
   remindersEnabled: true,
+  consentVersion: 'v2',
+  voiceReplies: false,
   deletedAt: null,
 };
 
-function setup(): {
+function setup(options: { tts?: boolean } = {}): {
   handlers: CommandHandlersService;
-  users: Record<'setLanguage' | 'setRemindersEnabled' | 'activeMedications', jest.Mock>;
+  users: Record<
+    | 'setLanguage'
+    | 'setRemindersEnabled'
+    | 'activeMedications'
+    | 'setVoiceReplies'
+    | 'acceptVoiceNotice',
+    jest.Mock
+  >;
   audit: { log: jest.Mock };
   schedules: Record<'suspendAll' | 'resumeAll' | 'todayStatus', jest.Mock>;
   warnings: { medicationIdsWithWarnings: jest.Mock };
@@ -27,6 +36,8 @@ function setup(): {
     setLanguage: jest.fn().mockResolvedValue(undefined),
     setRemindersEnabled: jest.fn().mockResolvedValue(undefined),
     activeMedications: jest.fn().mockResolvedValue([]),
+    setVoiceReplies: jest.fn().mockResolvedValue(undefined),
+    acceptVoiceNotice: jest.fn().mockResolvedValue(true),
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const schedules = {
@@ -54,6 +65,7 @@ function setup(): {
       audit as unknown as AuditService,
       schedules as unknown as ReminderScheduleService,
       warnings as unknown as MedicationWarningsService,
+      { TTS_ENABLED: options.tts ?? true },
     ),
     users,
     audit,
@@ -190,5 +202,58 @@ describe('CommandHandlersService', () => {
         { key: 'meds.item', params: { name: 'Cough Syp', timings: 'meds.when_times:3' } },
       ]);
     });
+  });
+});
+
+describe('CommandHandlersService: voice (M13)', () => {
+  it('VOICE ON saves the preference, audits it and confirms', async () => {
+    const s = setup();
+    await s.handlers.setVoiceReplies(user, true, asSession(s));
+    expect(s.users.setVoiceReplies).toHaveBeenCalledWith('user-1', true);
+    expect(s.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'voice_replies_enabled' }),
+    );
+    expect(s.session.text).toHaveBeenCalledWith('voice.on');
+  });
+
+  it('VOICE ON is refused (and nothing saved) while the operator has TTS switched off', async () => {
+    const s = setup({ tts: false });
+    await s.handlers.setVoiceReplies(user, true, asSession(s));
+    expect(s.users.setVoiceReplies).not.toHaveBeenCalled();
+    expect(s.session.text).toHaveBeenCalledWith('voice.unavailable');
+  });
+
+  it('VOICE OFF always works', async () => {
+    const s = setup({ tts: false });
+    await s.handlers.setVoiceReplies({ ...user, voiceReplies: true }, false, asSession(s));
+    expect(s.users.setVoiceReplies).toHaveBeenCalledWith('user-1', false);
+    expect(s.session.text).toHaveBeenCalledWith('voice.off');
+  });
+
+  it('agreeing to the voice notice records consent v2, audits it, and asks for the note again', async () => {
+    const s = setup();
+    await s.handlers.answerVoiceNotice({ ...user, consentVersion: 'v1' }, true, asSession(s));
+    expect(s.users.acceptVoiceNotice).toHaveBeenCalledWith('user-1', 'v2');
+    expect(s.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'consent_updated',
+        metadata: { version: 'v2', reason: 'voice' },
+      }),
+    );
+    expect(s.session.text).toHaveBeenCalledWith('voice.notice_ok');
+  });
+
+  it('a double tap does not audit twice', async () => {
+    const s = setup();
+    s.users.acceptVoiceNotice.mockResolvedValue(false);
+    await s.handlers.answerVoiceNotice(user, true, asSession(s));
+    expect(s.audit.log).not.toHaveBeenCalled();
+  });
+
+  it('declining changes nothing', async () => {
+    const s = setup();
+    await s.handlers.answerVoiceNotice({ ...user, consentVersion: 'v1' }, false, asSession(s));
+    expect(s.users.acceptVoiceNotice).not.toHaveBeenCalled();
+    expect(s.session.text).toHaveBeenCalledWith('voice.notice_no');
   });
 });

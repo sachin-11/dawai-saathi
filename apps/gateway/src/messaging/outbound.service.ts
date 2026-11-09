@@ -171,6 +171,11 @@ export class OutboundService {
           this.client.sendButtons(to, content.body, content.buttons, options),
         );
         break;
+      case 'audio':
+        await sendPart(0, 'audio', '[voice reply]', () =>
+          this.client.sendAudio(to, content.mediaId, options),
+        );
+        break;
       case 'template': {
         const template = this.templates.build(
           content.template,

@@ -13,7 +13,12 @@ from app.graph.nodes._util import emergency_update
 from app.graph.state import GraphState
 from app.graph.traced import traced_node
 from app.pipeline.base import PipelineContext
-from app.safety.emergency_guard import EmergencyResult, user_text_from_request
+from app.safety.emergency_guard import (
+    EmergencyResult,
+    transcript_user_texts,
+    user_text_from_request,
+)
+from app.schemas.process import InputType
 
 log = structlog.get_logger("emergency")
 
@@ -30,6 +35,14 @@ def _log_detected(result: EmergencyResult) -> None:
 
 @traced_node("emergency_guard", timeout="fast")
 async def emergency_guard(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
+    if state.request.input.type is InputType.audio:
+        # A voice note: the transcript, in both scripts, even when it is partial or low-confidence.
+        for text in transcript_user_texts(state.raw_text, state.roman_text):
+            result = ctx.guard.check_rules(text)
+            if result.is_emergency:
+                _log_detected(result)
+                return emergency_update(result)
+        return {"emergency": EmergencyResult(is_emergency=False)}
     user_text = user_text_from_request(state.request)
     if user_text is None:  # defensive: routing only sends user-written text here
         return {}

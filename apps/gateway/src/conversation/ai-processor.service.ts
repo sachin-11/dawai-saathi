@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 
 import { AuditService } from '../audit/audit.service';
 import { AiClient, toRequestId } from '../ai-client/ai-client';
-import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
+import type { DetectedCommand, ProcessRequest, ProcessResponse } from '../ai-client/types';
+import { APP_CONFIG } from '../config/config.constants';
+import type { Env } from '../config/env.schema';
 import { StorageService } from '../common/storage/storage.service';
 import { LabReportService } from '../documents/lab-report.service';
 import { DOCUMENT_ID_PLACEHOLDER, PrescriptionService } from '../documents/prescription.service';
@@ -13,8 +15,10 @@ import { MAX_INTERACTIVE_BODY_LENGTH, WhatsAppClient } from '../messaging/whatsa
 import type { InboundJobData } from '../queues/queue.constants';
 import { type UserState, UsersService } from '../users/users.service';
 import { InteractionFlowService } from './interaction-flow.service';
+import { BUTTON_ID } from './commands';
+import { CONSENT_VERSION } from './onboarding.service';
 import { AI_ERROR_REPLY_INDEX } from './reply-indexes';
-import type { ReplySession } from './replies.service';
+import type { ButtonSpec, ReplySession } from './replies.service';
 
 /** Presigned media URLs handed to the AI service live for 5 minutes (CLAUDE.md §12). */
 export const PRESIGNED_URL_TTL_SECONDS = 300;
@@ -25,9 +29,31 @@ export { AI_ERROR_REPLY_INDEX } from './reply-indexes';
 interface PreparedInput {
   input: ProcessRequest['input'];
   s3Key: string | null;
+  /** Size of the stored file (media only): a voice note's length is guessed from it. */
+  bytes?: number;
 }
 
-export type AiOutcome = 'ai_reply' | 'ai_emergency' | 'media_rejected' | 'unsupported';
+export type AiOutcome =
+  'ai_reply' | 'ai_emergency' | 'media_rejected' | 'unsupported' | 'voice_notice';
+
+/** M13: the AI service heard a command in a voice note; the router executes it. */
+export interface VoiceCommandOutcome {
+  outcome: 'voice_command';
+  command: DetectedCommand;
+}
+
+/**
+ * A WhatsApp voice note is mono Opus at roughly 2 KB/s, so ~20 KB is ~10 s. Meta's webhook does not
+ * tell us the length, and the AI service measures the real one: this only decides whether the short
+ * "listening" message is worth sending.
+ */
+export const LISTENING_ACK_MIN_BYTES = 20_000;
+
+/** Users who consented before voice notes existed (consent v1) see this once before their first one. */
+export const VOICE_NOTICE_BUTTONS: readonly ButtonSpec[] = [
+  { id: BUTTON_ID.voiceOk, titleKey: 'buttons.voice_ok' },
+  { id: BUTTON_ID.voiceNo, titleKey: 'buttons.voice_no' },
+];
 
 /**
  * The branch of the router for a consented user's ordinary message (CLAUDE.md §7.2):
@@ -52,21 +78,32 @@ export class AiProcessor {
     private readonly labReports: LabReportService,
     private readonly interactionFlow: InteractionFlowService,
     private readonly logger: PinoLogger,
+    @Inject(APP_CONFIG) private readonly env: Pick<Env, 'TTS_ENABLED'>,
   ) {
     this.logger.setContext(AiProcessor.name);
   }
 
-  async handle(user: UserState, job: InboundJobData, session: ReplySession): Promise<AiOutcome> {
+  async handle(
+    user: UserState,
+    job: InboundJobData,
+    session: ReplySession,
+  ): Promise<AiOutcome | VoiceCommandOutcome> {
     if (job.type === 'unsupported' || job.type === 'button') {
       await session.text('common.unsupported_type');
       return 'unsupported';
+    }
+    if (job.type === 'audio' && user.consentVersion !== CONSENT_VERSION) {
+      // Consent v1 did not mention speech services: nothing is sent to one until the user agrees.
+      await session.buttons('voice.notice', {}, VOICE_NOTICE_BUTTONS);
+      return 'voice_notice';
     }
 
     const isMedia = job.type === 'image' || job.type === 'document' || job.type === 'audio';
     try {
       if (isMedia) {
-        // Within seconds of the job starting (CLAUDE.md §7.2): ack first, work afterwards.
-        await session.text('common.received_processing');
+        // Within seconds of the job starting (CLAUDE.md §7.2): ack first, work afterwards. A voice
+        // note gets its own, shorter acknowledgement after the download (see below).
+        if (job.type !== 'audio') await session.text('common.received_processing');
         await this.markAsReadQuietly(job);
       }
 
@@ -78,6 +115,9 @@ export class AiProcessor {
         await session.text('common.unsupported_type');
         return 'unsupported';
       }
+      if (job.type === 'audio' && (prepared.bytes ?? 0) > LISTENING_ACK_MIN_BYTES) {
+        await session.text('voice.listening');
+      }
 
       const request = await this.buildRequest(user, job, prepared.input);
       const response = await this.ai.process(request);
@@ -88,6 +128,12 @@ export class AiProcessor {
         this.logResponse(job, response);
         return 'ai_emergency';
       }
+      if (response.detected_command) {
+        // A spoken command ("meds dikhao", "le li"): the router runs it like the typed one. DELETE
+        // still asks for the button confirmation there: nothing is erased on a transcript alone.
+        this.logResponse(job, response);
+        return { outcome: 'voice_command', command: response.detected_command };
+      }
       // Save before answering: the reply's buttons carry the document id, and a reply must never
       // promise "saved" for something that was not.
       const documentId =
@@ -95,6 +141,7 @@ export class AiProcessor {
         (await this.saveLabReport(user, job, response, prepared.s3Key));
       await this.sendReply(response, session, documentId);
       await this.offerInteractionDetails(response, session, documentId);
+      await this.speak(user, job, response, session);
       this.logResponse(job, response);
       return 'ai_reply';
     } catch (error) {
@@ -142,6 +189,7 @@ export class AiProcessor {
         mime: stored.mimeType,
       },
       s3Key: stored.key,
+      bytes: stored.bytes,
     };
   }
 
@@ -158,6 +206,10 @@ export class AiProcessor {
       request_id: toRequestId(job.waMessageId),
       user: { language: user.language, age: null, sex: null },
       input,
+      // M13: only users with VOICE ON (and TTS switched on) get a `spoken_text` back.
+      ...(user.voiceReplies && this.env.TTS_ENABLED
+        ? { options: { include_trace: false, want_spoken: true } }
+        : {}),
       context: {
         active_medications: await this.users.activeMedicationSalts(user.id),
         // M12: earlier lab results (canonical code / value / unit / date) for the "since last report"
@@ -274,6 +326,40 @@ export class AiProcessor {
     // text and the buttons follow with a short prompt, so they are never silently dropped.
     await session.rawText(text);
     await session.rawButtonsWithPrompt('common.next_step', buttons);
+  }
+
+  /**
+   * M13: the optional spoken reply. It is an ADDITION: the text reply is already queued. Best effort:
+   * any failure (speech service down, text too long, upload error) is logged and the user simply
+   * keeps the text. The AI service decides what may be spoken (never emergencies, price lists or
+   * long lab summaries); the gateway only checks the user's own opt-in.
+   */
+  private async speak(
+    user: UserState,
+    job: InboundJobData,
+    response: ProcessResponse,
+    session: ReplySession,
+  ): Promise<void> {
+    const text = response.spoken_text;
+    if (!text || response.emergency || !user.voiceReplies || !this.env.TTS_ENABLED) return;
+    try {
+      const audio = await this.ai.synthesize({
+        request_id: toRequestId(job.waMessageId),
+        language: user.language,
+        text,
+      });
+      const { mediaId } = await this.whatsapp.uploadMedia(
+        Buffer.from(audio.audio_base64, 'base64'),
+        audio.mime,
+        { requestId: job.requestId },
+      );
+      await session.rawAudio(mediaId);
+    } catch (error) {
+      this.logger.warn(
+        { request_id: job.requestId, error_type: error instanceof Error ? error.name : 'unknown' },
+        'spoken reply skipped',
+      );
+    }
   }
 
   /**

@@ -11,6 +11,8 @@ const user: UserState = {
   onboardingStep: 'done',
   consentAt: new Date(),
   remindersEnabled: true,
+  consentVersion: 'v2',
+  voiceReplies: false,
   deletedAt: null,
 };
 

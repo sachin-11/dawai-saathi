@@ -80,6 +80,16 @@ export class ReplySession {
     return this.sendText(body);
   }
 
+  /** M13: a spoken reply (the audio is already uploaded to WhatsApp; only its media id is queued). */
+  rawAudio(mediaId: string): Promise<void> {
+    return this.outbound.enqueue(this.ctx.userId, {
+      content: { kind: 'audio', mediaId },
+      sourceMessageId: this.ctx.messageId,
+      replyIndex: this.nextIndex++,
+      requestId: this.ctx.requestId,
+    });
+  }
+
   /** The AI service's emergency reply: plain text, highest outbound priority, never buttons. */
   rawEmergencyText(body: string): Promise<void> {
     return this.sendText(body, EMERGENCY_PRIORITY);

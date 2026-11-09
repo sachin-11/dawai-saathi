@@ -37,6 +37,7 @@ describe('validateEnv', () => {
       PRIVACY_POLICY_URL: 'https://dawaisaathi.example/privacy',
       AI_CLIENT_TIMEOUT_MS: 70000,
       S3_SSE: 'AES256',
+      TTS_ENABLED: false,
       REMINDER_HORIZON_HOURS: 36,
       REMINDER_OPEN_ENDED_DAYS: 30,
       SNOOZE_MINUTES: 30,

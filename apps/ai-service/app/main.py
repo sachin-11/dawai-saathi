@@ -23,6 +23,9 @@ from app.interactions.service import InteractionService
 from app.labs.service import LabService
 from app.llm.factory import build_llm_router
 from app.llm.router import LLMRouter
+from app.llm.stt.factory import build_stt_router, build_tts_router
+from app.llm.stt.router import STTRouter
+from app.llm.tts import TTSRouter
 from app.llm.types import LLMConfigError
 from app.observability.logging import configure_logging
 from app.observability.request_id import RequestIdMiddleware, current_request_id
@@ -58,6 +61,8 @@ def create_app(
     catalog: CatalogService | None = None,
     interactions: InteractionService | None = None,
     labs: LabService | None = None,
+    stt: STTRouter | None = None,
+    tts: TTSRouter | None = None,
 ) -> FastAPI:
     """Build the app. The keyword arguments let tests inject fakes; production uses the defaults."""
     settings = settings or get_settings()
@@ -88,6 +93,8 @@ def create_app(
         settings, app.state.db.session_factory
     )
     app.state.labs = labs or LabService.from_sessions(app.state.db.session_factory)
+    app.state.stt = stt or _default_stt_router(settings)
+    app.state.tts = tts or _default_tts_router(settings)
     app.state.pipeline = pipeline or default_pipeline(settings)
     app.state.llm_router = llm_router or _default_llm_router(settings)
 
@@ -116,6 +123,21 @@ def _default_llm_router(settings: Settings) -> LLMRouter:
         return build_llm_router(settings, observer=observe_llm_call)
     except LLMConfigError:
         return _UnconfiguredRouter()  # type: ignore[return-value]
+
+
+def _default_stt_router(settings: Settings) -> STTRouter | None:
+    """A misconfigured speech layer must not stop the app: voice notes get the "please type" reply."""
+    try:
+        return build_stt_router(settings)
+    except LLMConfigError:
+        return None
+
+
+def _default_tts_router(settings: Settings) -> TTSRouter | None:
+    try:
+        return build_tts_router(settings)
+    except LLMConfigError:
+        return None
 
 
 class _UnconfiguredRouter:

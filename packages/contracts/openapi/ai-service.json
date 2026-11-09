@@ -82,6 +82,27 @@
         "title": "ActiveMedication",
         "type": "object"
       },
+      "Command": {
+        "description": "A command recognised in a voice note (`detected_command`). The gateway executes it; DELETE\nstill needs the button confirmation, caregiver commands are never detected by voice.",
+        "enum": [
+          "help",
+          "language",
+          "delete",
+          "stop_reminders",
+          "start_reminders",
+          "meds",
+          "check",
+          "reports",
+          "reminders",
+          "voice_on",
+          "voice_off",
+          "reminder_taken",
+          "reminder_snooze",
+          "reminder_skip"
+        ],
+        "title": "Command",
+        "type": "string"
+      },
       "DateField": {
         "additionalProperties": false,
         "properties": {
@@ -1515,6 +1536,16 @@
             ],
             "title": "Debug Trace"
           },
+          "detected_command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Command"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "emergency": {
             "default": false,
             "title": "Emergency",
@@ -1578,6 +1609,30 @@
             "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
             "title": "Request Id",
             "type": "string"
+          },
+          "spoken_text": {
+            "anyOf": [
+              {
+                "maxLength": 1200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken Text"
+          },
+          "transcript_redacted_short": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript Redacted Short"
           },
           "warnings": {
             "items": {
@@ -1696,6 +1751,11 @@
             "default": false,
             "title": "Include Trace",
             "type": "boolean"
+          },
+          "want_spoken": {
+            "default": false,
+            "title": "Want Spoken",
+            "type": "boolean"
           }
         },
         "title": "RequestOptions",
@@ -1774,6 +1834,67 @@
         },
         "required": ["type", "salt_a", "salt_b"],
         "title": "StoredWarning",
+        "type": "object"
+      },
+      "SynthesizeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 1200,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "language", "text"],
+        "title": "SynthesizeRequest",
+        "type": "object"
+      },
+      "SynthesizeResponse": {
+        "properties": {
+          "audio_base64": {
+            "title": "Audio Base64",
+            "type": "string"
+          },
+          "cost_usd": {
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "duration_s": {
+            "minimum": 0.0,
+            "title": "Duration S",
+            "type": "number"
+          },
+          "mime": {
+            "default": "audio/ogg",
+            "title": "Mime",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "audio_base64", "duration_s", "provider", "model", "cost_usd"],
+        "title": "SynthesizeResponse",
         "type": "object"
       },
       "TextField": {
@@ -2363,6 +2484,62 @@
         },
         "summary": "Process",
         "tags": ["process"]
+      }
+    },
+    "/v1/synthesize": {
+      "post": {
+        "operationId": "synthesize_v1_synthesize_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SynthesizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SynthesizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or wrong X-Service-Token"
+          },
+          "422": {
+            "description": "Invalid request, or the spoken reply would be too long"
+          },
+          "503": {
+            "description": "Spoken replies are not enabled / the speech service is down"
+          }
+        },
+        "summary": "Synthesize",
+        "tags": ["voice"]
       }
     }
   }

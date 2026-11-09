@@ -84,6 +84,14 @@ export const envSchema = z
     /** The AI service can take up to PROCESS_TIMEOUT_S (60 s); keep this a little higher. */
     AI_CLIENT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300_000).default(70_000),
 
+    // --- M13: voice notes
+    /**
+     * Spoken replies (text-to-speech). Off by default; a user also needs VOICE ON. The AI service
+     * reads the same variable (it only builds a TTS provider when it is true). The maximum voice-note
+     * length (MAX_AUDIO_SECONDS) is enforced by the AI service, which measures the audio.
+     */
+    TTS_ENABLED: z.stringbool().default(false),
+
     // --- M4: consent text
     /** Link shown in the consent message. The real privacy-policy page arrives with M16 (web app). */
     PRIVACY_POLICY_URL: z

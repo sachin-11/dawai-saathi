@@ -85,12 +85,19 @@ class EmergencyClassification(BaseModel):
 def user_text_from_request(request: ProcessRequest) -> UserText | None:
     """The only way the pipeline creates a `UserText`: the user's own typed message.
 
-    Images (and their extracted text) yield None, so the guard cannot run on them. Audio joins in
-    M13 once there is a transcript of what the user said.
+    Images (and their extracted text) yield None, so the guard cannot run on them. Voice transcripts
+    (M13) go through `transcript_user_texts`.
     """
     if request.input.type is InputType.text and request.input.text:
         return UserText(request.input.text)
     return None
+
+
+def transcript_user_texts(raw: str | None, roman: str | None) -> list[UserText]:
+    """The only way the pipeline creates `UserText` from a VOICE transcript (M13): what the user said,
+    in the script the speech service returned AND in its Roman copy, so a Devanagari "सीने में दर्द" and
+    a Roman "seene me dard" are both checked. Empty pieces are dropped."""
+    return [UserText(text) for text in (raw, roman) if text and text.strip()]
 
 
 # ---------------------------------------------------------------------------- normalisation

@@ -31,6 +31,10 @@ RUN find /app/.venv -type d \( -name tests -o -name test \) -prune -exec rm -rf 
 
 # ---------------------------------------------------------------- runtime
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+# M13: ffmpeg converts voice notes / spoken replies IN MEMORY through pipes (never a temp file)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app
 WORKDIR /app
