@@ -6,6 +6,10 @@
                    (`hi-IN`/`en-IN`), `speaker`, `model` (`bulbul:v3`, `bulbul:v4-flash`),
                    `output_audio_codec` (wav/mp3/aac/flac/linear16; `opus` is rejected, no OGG),
                    text limit 2500 characters (v3 / v4-flash)
+  SmallestTTS      `POST https://api.smallest.ai/waves/v1/{model}/get_speech` (JSON `text`, `voice_id`,
+                   `sample_rate`, `output_format`; binary WAV answer). Checked by a live call on
+                   2026-11-09 with model `lightning-v3.1` (v2 is retired, HTTP 410); the character
+                   limit is NOT known, `SMALLEST_MAX_CHARS` is a conservative guess
   OpenAITTS        `POST {base}/audio/speech` (JSON `model`, `input`, `voice`, `response_format`;
                    binary answer). NOT re-verified against OpenAI's current reference (its docs site
                    blocked automated reading): check model and voice names before production
@@ -44,6 +48,8 @@ TTSLanguage = Literal["hi", "en"]
 MAX_SPOKEN_SECONDS: Final = 45.0
 SARVAM_URL: Final = "https://api.sarvam.ai/text-to-speech"
 SARVAM_MAX_CHARS: Final = 2500
+SMALLEST_URL: Final = "https://api.smallest.ai/waves/v1"
+SMALLEST_MAX_CHARS: Final = 1000
 
 
 class SpeechTooLongError(LLMError):
@@ -150,6 +156,56 @@ class SarvamTTS:
             raise LLMBadRequestError("unreadable speech provider answer") from None
         return TTSAudio(
             audio,
+            "audio/wav",
+            self.name,
+            self.model,
+            len(text),
+            round((time.perf_counter() - started) * 1000),
+            self._pricing.tts_cost_usd(self.model, len(text)),
+        )
+
+
+class SmallestTTS:
+    name = "smallest"
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        *,
+        voice_hi: str,
+        voice_en: str,
+        pricing: AudioPricing | None = None,
+        client: httpx.AsyncClient | None = None,
+        base_url: str = SMALLEST_URL,
+    ) -> None:
+        self._api_key = api_key
+        self.model = model
+        self._voices = {"hi": voice_hi, "en": voice_en}
+        self._pricing = pricing or AudioPricing({}, {})
+        self._client = client
+        self._url = f"{base_url.rstrip('/')}/{model}/get_speech"
+
+    async def synthesize(self, text: str, language: TTSLanguage, *, timeout_s: float) -> TTSAudio:
+        if len(text) > SMALLEST_MAX_CHARS:
+            raise SpeechTooLongError("text is longer than the provider accepts")
+        started = time.perf_counter()
+        response = await post_json(
+            self._client,
+            self._url,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            body={
+                "text": text,
+                "voice_id": self._voices[language],
+                "sample_rate": 24000,
+                "output_format": "wav",
+            },
+            timeout_s=timeout_s,
+        )
+        if not response.content.startswith(b"RIFF"):
+            raise LLMBadRequestError("unreadable speech provider answer")
+        return TTSAudio(
+            response.content,
             "audio/wav",
             self.name,
             self.model,

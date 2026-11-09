@@ -14,6 +14,7 @@ from app.llm.tts import (
     FakeTTS,
     OpenAITTS,
     SarvamTTS,
+    SmallestTTS,
     SpeechTooLongError,
     TTSRouter,
     TTSSlot,
@@ -21,7 +22,7 @@ from app.llm.tts import (
     fake_transcode_runner,
     wav_header_audio,
 )
-from app.llm.types import LLMServerError
+from app.llm.types import LLMBadRequestError, LLMServerError
 from app.main import create_app
 from tests.conftest import make_settings
 
@@ -56,6 +57,35 @@ class TestAdapters:
         assert '"language_code":"hi-IN"' in body.replace(" ", "")
         assert '"output_audio_codec":"wav"' in body.replace(" ", "")
         assert audio.data[:4] == b"RIFF" and audio.cost_usd == pytest.approx(0.02 * 7 / 1000)
+
+    async def test_smallest_request_and_response(self):
+        seen: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["url"] = str(request.url)
+            seen["auth"] = request.headers["authorization"]
+            seen["json"] = request.read().decode().replace(" ", "")
+            return httpx.Response(200, content=wav_header_audio())
+
+        tts = SmallestTTS(
+            "sm", "lightning-v3.1", voice_hi="srishti", voice_en="lakshya", client=_client(handler)
+        )
+        audio = await tts.synthesize("namaste", "hi", timeout_s=5)
+        assert seen["url"] == "https://api.smallest.ai/waves/v1/lightning-v3.1/get_speech"
+        assert seen["auth"] == "Bearer sm"
+        assert '"voice_id":"srishti"' in str(seen["json"])
+        assert audio.data[:4] == b"RIFF" and audio.provider == "smallest"
+
+    async def test_smallest_rejects_a_non_audio_answer(self):
+        tts = SmallestTTS(
+            "sm",
+            "lightning-v3.1",
+            voice_hi="a",
+            voice_en="b",
+            client=_client(lambda r: httpx.Response(200, content=b"<html>")),
+        )
+        with pytest.raises(LLMBadRequestError):
+            await tts.synthesize("namaste", "en", timeout_s=5)
 
     async def test_sarvam_refuses_text_over_its_limit(self):
         tts = SarvamTTS("k", "bulbul:v3", client=_client(lambda r: httpx.Response(200)))
@@ -121,6 +151,37 @@ class TestFactory:
     def test_a_real_provider_without_its_key_builds_nothing(self):
         settings = make_settings(TTS_ENABLED=True, LLM_MODE="real", TTS_PRIMARY="sarvam")
         assert build_tts_router(settings) is None
+
+
+class TestSmallestFirstChain:
+    def _settings(self, **extra):
+        values = {
+            "TTS_ENABLED": True,
+            "LLM_MODE": "real",
+            "TTS_PRIMARY": "smallest",
+            "TTS_FALLBACK": "sarvam, openai",
+            "SMALLEST_API_KEY": "sm",
+            "TTS_MODEL_SMALLEST": "lightning-v3.1",
+            "TTS_VOICE_SMALLEST_HI": "srishti",
+            "TTS_VOICE_SMALLEST_EN": "lakshya",
+            "SARVAM_API_KEY": "sv",
+            "TTS_MODEL_SARVAM": "bulbul:v3",
+            "OPENAI_API_KEY": "oa",
+            "TTS_MODEL_OPENAI": "tts-1",
+            "TTS_VOICE_OPENAI": "alloy",
+        }
+        values.update(extra)
+        return make_settings(**values)
+
+    def test_order_is_smallest_then_sarvam_then_openai(self):
+        router = build_tts_router(self._settings())
+        assert router is not None
+        assert [slot.provider.name for slot in router._slots] == ["smallest", "sarvam", "openai"]
+
+    def test_a_fallback_without_credentials_is_skipped(self):
+        router = build_tts_router(self._settings(OPENAI_API_KEY=""))
+        assert router is not None
+        assert [slot.provider.name for slot in router._slots] == ["smallest", "sarvam"]
 
 
 def _app(**settings):
