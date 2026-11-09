@@ -24,7 +24,7 @@ LogLevel = Literal["fatal", "error", "warn", "info", "debug", "trace", "silent"]
 LLMMode = Literal["real", "fake"]
 ProviderName = Literal["anthropic", "openai"]
 SttProviderName = Literal["whisper", "sarvam"]
-TtsProviderName = Literal["sarvam", "openai"]
+TtsProviderName = Literal["smallest", "sarvam", "openai"]
 
 _PLACEHOLDER_SECRETS = frozenset({"change-me", "changeme", ""})
 
@@ -218,7 +218,12 @@ class Settings(BaseSettings):
     ffmpeg_path: str = Field(default="ffmpeg", validation_alias="FFMPEG_PATH")
     tts_enabled: bool = Field(default=False, validation_alias="TTS_ENABLED")
     tts_primary: OptionalTts = Field(default="sarvam", validation_alias="TTS_PRIMARY")
-    tts_fallback: OptionalTts = Field(default=None, validation_alias="TTS_FALLBACK")
+    # Comma separated, tried in order after the primary: `sarvam,openai`
+    tts_fallback: Optional_ = Field(default=None, validation_alias="TTS_FALLBACK")
+    smallest_api_key: OptionalSecret = Field(default=None, validation_alias="SMALLEST_API_KEY")
+    tts_model_smallest: Optional_ = Field(default=None, validation_alias="TTS_MODEL_SMALLEST")
+    tts_voice_smallest_hi: Optional_ = Field(default=None, validation_alias="TTS_VOICE_SMALLEST_HI")
+    tts_voice_smallest_en: Optional_ = Field(default=None, validation_alias="TTS_VOICE_SMALLEST_EN")
     tts_model_sarvam: Optional_ = Field(default=None, validation_alias="TTS_MODEL_SARVAM")
     tts_model_openai: Optional_ = Field(default=None, validation_alias="TTS_MODEL_OPENAI")
     tts_voice_openai: Optional_ = Field(default=None, validation_alias="TTS_VOICE_OPENAI")

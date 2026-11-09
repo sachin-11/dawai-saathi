@@ -13,6 +13,7 @@ from app.llm.tts import (
     FakeTTS,
     OpenAITTS,
     SarvamTTS,
+    SmallestTTS,
     TTSProvider,
     TTSRouter,
     TTSSlot,
@@ -89,8 +90,28 @@ def build_tts_router(
             transcoder=Transcoder(run=fake_transcode_runner),
         )
     slots: list[TTSSlot] = []
-    for name in (settings.tts_primary, settings.tts_fallback):
-        if name == "sarvam" and settings.sarvam_api_key and settings.tts_model_sarvam:
+    fallbacks = [n.strip() for n in (settings.tts_fallback or "").split(",") if n.strip()]
+    for name in (settings.tts_primary, *fallbacks):
+        if (
+            name == "smallest"
+            and settings.smallest_api_key
+            and settings.tts_model_smallest
+            and settings.tts_voice_smallest_hi
+            and settings.tts_voice_smallest_en
+        ):
+            slots.append(
+                TTSSlot(
+                    SmallestTTS(
+                        settings.smallest_api_key.get_secret_value(),
+                        settings.tts_model_smallest,
+                        voice_hi=settings.tts_voice_smallest_hi,
+                        voice_en=settings.tts_voice_smallest_en,
+                        pricing=pricing,
+                    ),
+                    _breaker(settings),
+                )
+            )
+        elif name == "sarvam" and settings.sarvam_api_key and settings.tts_model_sarvam:
             slots.append(
                 TTSSlot(
                     SarvamTTS(
