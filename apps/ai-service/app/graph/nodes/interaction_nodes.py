@@ -20,8 +20,9 @@ from app.interactions.service import (
     typed_medications,
 )
 from app.pipeline.base import PipelineContext
+from app.schemas.catalog import MatchMethod
 from app.schemas.interactions import InteractionFinding, InteractionReport
-from app.schemas.process import Intent, Warning, WarningType
+from app.schemas.process import InputType, Intent, Warning, WarningType
 from app.tools.intent import extract_interaction_names
 
 ASK_NAMES_TEMPLATE = "interaction.ask_names"
@@ -79,6 +80,17 @@ async def match_query_medicines(state: GraphState, ctx: PipelineContext) -> dict
     )
     if any(m.note == "catalog_unavailable" for m in matches):
         return static_reply(UNAVAILABLE_TEMPLATE, Intent.interaction_query)
+    if state.request.input.type is InputType.audio:
+        # A name heard through speech-to-text that matches NOTHING (not a product, not a known
+        # ingredient): it may be misheard, so ask for it in writing instead of "could not check".
+        known = (
+            await ctx.interactions.known_salts() if ctx.interactions is not None else frozenset()
+        )
+        if any(
+            m.method is MatchMethod.none and " ".join(name.lower().split()) not in known
+            for name, m in zip(state.interaction_names, matches, strict=True)
+        ):
+            return static_reply("voice.drug_unclear", Intent.interaction_query)
     return {"drug_matches": list(matches)}
 
 

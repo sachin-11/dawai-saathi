@@ -132,9 +132,10 @@ class TestEmergencyNodes:
 
 
 class TestInputNodes:
-    async def test_transcribe_is_a_placeholder_with_the_static_reply(self):
+    async def test_transcribe_without_a_speech_provider_says_so_and_names_112(self):
         update, _ = await call(transcribe, state_for(audio_request()))
-        assert update["template_key"] == "received_media" and update["intent"] is Intent.other
+        assert update["template_key"] == "voice.stt_unavailable"
+        assert update["intent"] is Intent.other
 
     async def test_prepare_image_returns_the_images_without_writing_anything_else(
         self, monkeypatch

@@ -18,6 +18,8 @@ import type {
   LabRenderResponse,
   ProcessRequest,
   ProcessResponse,
+  SynthesizeRequest,
+  SynthesizeResponse,
 } from './types';
 
 export interface AiRetryPolicy {
@@ -63,6 +65,12 @@ function isInteractionCheckResponse(value: unknown): value is InteractionCheckRe
     body.interactions !== null &&
     Array.isArray(body.interactions.findings)
   );
+}
+
+function isSynthesizeResponse(value: unknown): value is SynthesizeResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const body = value as { audio_base64?: unknown; mime?: unknown };
+  return typeof body.audio_base64 === 'string' && body.audio_base64.length > 0;
 }
 
 function isProcessResponse(value: unknown): value is ProcessResponse {
@@ -136,6 +144,11 @@ export class AiClient {
   /** "See all tests" and `REPORTS`: a stored lab extraction rendered by the AI service (no model call). */
   async labRender(request: LabRenderRequest): Promise<LabRenderResponse> {
     return this.post('/v1/lab-render', 'ai.lab_render', request, isGenericDetailsResponse);
+  }
+
+  /** M13: a short spoken reply (Ogg/Opus, base64). Only ever called with the AI service's own `spoken_text`. */
+  async synthesize(request: SynthesizeRequest): Promise<SynthesizeResponse> {
+    return this.post('/v1/synthesize', 'ai.synthesize', request, isSynthesizeResponse);
   }
 
   private async post<Res>(

@@ -23,6 +23,8 @@ Environment = Literal["development", "test", "production"]
 LogLevel = Literal["fatal", "error", "warn", "info", "debug", "trace", "silent"]
 LLMMode = Literal["real", "fake"]
 ProviderName = Literal["anthropic", "openai"]
+SttProviderName = Literal["whisper", "sarvam"]
+TtsProviderName = Literal["sarvam", "openai"]
 
 _PLACEHOLDER_SECRETS = frozenset({"change-me", "changeme", ""})
 
@@ -37,6 +39,8 @@ def _empty_to_none(value: object) -> object:
 Optional_ = Annotated[str | None, BeforeValidator(_empty_to_none)]
 OptionalSecret = Annotated[SecretStr | None, BeforeValidator(_empty_to_none)]
 OptionalProvider = Annotated[ProviderName | None, BeforeValidator(_empty_to_none)]
+OptionalStt = Annotated[SttProviderName | None, BeforeValidator(_empty_to_none)]
+OptionalTts = Annotated[TtsProviderName | None, BeforeValidator(_empty_to_none)]
 
 
 class Settings(BaseSettings):
@@ -166,6 +170,49 @@ class Settings(BaseSettings):
     embedding_api_key: OptionalSecret = Field(default=None, validation_alias="EMBEDDING_API_KEY")
     embedding_model: Optional_ = Field(default=None, validation_alias="EMBEDDING_MODEL")
 
+    # ---- M13: voice notes (speech-to-text) and optional spoken replies (text-to-speech)
+    # Model ids, endpoints and prices are configuration (pricing.yaml), never constants.
+    stt_primary: OptionalStt = Field(default="whisper", validation_alias="STT_PRIMARY")
+    stt_fallback: OptionalStt = Field(default=None, validation_alias="STT_FALLBACK")
+    stt_model_whisper: Optional_ = Field(default=None, validation_alias="STT_MODEL_WHISPER")
+    stt_model_sarvam: Optional_ = Field(default=None, validation_alias="STT_MODEL_SARVAM")
+    # Sarvam `mode`, e.g. "codemix" (saaras:v3) to keep English words in Latin script for Hinglish.
+    stt_sarvam_mode: Optional_ = Field(default=None, validation_alias="STT_SARVAM_MODE")
+    # Sarvam's REST endpoint is meant for short clips; a longer note goes to the other provider.
+    stt_sarvam_max_s: float = Field(default=30.0, ge=0, le=600, validation_alias="STT_SARVAM_MAX_S")
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1", validation_alias="OPENAI_BASE_URL"
+    )
+    sarvam_api_key: OptionalSecret = Field(default=None, validation_alias="SARVAM_API_KEY")
+    stt_call_timeout_s: float = Field(
+        default=25.0, gt=0, le=120, validation_alias="STT_CALL_TIMEOUT_S"
+    )
+    # Below this (or an empty / very short transcript) the note is "unclear": ask to repeat or type.
+    stt_min_confidence: float = Field(
+        default=0.35, ge=0.0, le=1.0, validation_alias="STT_MIN_CONFIDENCE"
+    )
+    stt_min_chars: int = Field(default=3, ge=1, le=50, validation_alias="STT_MIN_CHARS")
+    # `user` = hint with the user's language; `auto` = let the provider detect it (code-mixed speech).
+    stt_language_mode: Literal["user", "auto"] = Field(
+        default="user", validation_alias="STT_LANGUAGE_MODE"
+    )
+    max_audio_seconds: int = Field(default=120, ge=5, le=600, validation_alias="MAX_AUDIO_SECONDS")
+    node_timeout_stt_s: float = Field(
+        default=50.0, gt=0, le=300, validation_alias="NODE_TIMEOUT_STT_S"
+    )
+    ffmpeg_path: str = Field(default="ffmpeg", validation_alias="FFMPEG_PATH")
+    tts_enabled: bool = Field(default=False, validation_alias="TTS_ENABLED")
+    tts_primary: OptionalTts = Field(default="sarvam", validation_alias="TTS_PRIMARY")
+    tts_fallback: OptionalTts = Field(default=None, validation_alias="TTS_FALLBACK")
+    tts_model_sarvam: Optional_ = Field(default=None, validation_alias="TTS_MODEL_SARVAM")
+    tts_model_openai: Optional_ = Field(default=None, validation_alias="TTS_MODEL_OPENAI")
+    tts_voice_openai: Optional_ = Field(default=None, validation_alias="TTS_VOICE_OPENAI")
+    tts_speaker_hi: Optional_ = Field(default=None, validation_alias="TTS_SPEAKER_HI")
+    tts_speaker_en: Optional_ = Field(default=None, validation_alias="TTS_SPEAKER_EN")
+    tts_call_timeout_s: float = Field(
+        default=20.0, gt=0, le=120, validation_alias="TTS_CALL_TIMEOUT_S"
+    )
+
     # ---- M5: Langfuse (optional: without keys tracing is a no-op)
     langfuse_public_key: OptionalSecret = Field(
         default=None, validation_alias="LANGFUSE_PUBLIC_KEY"
@@ -205,12 +252,13 @@ class Settings(BaseSettings):
         return self
 
     def node_timeout_s(self, kind: str) -> float:
-        """Time limit for a node class: vision | cheap | composer | io | fast."""
+        """Time limit for a node class: vision | cheap | composer | io | stt | fast."""
         return {
             "vision": self.node_timeout_vision_s,
             "cheap": self.node_timeout_cheap_s,
             "composer": self.node_timeout_composer_s,
             "io": self.node_timeout_io_s,
+            "stt": self.node_timeout_stt_s,
         }.get(kind, self.node_timeout_fast_s)
 
     @property

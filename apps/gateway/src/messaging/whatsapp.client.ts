@@ -95,6 +95,11 @@ const mediaInfoSchema = z.object({
   sha256: z.string().optional(),
 });
 
+/** WhatsApp accepts audio uploads up to 16 MB; a spoken reply is a few hundred KB. */
+const MAX_UPLOAD_BYTES = 16 * 1024 * 1024;
+
+const uploadResponseSchema = z.object({ id: z.string().min(1) });
+
 interface InternalCall<T> {
   operation: string;
   url: string;
@@ -230,6 +235,26 @@ export class WhatsAppClient {
     );
   }
 
+  /**
+   * M13: an audio message (a spoken reply) from a media id that `uploadMedia` returned. Ogg/Opus mono
+   * is what WhatsApp plays as a voice message.
+   */
+  sendAudio(to: string, mediaId: string, options: CallOptions = {}): Promise<SendResult> {
+    if (!/^[A-Za-z0-9_-]+$/.test(mediaId)) {
+      throw new WhatsAppValidationError('invalid media id');
+    }
+    return this.send(
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'audio',
+        audio: { id: mediaId },
+      },
+      options,
+    );
+  }
+
   /** Show blue ticks for an inbound message while we are still processing it. */
   async markAsRead(waMessageId: string, options: CallOptions = {}): Promise<void> {
     await this.call({
@@ -274,6 +299,39 @@ export class WhatsAppClient {
           fileSize: parsed.data.file_size,
           sha256: parsed.data.sha256,
         };
+      },
+    });
+  }
+
+  /**
+   * M13: upload a file (a spoken reply) and get its media id. Uploading is safe to repeat: a retry can
+   * only create one more unused media id, never a second message.
+   */
+  async uploadMedia(
+    data: Uint8Array,
+    mimeType: string,
+    options: CallOptions = {},
+  ): Promise<{ mediaId: string }> {
+    if (data.byteLength === 0 || data.byteLength > MAX_UPLOAD_BYTES) {
+      throw new WhatsAppValidationError(`media upload must be 1–${MAX_UPLOAD_BYTES} bytes`);
+    }
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', mimeType);
+    form.append('file', new Blob([data], { type: mimeType }), 'reply.ogg');
+    return this.call({
+      operation: 'media.upload',
+      url: `${this.baseUrl()}/${this.env.WA_PHONE_NUMBER_ID}/media`,
+      init: { method: 'POST', body: form },
+      idempotent: true,
+      timeoutMs: DOWNLOAD_TIMEOUT_MS,
+      requestId: options.requestId,
+      parse: async (response) => {
+        const parsed = uploadResponseSchema.safeParse(await response.json());
+        if (!parsed.success) {
+          throw this.invalidResponse(response.status);
+        }
+        return { mediaId: parsed.data.id };
       },
     });
   }

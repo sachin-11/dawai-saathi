@@ -12,6 +12,7 @@ from app.config import Settings
 from app.interactions.service import InteractionService
 from app.labs.service import LabService
 from app.llm.router import Deadline, LLMRouter
+from app.llm.stt.router import STTRouter
 from app.llm.types import LLMResult
 from app.prompts.registry import PromptRegistry, TemplateStore
 from app.safety.emergency_guard import EmergencyGuard
@@ -20,6 +21,7 @@ from app.schemas.interactions import InteractionReport
 from app.schemas.lab_report import LabReportExtraction
 from app.schemas.prescription import PrescriptionExtraction
 from app.schemas.process import (
+    Command,
     EmergencyCategory,
     Intent,
     ProcessRequest,
@@ -74,6 +76,8 @@ class PipelineContext:
     interactions: InteractionService | None = None
     # M12: None in tests that do not need it; then lab reports get the "not available" reply.
     labs: LabService | None = None
+    # M13: None when no speech provider is configured; a voice note then gets the "please type" reply.
+    stt: STTRouter | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +91,10 @@ class PipelineOutput:
     interactions: InteractionReport | None = None
     # Per-node timings (no text, no values). Set by the graph; returned only to the demo client.
     debug_trace: list[TraceEntry] | None = None
+    # M13
+    detected_command: Command | None = None
+    transcript_redacted_short: str | None = None
+    spoken_text: str | None = None
 
 
 class Pipeline(Protocol):

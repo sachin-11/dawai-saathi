@@ -21,7 +21,13 @@ export interface TemplateContent {
   buttonPayloads?: string[];
 }
 
-export type OutboundContent = TextContent | ButtonsContent | TemplateContent;
+/** M13: a spoken reply. Only the WhatsApp media id travels in the job (the audio is already uploaded). */
+export interface AudioContent {
+  kind: 'audio';
+  mediaId: string;
+}
+
+export type OutboundContent = TextContent | ButtonsContent | TemplateContent | AudioContent;
 
 export interface OutboundRequest {
   content: OutboundContent;

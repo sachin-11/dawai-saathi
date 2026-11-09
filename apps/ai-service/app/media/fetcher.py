@@ -31,6 +31,7 @@ ALLOWED_MIME_TYPES = frozenset(
         "audio/mpeg",
         "audio/mp4",
         "audio/aac",
+        "audio/amr",
     }
 )
 IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})

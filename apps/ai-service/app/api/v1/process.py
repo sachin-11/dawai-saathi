@@ -80,6 +80,7 @@ async def process(
         catalog=state.catalog,
         interactions=state.interactions,
         labs=state.labs,
+        stt=state.stt,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):
@@ -139,6 +140,9 @@ async def process(
         reply=output.reply,
         meta=meta,
         # Only the demo client, and only when it asked: per-node names and numbers, never content.
+        detected_command=output.detected_command,
+        transcript_redacted_short=output.transcript_redacted_short,
+        spoken_text=output.spoken_text if body.options.want_spoken else None,
         debug_trace=output.debug_trace if body.options.include_trace and caller == "demo" else None,
     )
 

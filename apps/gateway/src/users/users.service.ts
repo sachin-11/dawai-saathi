@@ -15,6 +15,10 @@ export interface UserState {
   onboardingStep: OnboardingStep;
   consentAt: Date | null;
   remindersEnabled: boolean;
+  /** M13: the consent text version the user accepted ("v2" mentions speech services). */
+  consentVersion: string | null;
+  /** M13: VOICE ON. Needs TTS_ENABLED as well. */
+  voiceReplies: boolean;
   /** Set while an erasure (DELETE) is in flight. */
   deletedAt: Date | null;
 }
@@ -28,6 +32,8 @@ const USER_SELECT = {
   onboardingStep: true,
   consentAt: true,
   remindersEnabled: true,
+  consentVersion: true,
+  voiceReplies: true,
   deletedAt: true,
 } as const;
 
@@ -119,6 +125,22 @@ export class UsersService {
     const result = await this.prisma.user.updateMany({
       where: { id: userId, onboardingStep: 'consent' },
       data: { consentAt: at, consentVersion: version, onboardingStep: 'done' },
+    });
+    return result.count > 0;
+  }
+
+  async setVoiceReplies(userId: string, enabled: boolean): Promise<void> {
+    await this.prisma.user.updateMany({ where: { id: userId }, data: { voiceReplies: enabled } });
+  }
+
+  /**
+   * M13: a user who consented before voice notes existed saw the one-time notice and tapped OK.
+   * Conditional on an OLDER version; returns true only for the call that actually moved the user.
+   */
+  async acceptVoiceNotice(userId: string, version: string): Promise<boolean> {
+    const result = await this.prisma.user.updateMany({
+      where: { id: userId, onboardingStep: 'done', NOT: { consentVersion: version } },
+      data: { consentVersion: version },
     });
     return result.count > 0;
   }

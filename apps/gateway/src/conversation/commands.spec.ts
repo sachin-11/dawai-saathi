@@ -89,6 +89,8 @@ describe('BUTTON_ID', () => {
       deleteCancel: 'delete:cancel',
       renewYes: 'rem:renew:yes',
       renewNo: 'rem:renew:no',
+      voiceOk: 'voice:ok',
+      voiceNo: 'voice:no',
     });
   });
 });

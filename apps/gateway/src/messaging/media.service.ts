@@ -20,6 +20,7 @@ export const ALLOWED_MEDIA_TYPES: ReadonlyMap<string, string> = new Map([
   ['audio/mpeg', 'mp3'],
   ['audio/mp4', 'm4a'],
   ['audio/aac', 'aac'],
+  ['audio/amr', 'amr'],
 ]);
 
 /** `audio/ogg; codecs=opus` (what voice notes report) -> `audio/ogg`. */

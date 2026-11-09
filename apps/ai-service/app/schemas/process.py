@@ -64,6 +64,26 @@ class EmergencyCategory(StrEnum):
     self_harm = "self_harm"
 
 
+class Command(StrEnum):
+    """A command recognised in a voice note (`detected_command`). The gateway executes it; DELETE
+    still needs the button confirmation, caregiver commands are never detected by voice."""
+
+    help = "help"
+    language = "language"
+    delete = "delete"
+    stop_reminders = "stop_reminders"
+    start_reminders = "start_reminders"
+    meds = "meds"
+    check = "check"
+    reports = "reports"
+    reminders = "reminders"
+    voice_on = "voice_on"
+    voice_off = "voice_off"
+    reminder_taken = "reminder_taken"
+    reminder_snooze = "reminder_snooze"
+    reminder_skip = "reminder_skip"
+
+
 class WarningType(StrEnum):
     low_confidence = "low_confidence"
     interaction = "interaction"
@@ -136,6 +156,8 @@ class RequestOptions(_Strict):
     # Ask for `debug_trace` in the response. Honoured ONLY for the demo client (DEMO_SERVICE_TOKEN);
     # the gateway never sets it, and for any other caller it is ignored.
     include_trace: bool = False
+    # M13: the user has spoken replies on: also return `spoken_text` when the reply may be spoken.
+    want_spoken: bool = False
 
 
 class ProcessRequest(_Strict):
@@ -206,5 +228,11 @@ class ProcessResponse(BaseModel):
     interactions: InteractionReport | None = None
     reply: Reply
     meta: Meta
+    # M13 (voice notes): a command found in the transcript (the gateway executes it), the first
+    # 120 characters of the REDACTED transcript for the "you asked" line, and a short text that may be
+    # read aloud (only when `options.want_spoken` and the reply is allowed to be spoken).
+    detected_command: Command | None = None
+    transcript_redacted_short: str | None = Field(default=None, max_length=120)
+    spoken_text: str | None = Field(default=None, max_length=1200)
     # Per-node trace for the web demo: present only for the demo client that asked for it.
     debug_trace: list[TraceEntry] | None = None

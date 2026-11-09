@@ -31,7 +31,8 @@ _QUERY_GENERIC_FAILURES = frozenset({"generic_four_key", "generic_not_substituta
 @traced_node("templates", timeout="fast")
 async def templates(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     language = language_of(state)
-    key = state.template_key or "help"  # unreachable: routing only sends a state with a key here
+    # Routing only sends a state with a key here, or an unclear voice note (M13).
+    key = state.template_key or ("voice.unclear" if state.voice_unclear else "help")
     return {
         "reply": Reply(language=language, text=ctx.templates.get(language, key)),
         "reply_source": "template",

@@ -22,10 +22,10 @@ describe('M4 i18n keys', () => {
   it('has every key the conversation flow needs, in both languages', () => {
     const needed = [
       'onboarding.choose_language',
-      'consent.v1.body',
-      'consent.v1.accepted_welcome',
-      'consent.v1.declined',
-      'consent.v1.reminder',
+      'consent.v2.body',
+      'consent.v2.accepted_welcome',
+      'consent.v2.declined',
+      'consent.v2.reminder',
       'help.body',
       'language.changed',
       'reminders.disabled',
@@ -73,8 +73,8 @@ describe('M4 i18n keys', () => {
 
   describe('interactive message bodies fit WhatsApp (max 1024 characters)', () => {
     const bodies: [MessageKey, Record<string, string | number>][] = [
-      ['consent.v1.body', SAMPLE_PARAMS],
-      ['consent.v1.reminder', {}],
+      ['consent.v2.body', SAMPLE_PARAMS],
+      ['consent.v2.reminder', {}],
       ['delete.confirm_question', {}],
       ['onboarding.choose_language', {}],
     ];
@@ -87,7 +87,7 @@ describe('M4 i18n keys', () => {
 
   describe('consent text (CLAUDE.md §7.1): honest, complete and short', () => {
     it.each(LANGUAGES)('%s version is at most ~8 short lines', (language) => {
-      const lines = t(language, 'consent.v1.body', SAMPLE_PARAMS)
+      const lines = t(language, 'consent.v2.body', SAMPLE_PARAMS)
         .split('\n')
         .filter((line) => line.trim() !== '');
       expect(lines.length).toBeLessThanOrEqual(9);
@@ -97,7 +97,7 @@ describe('M4 i18n keys', () => {
     it.each(LANGUAGES)(
       '%s version states retention, "not a doctor", DELETE and the privacy link',
       (language) => {
-        const text = t(language, 'consent.v1.body', SAMPLE_PARAMS);
+        const text = t(language, 'consent.v2.body', SAMPLE_PARAMS);
         expect(text).toContain('30');
         expect(text).toContain('DELETE');
         expect(text).toContain('https://dawaisaathi.example/privacy');
@@ -105,19 +105,19 @@ describe('M4 i18n keys', () => {
     );
 
     it('English says it is not a doctor and never diagnoses', () => {
-      expect(t('en', 'consent.v1.body', SAMPLE_PARAMS)).toMatch(/not a doctor/i);
-      expect(t('en', 'consent.v1.body', SAMPLE_PARAMS)).toMatch(/never diagnose/i);
+      expect(t('en', 'consent.v2.body', SAMPLE_PARAMS)).toMatch(/not a doctor/i);
+      expect(t('en', 'consent.v2.body', SAMPLE_PARAMS)).toMatch(/never diagnose/i);
     });
 
     it('Hindi says it is not a doctor', () => {
-      expect(t('hi', 'consent.v1.body', SAMPLE_PARAMS)).toContain('डॉक्टर नहीं');
+      expect(t('hi', 'consent.v2.body', SAMPLE_PARAMS)).toContain('डॉक्टर नहीं');
     });
 
     it('both languages say what is stored (photos, medicine details, reminders)', () => {
-      expect(t('en', 'consent.v1.body', SAMPLE_PARAMS)).toMatch(/photos/i);
-      expect(t('en', 'consent.v1.body', SAMPLE_PARAMS)).toMatch(/reminders/i);
-      expect(t('hi', 'consent.v1.body', SAMPLE_PARAMS)).toContain('फ़ोटो');
-      expect(t('hi', 'consent.v1.body', SAMPLE_PARAMS)).toContain('रिमाइंडर');
+      expect(t('en', 'consent.v2.body', SAMPLE_PARAMS)).toMatch(/photos/i);
+      expect(t('en', 'consent.v2.body', SAMPLE_PARAMS)).toMatch(/reminders/i);
+      expect(t('hi', 'consent.v2.body', SAMPLE_PARAMS)).toContain('फ़ोटो');
+      expect(t('hi', 'consent.v2.body', SAMPLE_PARAMS)).toContain('रिमाइंडर');
     });
   });
 

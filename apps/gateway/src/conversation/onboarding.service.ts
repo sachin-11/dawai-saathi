@@ -8,8 +8,8 @@ import { type UserLanguage, type UserState, UsersService } from '../users/users.
 import { BUTTON_ID, type CommandName } from './commands';
 import type { ButtonSpec, ReplySession } from './replies.service';
 
-/** Version of the consent text (`consent.v1.*` in the i18n files). Bump it when the text changes. */
-export const CONSENT_VERSION = 'v1';
+/** Version of the consent text (`consent.v2.*` in the i18n files). Bump it when the text changes. */
+export const CONSENT_VERSION = 'v2';
 
 export const LANGUAGE_BUTTONS: readonly ButtonSpec[] = [
   { id: BUTTON_ID.langHi, titleKey: 'buttons.lang_hi' },
@@ -136,7 +136,7 @@ export class OnboardingService {
             metadata: { version: CONSENT_VERSION },
           });
         }
-        await session.text('consent.v1.accepted_welcome');
+        await session.text('consent.v2.accepted_welcome');
         return;
       }
 
@@ -147,19 +147,19 @@ export class OnboardingService {
           action: 'consent_declined',
           metadata: { version: CONSENT_VERSION },
         });
-        await session.text('consent.v1.declined');
+        await session.text('consent.v2.declined');
         return;
 
       case 'remind_consent':
         // Includes photos and documents sent before consent: nothing is downloaded or read.
-        await session.buttons('consent.v1.reminder', {}, CONSENT_BUTTONS);
+        await session.buttons('consent.v2.reminder', {}, CONSENT_BUTTONS);
         return;
     }
   }
 
   private sendConsent(session: ReplySession): Promise<void> {
     return session.buttons(
-      'consent.v1.body',
+      'consent.v2.body',
       {
         retention_days: this.env.MEDIA_RETENTION_DAYS,
         privacy_url: this.env.PRIVACY_POLICY_URL,

@@ -1,0 +1,132 @@
+{
+  "version": "commands_v1",
+  "description": "ONE alias table for typed commands and for voice transcripts. The gateway reads it for typed text and for acting on `detected_command`; the AI service reads it to detect a command in a transcript. Matching is on the WHOLE normalised message, never a substring. Copies live in each app (make safety-data); a test in each app fails when its copy is stale.",
+  "commands": {
+    "help": ["help", "madad", "मदद", "madad karo", "help karo"],
+    "language": ["language", "bhasha", "भाषा", "lang", "bhasha badlo", "language badlo"],
+    "delete": [
+      "delete",
+      "delete my data",
+      "data delete karo",
+      "डिलीट",
+      "mera data delete karo",
+      "mera data hatao"
+    ],
+    "stop_reminders": [
+      "stop reminders",
+      "stop reminder",
+      "reminder band karo",
+      "stop",
+      "reminders band karo",
+      "रिमाइंडर बंद करो"
+    ],
+    "start_reminders": [
+      "start reminders",
+      "start reminder",
+      "reminder chalu karo",
+      "reminders chalu karo",
+      "रिमाइंडर चालू करो"
+    ],
+    "meds": [
+      "meds",
+      "dawai",
+      "dawaiyan",
+      "दवाई",
+      "meds dikhao",
+      "dawai dikhao",
+      "dawaiyan dikhao",
+      "meri dawai",
+      "meri dawaiyan",
+      "meri medicines",
+      "meri dawai dikhao",
+      "meri dawaiyan dikhao",
+      "meri medicines dikhao",
+      "my meds",
+      "show my meds",
+      "दवाइयां दिखाओ",
+      "मेरी दवाइयां"
+    ],
+    "check": ["check", "jaanch karo", "jaanch", "जांच करो", "जाँच करो", "जांच"],
+    "reports": [
+      "reports",
+      "my reports",
+      "reports dikhao",
+      "report dikhao",
+      "meri reports",
+      "रिपोर्ट"
+    ],
+    "reminders": ["reminders", "reminder list", "reminder dikhao", "रिमाइंडर", "reminders dikhao"],
+    "caregiver_add": ["caregiver", "caregiver add", "parivar jodo", "परिवार जोड़ो"],
+    "caregiver_remove": ["caregiver remove", "caregiver hatao", "parivar hatao"],
+    "voice_on": [
+      "voice on",
+      "voice replies on",
+      "awaaz me jawab do",
+      "awaaz mein jawab do",
+      "awaaz se jawab do",
+      "आवाज़ में जवाब दो",
+      "आवाज में जवाब दो"
+    ],
+    "voice_off": [
+      "voice off",
+      "voice replies off",
+      "awaaz band karo",
+      "awaaz me jawab mat do",
+      "text me jawab do",
+      "आवाज़ बंद करो",
+      "आवाज बंद करो"
+    ]
+  },
+  "acks": {
+    "taken": [
+      "le li",
+      "lee li",
+      "li",
+      "kha li",
+      "khali",
+      "le liya",
+      "done",
+      "taken",
+      "ha",
+      "haan",
+      "han",
+      "ले ली",
+      "ली",
+      "खा ली",
+      "dawai le li",
+      "dawai kha li",
+      "maine le li",
+      "maine dawai le li"
+    ],
+    "snooze": ["baad me", "baad mein", "baadme", "later", "thodi der baad", "बाद में"],
+    "skip": ["skip", "nahi", "nahin", "nhi", "chhod do", "nahi lunga", "nahi lungi", "छोड़ें"]
+  },
+  "ack_text_only": ["ha", "haan", "han", "nahi", "nahin", "nhi", "li"],
+  "voice_commands": [
+    "help",
+    "language",
+    "delete",
+    "stop_reminders",
+    "start_reminders",
+    "meds",
+    "check",
+    "reports",
+    "reminders",
+    "voice_on",
+    "voice_off"
+  ],
+  "voice_fillers": [
+    "please",
+    "plz",
+    "ji",
+    "mujhe",
+    "kripya",
+    "zara",
+    "bas",
+    "जी",
+    "कृपया",
+    "मुझे",
+    "ज़रा",
+    "जरा"
+  ]
+}

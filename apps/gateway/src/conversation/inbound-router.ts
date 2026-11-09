@@ -5,6 +5,7 @@ import { EchoBotService } from '../dev/echo-bot.service';
 import { ReminderAckService } from '../reminders/reminder-ack.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import { type UserState, UsersService } from '../users/users.service';
+import type { DetectedCommand } from '../ai-client/types';
 import { AiProcessor } from './ai-processor.service';
 import { CommandHandlersService } from './command-handlers.service';
 import { BUTTON_ID } from './commands';
@@ -61,7 +62,11 @@ export type RouteOutcome =
   | 'ai_reply'
   | 'ai_emergency'
   | 'media_rejected'
-  | 'unsupported';
+  | 'unsupported'
+  | 'voice_notice'
+  | 'voice_notice_answered'
+  | 'voice_replies_changed'
+  | 'voice_command';
 
 /**
  * Single entry point for every inbound message after the webhook has stored it (CLAUDE.md §7).
@@ -166,8 +171,16 @@ export class InboundRouter {
     if (buttonId === BUTTON_ID.consentYes) {
       // A retried job whose first attempt already finished onboarding lands here: same reply index,
       // so the welcome is not sent twice, but it IS sent if the first attempt died before it.
-      await session.text('consent.v1.accepted_welcome');
+      await session.text('consent.v2.accepted_welcome');
       return 'welcome_replay';
+    }
+    if (buttonId === BUTTON_ID.voiceOk || buttonId === BUTTON_ID.voiceNo) {
+      await this.commands.answerVoiceNotice(user, buttonId === BUTTON_ID.voiceOk, session);
+      return 'voice_notice_answered';
+    }
+    if (command === 'voice_on' || command === 'voice_off') {
+      await this.commands.setVoiceReplies(user, command === 'voice_on', session);
+      return 'voice_replies_changed';
     }
     if (command === 'language') {
       await this.commands.askLanguage(session);
@@ -245,6 +258,70 @@ export class InboundRouter {
       await this.echoBot.handle(job);
       return 'echo_bot';
     }
-    return this.aiProcessor.handle(user, job, session);
+    const result = await this.aiProcessor.handle(user, job, session);
+    if (typeof result === 'object') {
+      return this.runVoiceCommand(user, result.command, session);
+    }
+    return result;
+  }
+
+  /**
+   * M13: a command the AI service heard in a voice note. The same handlers as the typed commands, with
+   * two safety rules: DELETE only shows the confirmation BUTTON (a transcript alone never erases
+   * anything), and caregiver changes are never detected by voice (they need a number or a name).
+   */
+  private async runVoiceCommand(
+    user: UserState,
+    command: DetectedCommand,
+    session: ReplySession,
+  ): Promise<RouteOutcome> {
+    switch (command) {
+      case 'help':
+        await this.commands.help(session);
+        break;
+      case 'language':
+        await this.commands.askLanguage(session);
+        break;
+      case 'delete':
+        await this.deletion.request(user, session);
+        break;
+      case 'stop_reminders':
+      case 'start_reminders':
+        await this.commands.setReminders(user, command === 'start_reminders', session);
+        break;
+      case 'meds':
+        await this.commands.meds(user, session);
+        break;
+      case 'check':
+        await this.interactionFlow.check(user, session);
+        break;
+      case 'reports':
+        await this.labActions.list(user, session);
+        break;
+      case 'reminders':
+        await this.reminderFlow.list(user, session);
+        break;
+      case 'voice_on':
+      case 'voice_off':
+        await this.commands.setVoiceReplies(user, command === 'voice_on', session);
+        break;
+      case 'reminder_taken':
+      case 'reminder_snooze':
+      case 'reminder_skip': {
+        // Same rule as the typed "le li": only an answer while a reminder is open (last 2 hours).
+        const kind =
+          command === 'reminder_taken'
+            ? 'taken'
+            : command === 'reminder_snooze'
+              ? 'snooze'
+              : 'skip';
+        const outcome = await this.acks.handleText(user.id, kind, session);
+        if (outcome === null) await session.text('voice.no_open_reminder');
+        break;
+      }
+      default:
+        await session.text('voice.command_unavailable');
+    }
+    return 'voice_command';
   }
 }

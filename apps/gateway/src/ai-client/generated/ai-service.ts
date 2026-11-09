@@ -141,6 +141,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/synthesize': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Synthesize */
+    post: operations['synthesize_v1_synthesize_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -160,6 +177,27 @@ export interface components {
       /** Strength Key */
       strength_key?: string | null;
     };
+    /**
+     * Command
+     * @description A command recognised in a voice note (`detected_command`). The gateway executes it; DELETE
+     *     still needs the button confirmation, caregiver commands are never detected by voice.
+     * @enum {string}
+     */
+    Command:
+      | 'help'
+      | 'language'
+      | 'delete'
+      | 'stop_reminders'
+      | 'start_reminders'
+      | 'meds'
+      | 'check'
+      | 'reports'
+      | 'reminders'
+      | 'voice_on'
+      | 'voice_off'
+      | 'reminder_taken'
+      | 'reminder_snooze'
+      | 'reminder_skip';
     /** DateField */
     DateField: {
       /**
@@ -751,6 +789,7 @@ export interface components {
     ProcessResponse: {
       /** Debug Trace */
       debug_trace?: components['schemas']['TraceEntry'][] | null;
+      detected_command?: components['schemas']['Command'] | null;
       /**
        * Emergency
        * @default false
@@ -770,6 +809,10 @@ export interface components {
       reply: components['schemas']['Reply'];
       /** Request Id */
       request_id: string;
+      /** Spoken Text */
+      spoken_text?: string | null;
+      /** Transcript Redacted Short */
+      transcript_redacted_short?: string | null;
       /** Warnings */
       warnings?: components['schemas']['Warning'][];
     };
@@ -824,6 +867,11 @@ export interface components {
        * @default false
        */
       include_trace: boolean;
+      /**
+       * Want Spoken
+       * @default false
+       */
+      want_spoken: boolean;
     };
     /**
      * ResolvedMedicine
@@ -859,6 +907,34 @@ export interface components {
        * @enum {string}
        */
       type: 'interaction' | 'duplicate_ingredient';
+    };
+    /** SynthesizeRequest */
+    SynthesizeRequest: {
+      language: components['schemas']['Language'];
+      /** Request Id */
+      request_id: string;
+      /** Text */
+      text: string;
+    };
+    /** SynthesizeResponse */
+    SynthesizeResponse: {
+      /** Audio Base64 */
+      audio_base64: string;
+      /** Cost Usd */
+      cost_usd: number;
+      /** Duration S */
+      duration_s: number;
+      /**
+       * Mime
+       * @default audio/ogg
+       */
+      mime: string;
+      /** Model */
+      model: string;
+      /** Provider */
+      provider: string;
+      /** Request Id */
+      request_id: string;
     };
     /** TextField */
     TextField: {
@@ -1233,6 +1309,53 @@ export interface operations {
       };
       /** @description Processing took longer than PROCESS_TIMEOUT_S */
       504: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  synthesize_v1_synthesize_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        'x-service-token'?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SynthesizeRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SynthesizeResponse'];
+        };
+      };
+      /** @description Missing or wrong X-Service-Token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request, or the spoken reply would be too long */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Spoken replies are not enabled / the speech service is down */
+      503: {
         headers: {
           [name: string]: unknown;
         };

@@ -11,8 +11,8 @@ from app.graph.nodes._util import static_reply, track
 from app.graph.state import GraphState, NodeError
 from app.graph.traced import STATUS_KEY, traced_node
 from app.pipeline.base import PipelineContext
-from app.schemas.catalog import GenericSuggestion
-from app.schemas.process import Intent
+from app.schemas.catalog import DrugMatch, GenericSuggestion, MatchMethod
+from app.schemas.process import InputType, Intent
 from app.tools.generic_finder import MedicineFacts
 from app.tools.generic_render import DetailItem
 from app.tools.intent import extract_generic_query
@@ -86,6 +86,10 @@ async def validate_rx(state: GraphState, ctx: PipelineContext) -> dict[str, Any]
 # ---------------------------------------------------------------------------- normalize_drugs
 
 
+def is_confident_match(match: DrugMatch, ctx: PipelineContext) -> bool:
+    return match.method is not MatchMethod.none and match.score >= ctx.settings.drug_match_min
+
+
 def _match_timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     """A slow catalog: carry on without catalog data (the reply is the M7 reply)."""
     if _is_query(state):
@@ -102,6 +106,10 @@ async def normalize_drugs(state: GraphState, ctx: PipelineContext) -> dict[str, 
         match = await ctx.catalog.match(state.query_name, state.query_strength, None)
         if match.note == "catalog_unavailable":  # say so instead of "not in my list"
             return static_reply("generic_query_unavailable", Intent.generic_query)
+        if state.request.input.type is InputType.audio and not is_confident_match(match, ctx):
+            # A drug name heard through speech-to-text is the likeliest thing to be wrong: do not
+            # answer about a medicine we are not sure we heard.
+            return static_reply("voice.drug_unclear", Intent.generic_query)
         return {"drug_matches": [match]}
     assert state.rx_extraction is not None  # noqa: S101
     matches = await match_medicines(

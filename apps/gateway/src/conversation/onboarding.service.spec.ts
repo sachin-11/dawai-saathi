@@ -85,6 +85,8 @@ function setup(user: Partial<UserState>): {
     onboardingStep: 'language',
     consentAt: null,
     remindersEnabled: true,
+    consentVersion: 'v2',
+    voiceReplies: false,
     deletedAt: null,
     ...user,
   };
@@ -148,7 +150,7 @@ describe('OnboardingService.handle', () => {
         metadata: { language: 'en' },
       });
       expect(s.session.buttons).toHaveBeenCalledWith(
-        'consent.v1.body',
+        'consent.v2.body',
         { retention_days: 30, privacy_url: 'https://dawaisaathi.example/privacy' },
         CONSENT_BUTTONS,
       );
@@ -160,7 +162,7 @@ describe('OnboardingService.handle', () => {
       await run(s, tap(BUTTON_ID.langHi));
       expect(s.audit.log).not.toHaveBeenCalled();
       expect(s.session.buttons).toHaveBeenCalledWith(
-        'consent.v1.body',
+        'consent.v2.body',
         expect.anything(),
         CONSENT_BUTTONS,
       );
@@ -172,14 +174,14 @@ describe('OnboardingService.handle', () => {
       const s = setup({ onboardingStep: 'consent' });
       await run(s, tap(BUTTON_ID.consentYes));
       expect(s.users.acceptConsent).toHaveBeenCalledWith('user-1', CONSENT_VERSION);
-      expect(CONSENT_VERSION).toBe('v1');
+      expect(CONSENT_VERSION).toBe('v2');
       expect(s.audit.log).toHaveBeenCalledWith({
         actor: 'user',
         userId: 'user-1',
         action: 'consent_given',
-        metadata: { version: 'v1' },
+        metadata: { version: 'v2' },
       });
-      expect(s.session.text).toHaveBeenCalledWith('consent.v1.accepted_welcome');
+      expect(s.session.text).toHaveBeenCalledWith('consent.v2.accepted_welcome');
     });
 
     it('a repeated "I agree" does not audit twice but still sends the welcome', async () => {
@@ -187,16 +189,16 @@ describe('OnboardingService.handle', () => {
       s.users.acceptConsent.mockResolvedValue(false);
       await run(s, tap(BUTTON_ID.consentYes));
       expect(s.audit.log).not.toHaveBeenCalled();
-      expect(s.session.text).toHaveBeenCalledWith('consent.v1.accepted_welcome');
+      expect(s.session.text).toHaveBeenCalledWith('consent.v2.accepted_welcome');
     });
 
     it('"Not now" audits the refusal, replies politely and does NOT move the user on', async () => {
       const s = setup({ onboardingStep: 'consent' });
       await run(s, tap(BUTTON_ID.consentNo));
       expect(s.audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'consent_declined', metadata: { version: 'v1' } }),
+        expect.objectContaining({ action: 'consent_declined', metadata: { version: 'v2' } }),
       );
-      expect(s.session.text).toHaveBeenCalledWith('consent.v1.declined');
+      expect(s.session.text).toHaveBeenCalledWith('consent.v2.declined');
       expect(s.users.acceptConsent).not.toHaveBeenCalled();
     });
 
@@ -209,7 +211,7 @@ describe('OnboardingService.handle', () => {
       const s = setup({ onboardingStep: 'consent' });
       await run(s, j);
       expect(s.session.buttons).toHaveBeenCalledTimes(1);
-      expect(s.session.buttons).toHaveBeenCalledWith('consent.v1.reminder', {}, CONSENT_BUTTONS);
+      expect(s.session.buttons).toHaveBeenCalledWith('consent.v2.reminder', {}, CONSENT_BUTTONS);
       expect(s.users.acceptConsent).not.toHaveBeenCalled();
       expect(s.audit.log).not.toHaveBeenCalled();
     });
@@ -223,7 +225,7 @@ describe('OnboardingService.handle', () => {
         expect.objectContaining({ action: 'language_changed', metadata: { language: 'en' } }),
       );
       expect(s.session.buttons).toHaveBeenCalledWith(
-        'consent.v1.body',
+        'consent.v2.body',
         expect.anything(),
         CONSENT_BUTTONS,
       );

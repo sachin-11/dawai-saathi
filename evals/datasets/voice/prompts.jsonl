@@ -1,0 +1,100 @@
+{"kind": "medicine", "text": "Dolo 650 ka generic batao", "lang": "hinglish", "drugs": ["Dolo 650"], "id": "v000"}
+{"kind": "medicine", "text": "Telma 40 ka generic batao", "lang": "hinglish", "drugs": ["Telma 40"], "id": "v001"}
+{"kind": "medicine", "text": "Pantop 40 ka generic kya hai", "lang": "hinglish", "drugs": ["Pantop 40"], "id": "v002"}
+{"kind": "medicine", "text": "Augmentin 625 ka generic batao", "lang": "hinglish", "drugs": ["Augmentin 625"], "id": "v003"}
+{"kind": "medicine", "text": "Glycomet 500 ka sasta generic batao", "lang": "hinglish", "drugs": ["Glycomet 500"], "id": "v004"}
+{"kind": "medicine", "text": "Dolo 650 kab leni hai", "lang": "hinglish", "drugs": ["Dolo 650"], "id": "v005"}
+{"kind": "medicine", "text": "Combiflam kab leni chahiye", "lang": "hinglish", "drugs": ["Combiflam"], "id": "v006"}
+{"kind": "medicine", "text": "Crocin ka generic batao", "lang": "hinglish", "drugs": ["Crocin"], "id": "v007"}
+{"kind": "medicine", "text": "what is the generic for Dolo 650", "lang": "en", "drugs": ["Dolo 650"], "id": "v008"}
+{"kind": "medicine", "text": "tell me the generic of Telma 40", "lang": "en", "drugs": ["Telma 40"], "id": "v009"}
+{"kind": "medicine", "text": "is there a cheaper generic for Pantop 40", "lang": "en", "drugs": ["Pantop 40"], "id": "v010"}
+{"kind": "medicine", "text": "generic alternative for Augmentin 625", "lang": "en", "drugs": ["Augmentin 625"], "id": "v011"}
+{"kind": "medicine", "text": "डोलो 650 का जेनेरिक बताओ", "lang": "hi", "drugs": ["Dolo 650"], "id": "v012"}
+{"kind": "medicine", "text": "टेल्मा 40 का जेनेरिक क्या है", "lang": "hi", "drugs": ["Telma 40"], "id": "v013"}
+{"kind": "medicine", "text": "पैंटोप 40 का सस्ता जेनेरिक बताओ", "lang": "hi", "drugs": ["Pantop 40"], "id": "v014"}
+{"kind": "medicine", "text": "क्रोसिन का जेनेरिक बताओ", "lang": "hi", "drugs": ["Crocin"], "id": "v015"}
+{"kind": "interaction", "text": "Dolo aur Combiflam saath le sakte hain", "lang": "hinglish", "drugs": ["Dolo", "Combiflam"], "id": "v016"}
+{"kind": "interaction", "text": "Brufen aur Warfarin saath me le sakta hoon", "lang": "hinglish", "drugs": ["Brufen", "Warfarin"], "id": "v017"}
+{"kind": "interaction", "text": "Dolo aur Pantop saath le sakte hain kya", "lang": "hinglish", "drugs": ["Dolo", "Pantop"], "id": "v018"}
+{"kind": "interaction", "text": "can I take Dolo and Combiflam together", "lang": "en", "drugs": ["Dolo", "Combiflam"], "id": "v019"}
+{"kind": "interaction", "text": "is it safe to take Brufen with Warfarin", "lang": "en", "drugs": ["Brufen", "Warfarin"], "id": "v020"}
+{"kind": "interaction", "text": "डोलो और कॉम्बिफ्लैम साथ ले सकते हैं", "lang": "hi", "drugs": ["Dolo", "Combiflam"], "id": "v021"}
+{"kind": "command", "text": "meds dikhao", "lang": "hinglish", "command": "meds", "id": "v022"}
+{"kind": "command", "text": "meri dawai dikhao", "lang": "hinglish", "command": "meds", "id": "v023"}
+{"kind": "command", "text": "मेरी दवाइयां", "lang": "hi", "command": "meds", "id": "v024"}
+{"kind": "command", "text": "show my meds", "lang": "en", "command": "meds", "id": "v025"}
+{"kind": "command", "text": "reminder band karo", "lang": "hinglish", "command": "stop_reminders", "id": "v026"}
+{"kind": "command", "text": "रिमाइंडर बंद करो", "lang": "hi", "command": "stop_reminders", "id": "v027"}
+{"kind": "command", "text": "stop reminders", "lang": "en", "command": "stop_reminders", "id": "v028"}
+{"kind": "command", "text": "reminder chalu karo", "lang": "hinglish", "command": "start_reminders", "id": "v029"}
+{"kind": "command", "text": "start reminders", "lang": "en", "command": "start_reminders", "id": "v030"}
+{"kind": "command", "text": "le li", "lang": "hinglish", "command": "reminder_taken", "id": "v031"}
+{"kind": "command", "text": "dawai kha li", "lang": "hinglish", "command": "reminder_taken", "id": "v032"}
+{"kind": "command", "text": "maine dawai le li", "lang": "hinglish", "command": "reminder_taken", "id": "v033"}
+{"kind": "command", "text": "ले ली", "lang": "hi", "command": "reminder_taken", "id": "v034"}
+{"kind": "command", "text": "baad me", "lang": "hinglish", "command": "reminder_snooze", "id": "v035"}
+{"kind": "command", "text": "help", "lang": "en", "command": "help", "id": "v036"}
+{"kind": "command", "text": "madad karo", "lang": "hinglish", "command": "help", "id": "v037"}
+{"kind": "command", "text": "mera data delete karo", "lang": "hinglish", "command": "delete", "id": "v038"}
+{"kind": "command", "text": "delete my data", "lang": "en", "command": "delete", "id": "v039"}
+{"kind": "command", "text": "awaaz me jawab do", "lang": "hinglish", "command": "voice_on", "id": "v040"}
+{"kind": "command", "text": "voice off", "lang": "en", "command": "voice_off", "id": "v041"}
+{"kind": "command", "text": "reports dikhao", "lang": "hinglish", "command": "reports", "id": "v042"}
+{"kind": "command", "text": "jaanch karo", "lang": "hinglish", "command": "check", "id": "v043"}
+{"kind": "chatter", "text": "cricket score batao", "lang": "hinglish", "id": "v044"}
+{"kind": "chatter", "text": "aaj mausam kaisa hai", "lang": "hinglish", "id": "v045"}
+{"kind": "chatter", "text": "tell me a joke", "lang": "en", "id": "v046"}
+{"kind": "chatter", "text": "who won the match yesterday", "lang": "en", "id": "v047"}
+{"kind": "chatter", "text": "mujhe ek gaana sunao", "lang": "hinglish", "id": "v048"}
+{"kind": "chatter", "text": "what is the capital of France", "lang": "en", "id": "v049"}
+{"kind": "chatter", "text": "namaste", "lang": "hinglish", "id": "v050"}
+{"kind": "chatter", "text": "hello how are you", "lang": "en", "id": "v051"}
+{"kind": "chatter", "text": "आज खाने में क्या बनाऊं", "lang": "hi", "id": "v052"}
+{"kind": "chatter", "text": "नमस्ते", "lang": "hi", "id": "v053"}
+{"kind": "chatter", "text": "share market kaisa chal raha hai", "lang": "hinglish", "id": "v054"}
+{"kind": "chatter", "text": "what can you do", "lang": "en", "id": "v055"}
+{"kind": "emergency", "text": "there is heavy bleeding from his head", "lang": "en", "category": "bleeding", "id": "v056"}
+{"kind": "emergency", "text": "बहुत खून बह रहा है", "lang": "hi", "category": "bleeding", "id": "v057"}
+{"kind": "emergency", "text": "bahut khoon beh raha hai", "lang": "hinglish", "category": "bleeding", "id": "v058"}
+{"kind": "emergency", "text": "the wound is bleeding a lot and will not stop", "lang": "en", "category": "bleeding", "id": "v059"}
+{"kind": "emergency", "text": "खून नहीं रुक रहा है", "lang": "hi", "category": "bleeding", "id": "v060"}
+{"kind": "emergency", "text": "he can't breathe properly please help", "lang": "en", "category": "breathing", "id": "v061"}
+{"kind": "emergency", "text": "मुझे सांस नहीं आ रही", "lang": "hi", "category": "breathing", "id": "v062"}
+{"kind": "emergency", "text": "saans nahi aa rahi hai", "lang": "hinglish", "category": "breathing", "id": "v063"}
+{"kind": "emergency", "text": "my mother has difficulty breathing since last night", "lang": "en", "category": "breathing", "id": "v064"}
+{"kind": "emergency", "text": "उन्हें सांस लेने में तकलीफ हो रही है", "lang": "hi", "category": "breathing", "id": "v065"}
+{"kind": "emergency", "text": "I have severe chest pain and my left arm is numb", "lang": "en", "category": "cardiac", "id": "v066"}
+{"kind": "emergency", "text": "मुझे सीने में बहुत दर्द हो रहा है", "lang": "hi", "category": "cardiac", "id": "v067"}
+{"kind": "emergency", "text": "seene me bahut dard ho raha hai", "lang": "hinglish", "category": "cardiac", "id": "v068"}
+{"kind": "emergency", "text": "my father is having a heart attack please help", "lang": "en", "category": "cardiac", "id": "v069"}
+{"kind": "emergency", "text": "पापा को दिल का दौरा पड़ा है", "lang": "hi", "category": "cardiac", "id": "v070"}
+{"kind": "emergency", "text": "my son drank poison", "lang": "en", "category": "poisoning_overdose", "id": "v071"}
+{"kind": "emergency", "text": "उसने जहर खा लिया है", "lang": "hi", "category": "poisoning_overdose", "id": "v072"}
+{"kind": "emergency", "text": "galti se zyada goli kha li maine", "lang": "hinglish", "category": "poisoning_overdose", "id": "v073"}
+{"kind": "emergency", "text": "I think she took an overdose of sleeping pills", "lang": "en", "category": "poisoning_overdose", "id": "v074"}
+{"kind": "emergency", "text": "गलती से ज्यादा गोली खा ली", "lang": "hi", "category": "poisoning_overdose", "id": "v075"}
+{"kind": "emergency", "text": "she is having a seizure right now", "lang": "en", "category": "seizure", "id": "v076"}
+{"kind": "emergency", "text": "उसे मिर्गी का दौरा पड़ा है", "lang": "hi", "category": "seizure", "id": "v077"}
+{"kind": "emergency", "text": "beta ko daura pad gaya", "lang": "hinglish", "category": "seizure", "id": "v078"}
+{"kind": "emergency", "text": "my brother has convulsions", "lang": "en", "category": "seizure", "id": "v079"}
+{"kind": "emergency", "text": "झटके आ रहे हैं बच्चे को", "lang": "hi", "category": "seizure", "id": "v080"}
+{"kind": "emergency", "text": "I want to die", "lang": "en", "category": "self_harm", "id": "v081"}
+{"kind": "emergency", "text": "मैं जीना नहीं चाहता", "lang": "hi", "category": "self_harm", "id": "v082"}
+{"kind": "emergency", "text": "mujhe jeena nahi hai", "lang": "hinglish", "category": "self_harm", "id": "v083"}
+{"kind": "emergency", "text": "I am thinking of suicide", "lang": "en", "category": "self_harm", "id": "v084"}
+{"kind": "emergency", "text": "मुझे आत्महत्या के ख्याल आ रहे हैं", "lang": "hi", "category": "self_harm", "id": "v085"}
+{"kind": "emergency", "text": "swelling in my throat after taking the tablet", "lang": "en", "category": "severe_allergy", "id": "v086"}
+{"kind": "emergency", "text": "गले में सूजन आ गई है", "lang": "hi", "category": "severe_allergy", "id": "v087"}
+{"kind": "emergency", "text": "gale me sujan aa gayi dawai ke baad", "lang": "hinglish", "category": "severe_allergy", "id": "v088"}
+{"kind": "emergency", "text": "signs of anaphylaxis after the injection", "lang": "en", "category": "severe_allergy", "id": "v089"}
+{"kind": "emergency", "text": "his face drooping and speech is slurred", "lang": "en", "category": "stroke", "id": "v090"}
+{"kind": "emergency", "text": "उन्हें लकवा मार गया है", "lang": "hi", "category": "stroke", "id": "v091"}
+{"kind": "emergency", "text": "papa ka face tedha ho gaya hai", "lang": "hinglish", "category": "stroke", "id": "v092"}
+{"kind": "emergency", "text": "I think my mother is having a stroke", "lang": "en", "category": "stroke", "id": "v093"}
+{"kind": "emergency", "text": "चेहरा टेढ़ा हो गया और बोलने में तकलीफ है", "lang": "hi", "category": "stroke", "id": "v094"}
+{"kind": "emergency", "text": "my father is unconscious on the floor", "lang": "en", "category": "unconscious", "id": "v095"}
+{"kind": "emergency", "text": "वो बेहोश हो गया है", "lang": "hi", "category": "unconscious", "id": "v096"}
+{"kind": "emergency", "text": "dadaji behosh ho gaye hain", "lang": "hinglish", "category": "unconscious", "id": "v097"}
+{"kind": "emergency", "text": "she passed out and is not responding", "lang": "en", "category": "unconscious", "id": "v098"}
+{"kind": "emergency", "text": "मां को होश नहीं आ रहा", "lang": "hi", "category": "unconscious", "id": "v099"}

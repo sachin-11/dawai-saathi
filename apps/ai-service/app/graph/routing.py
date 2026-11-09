@@ -62,7 +62,16 @@ def after_emergency_guard(state: GraphState) -> str:
     return _templated_or(state, REDACT)
 
 
+def after_transcribe(state: GraphState) -> str:
+    """A voice note that could not be transcribed at all gets its static reply; every transcript,
+    also an unclear or partial one, goes to the emergency guard first."""
+    return _templated_or(state, EMERGENCY_GUARD)
+
+
 def after_emergency_classifier(state: GraphState) -> str:
+    # An unclear voice note ("please repeat") is only answered AFTER both emergency stages ran.
+    if state.voice_unclear:
+        return TEMPLATES
     return _templated_or(state, CLASSIFY)
 
 

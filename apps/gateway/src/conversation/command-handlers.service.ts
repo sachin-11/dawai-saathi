@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service';
+import { APP_CONFIG } from '../config/config.constants';
+import type { Env } from '../config/env.schema';
 import { MedicationWarningsService } from '../medications/medication-warnings.service';
 import { ReminderScheduleService } from '../reminders/reminder-schedule.service';
 import {
@@ -10,7 +12,7 @@ import {
   UsersService,
 } from '../users/users.service';
 import type { ReplySession } from './replies.service';
-import { LANGUAGE_BUTTONS } from './onboarding.service';
+import { CONSENT_VERSION, LANGUAGE_BUTTONS } from './onboarding.service';
 
 /** Commands for fully onboarded users: HELP, LANGUAGE, STOP/START REMINDERS, MEDS. */
 @Injectable()
@@ -20,6 +22,7 @@ export class CommandHandlersService {
     private readonly audit: AuditService,
     private readonly schedules: ReminderScheduleService,
     private readonly warnings: MedicationWarningsService,
+    @Inject(APP_CONFIG) private readonly env: Pick<Env, 'TTS_ENABLED'>,
   ) {}
 
   help(session: ReplySession): Promise<void> {
@@ -65,6 +68,49 @@ export class CommandHandlersService {
       });
     }
     await session.text(enabled ? 'reminders.enabled' : 'reminders.disabled');
+  }
+
+  /** VOICE ON / VOICE OFF: spoken replies in addition to the text reply (needs TTS_ENABLED). */
+  async setVoiceReplies(user: UserState, enabled: boolean, session: ReplySession): Promise<void> {
+    if (enabled && !this.env.TTS_ENABLED) {
+      await session.text('voice.unavailable');
+      return;
+    }
+    await this.users.setVoiceReplies(user.id, enabled);
+    if (user.voiceReplies !== enabled) {
+      await this.audit.log({
+        actor: 'user',
+        userId: user.id,
+        action: enabled ? 'voice_replies_enabled' : 'voice_replies_disabled',
+      });
+    }
+    await session.text(enabled ? 'voice.on' : 'voice.off');
+  }
+
+  /**
+   * The answer to the one-time voice notice (consent v1 users). OK records the new consent version
+   * and asks for the voice note again; "I will type" changes nothing and nothing is ever sent to a
+   * speech service for that user.
+   */
+  async answerVoiceNotice(
+    user: UserState,
+    accepted: boolean,
+    session: ReplySession,
+  ): Promise<void> {
+    if (!accepted) {
+      await session.text('voice.notice_no');
+      return;
+    }
+    const moved = await this.users.acceptVoiceNotice(user.id, CONSENT_VERSION);
+    if (moved) {
+      await this.audit.log({
+        actor: 'user',
+        userId: user.id,
+        action: 'consent_updated',
+        metadata: { version: CONSENT_VERSION, reason: 'voice' },
+      });
+    }
+    await session.text('voice.notice_ok');
   }
 
   /** MEDS: the user's active medicines (populated by the prescription flow from M7 on). */

@@ -12,7 +12,7 @@ GATEWAY_DIR := apps/gateway
 # Real environment variables already set in your shell are overridden by .env, so unset them if needed.
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
-.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher eval-interactions eval-lab embed graph \
+.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher eval-interactions eval-lab eval-voice embed graph \
         up down migrate seed eval
 
 help: ## Show available targets
@@ -103,6 +103,8 @@ contracts: ## Re-export the AI service OpenAPI contract and regenerate the gatew
 safety-data: ## Copy the canonical emergency keywords into the gateway and the AI service
 	cp packages/contracts/safety/emergency-keywords.json apps/gateway/src/common/safety/data/emergency-keywords.json
 	cp packages/contracts/safety/emergency-keywords.json $(AI_DIR)/app/safety/data/emergency-keywords.json
+	cp packages/contracts/commands/aliases.json apps/gateway/src/common/safety/data/command-aliases.json
+	cp packages/contracts/commands/aliases.json $(AI_DIR)/app/safety/data/command-aliases.json
 
 # ---- integration tests (need Docker; use docker-compose.test.yml on separate ports) ----
 test-infra-up: ## Start the throwaway test stack (postgres :5543, redis :6479, minio :9100)
@@ -140,5 +142,7 @@ eval-rx: ## Prescription eval on synthetic images (fake replay). Real model: `ma
 eval-lab: ## Lab report eval on synthetic reports (fake replay). Real model: `make eval-lab MODE=real` (needs keys)
 	@[ -d evals/datasets/lab_reports/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_lab.py
 	uv run --project $(AI_DIR) python evals/run_lab_eval.py --mode $(or $(MODE),fake)
+eval-voice: ## Voice eval on the synthetic prompt set (fake replay). Real: `make eval-voice MODE=real` (needs audio + keys, see docs/modules/M13.md)
+	uv run --project $(AI_DIR) python evals/run_voice_eval.py --mode $(or $(MODE),fake)
 eval: ## [M14] Run the evaluation suite
 	@echo "make eval: not implemented yet - arrives in M14 (eval harness & CI gates)."

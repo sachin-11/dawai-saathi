@@ -21,6 +21,9 @@ export type AuditAction =
   | 'caregiver_declined'
   | 'caregiver_removed'
   | 'caregiver_alert_sent'
+  | 'consent_updated'
+  | 'voice_replies_enabled'
+  | 'voice_replies_disabled'
   | 'user_deleted';
 
 export type AuditValue =

@@ -21,7 +21,7 @@ from app.schemas.catalog import DrugMatch, GenericSuggestion
 from app.schemas.interactions import InteractionReport
 from app.schemas.lab_report import LabReportExtraction
 from app.schemas.prescription import PrescriptionExtraction
-from app.schemas.process import Intent, ProcessRequest, Reply, Warning
+from app.schemas.process import Command, Intent, ProcessRequest, Reply, Warning
 from app.tools.generic_render import DetailItem
 
 ImageKind = Literal["prescription", "lab_report", "medicine_strip", "other"]
@@ -64,6 +64,17 @@ class GraphState(BaseModel):
     raw_text: str | None = None  # the user's own words, only ever read by the emergency rules
     redacted_text: str | None = None  # the only text a model, a log or a trace may see
     images: list[ImageInput] = Field(default_factory=list, exclude=True)
+
+    # M13 voice notes. `raw_text` holds the transcript as the provider returned it (Devanagari or
+    # Roman); `roman_text` is the Roman copy made for keyword matching (None when the transcript is
+    # already Latin). Like `raw_text` it is read only by the emergency rules and dropped by `redact`.
+    roman_text: str | None = None
+    voice_unclear: bool = (
+        False  # empty / too short / too noisy: ask to repeat, after the emergency check
+    )
+    audio_seconds: float | None = None
+    transcript_redacted: str | None = None  # the transcript as the user said it, REDACTED
+    detected_command: Command | None = None
 
     # ---- routing
     emergency: EmergencyResult | None = None

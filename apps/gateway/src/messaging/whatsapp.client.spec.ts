@@ -177,6 +177,71 @@ describe('WhatsAppClient', () => {
     });
   });
 
+  describe('voice replies (M13)', () => {
+    it('uploadMedia posts multipart to /media with the bearer token and returns the media id', async () => {
+      const { client } = setup();
+      let body = '';
+      nock(GRAPH, { reqheaders: { authorization: `Bearer ${TOKEN}` } })
+        .post(`/v21.0/${PHONE_NUMBER_ID}/media`, (b: unknown) => {
+          body = String(b);
+          return true;
+        })
+        .reply(200, { id: 'MEDIA-123' });
+      const result = await client.uploadMedia(Buffer.from('OggS-fake-bytes'), 'audio/ogg');
+      expect(result).toEqual({ mediaId: 'MEDIA-123' });
+      expect(body).toContain('messaging_product');
+      expect(body).toContain('audio/ogg');
+    });
+
+    it('uploadMedia is retried after a server error (an upload creates no message)', async () => {
+      const { client, sleep } = setup();
+      nock(GRAPH)
+        .post(`/v21.0/${PHONE_NUMBER_ID}/media`)
+        .reply(503, graphError(2))
+        .post(`/v21.0/${PHONE_NUMBER_ID}/media`)
+        .reply(200, { id: 'MEDIA-9' });
+      await expect(client.uploadMedia(Buffer.from('x'), 'audio/ogg')).resolves.toEqual({
+        mediaId: 'MEDIA-9',
+      });
+      expect(sleep).toHaveBeenCalledTimes(1);
+    });
+
+    it('uploadMedia refuses an empty or oversized file without any HTTP call', async () => {
+      const { client } = setup();
+      await expect(client.uploadMedia(Buffer.alloc(0), 'audio/ogg')).rejects.toBeInstanceOf(
+        WhatsAppValidationError,
+      );
+      await expect(
+        client.uploadMedia(Buffer.alloc(17 * 1024 * 1024), 'audio/ogg'),
+      ).rejects.toBeInstanceOf(WhatsAppValidationError);
+    });
+
+    it('sendAudio posts an audio message by media id', async () => {
+      const { client } = setup();
+      let sent: unknown;
+      nock(GRAPH)
+        .post(SEND_PATH, (b: unknown) => {
+          sent = b;
+          return true;
+        })
+        .reply(200, ok('wamid.AUDIO1'));
+      await expect(client.sendAudio(PHONE, 'MEDIA-123')).resolves.toEqual({
+        waMessageId: 'wamid.AUDIO1',
+      });
+      expect(sent).toMatchObject({
+        messaging_product: 'whatsapp',
+        to: PHONE,
+        type: 'audio',
+        audio: { id: 'MEDIA-123' },
+      });
+    });
+
+    it('sendAudio is not retried after an ambiguous timeout (it would play twice)', () => {
+      const { client } = setup();
+      expect(() => client.sendAudio(PHONE, 'bad id!')).toThrow(WhatsAppValidationError);
+    });
+  });
+
   describe('client-side validation (no HTTP call is made)', () => {
     it('rejects an empty text', () => {
       expect(() => setup().client.sendText(PHONE, '   ')).toThrow(WhatsAppValidationError);
