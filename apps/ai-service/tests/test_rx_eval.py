@@ -1,7 +1,7 @@
 """The prescription eval gate as a test (M7): `make test` and CI fail when a safety metric regresses.
 
 Generates a small synthetic set into a temp folder (the images are not committed) and runs the SAME
-code as `evals/run_rx_eval.py` in the two offline modes. These modes do not measure model accuracy;
+code as the `rx` eval suite in the two offline modes. These modes do not measure model accuracy;
 they prove that the deterministic layers around the model keep their promises.
 """
 
@@ -22,8 +22,10 @@ def load(path: Path, name: str):
     return module
 
 
+from tests.eval_support import gate_failures  # noqa: E402
+
 generator = load(ROOT / "evals" / "scripts" / "make_synthetic_rx.py", "make_synthetic_rx")
-runner = load(ROOT / "evals" / "run_rx_eval.py", "run_rx_eval")
+from evals.suites import rx as runner  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -48,7 +50,7 @@ def cases(tmp_path_factory: pytest.TempPathFactory) -> list:
 def evaluate(cases: list, mode: str):
     results = asyncio.run(runner.evaluate(cases, mode))
     scores = runner.score(results)
-    return results, scores, runner.gate_failures(scores, mode)
+    return results, scores, gate_failures("rx", runner.to_metrics(results, scores), mode)
 
 
 class TestDataset:
@@ -94,10 +96,10 @@ class TestTheGateItself:
         scores.flag.add(False)
         scores.leaks.append(("rx_000", "<fake phi string>"))
         scores.hallucinated.append(("rx_000", "Invented 10"))
-        failures = runner.gate_failures(scores, "fake")
+        failures = gate_failures("rx", runner.to_metrics([], scores), "fake")
         assert len(failures) == 3
 
     def test_real_mode_reports_hallucinations_without_gating_on_them(self) -> None:
         scores = runner.Scores()
         scores.hallucinated.append(("rx_000", "Invented 10"))
-        assert runner.gate_failures(scores, "real") == []
+        assert gate_failures("rx", runner.to_metrics([], scores), "real") == []

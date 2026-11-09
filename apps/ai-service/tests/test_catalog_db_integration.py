@@ -80,16 +80,10 @@ def _uuid_for(value: str) -> str:
 
 
 def _eval_module():
-    import importlib.util
-
     sys.path.insert(0, str(ROOT / "data" / "scripts"))
-    spec = importlib.util.spec_from_file_location(
-        "run_matcher_eval", ROOT / "evals" / "run_matcher_eval.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    from evals.suites import matcher
+
+    return matcher
 
 
 @pytest.fixture

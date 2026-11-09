@@ -8,8 +8,7 @@ from PIL import Image, ImageFilter
 from pypdfium2 import PdfiumError
 
 from app.llm.fake import FakeProvider
-from app.pipeline.minimal import MinimalPipeline
-from app.pipeline.rx import RxPipeline
+from app.pipeline.graph import GraphPipeline
 from app.schemas.process import Intent
 from app.tools import image_prep
 from app.tools.image_prep import ImagePrepError, prepare_image
@@ -116,7 +115,7 @@ class TestPipelineSkipsTheModelForHopelessPhotos:
     async def test_no_llm_call_and_a_tip_is_returned(self, monkeypatch, image, expected):
         monkeypatch.setattr("app.tools.image_input.fetch_media", fake_fetch(image, "image/jpeg"))
         provider = FakeProvider()
-        output = await RxPipeline(MinimalPipeline()).run(image_request("en"), make_ctx(provider))
+        output = await GraphPipeline().run(image_request("en"), make_ctx(provider))
         assert provider.calls == []
         assert expected in output.reply.text and output.intent is Intent.other
         assert output.extraction is None and output.reply.buttons == []
@@ -166,12 +165,12 @@ class TestPdf:
             "app.tools.image_input.fetch_media",
             fake_fetch(blank_pdf(MAX_PDF_PAGES + 1), "application/pdf"),
         )
-        long_output = await RxPipeline(MinimalPipeline()).run(request, make_ctx(provider))
+        long_output = await GraphPipeline().run(request, make_ctx(provider))
         assert "too many pages" in long_output.reply.text
 
         monkeypatch.setattr(
             "app.tools.image_input.fetch_media", fake_fetch(b"%PDF-garbage", "application/pdf")
         )
-        bad_output = await RxPipeline(MinimalPipeline()).run(request, make_ctx(provider))
+        bad_output = await GraphPipeline().run(request, make_ctx(provider))
         assert "could not open this file" in bad_output.reply.text
         assert provider.calls == []

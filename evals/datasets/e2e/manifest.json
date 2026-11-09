@@ -1,0 +1,7 @@
+{
+  "name": "e2e",
+  "version": 1,
+  "description": "Scripted conversations with generated phone numbers and the synthetic prescription / lab images. No real person or number.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

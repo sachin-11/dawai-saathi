@@ -1,0 +1,67 @@
+# The full life of a user: onboarding -> prescription -> reminders -> a dose -> DELETE.
+- name: new_user_prescription_reminder_delete
+  description: first contact to erasure, with a reminder fired by time travel
+  steps:
+    - send: { type: text, text: 'hi' }
+      expect: { buttons_include: ['lang:hi', 'lang:en'] }
+    - send: { type: button, id: 'lang:hi' }
+      expect: { i18n: ['consent.v2.body'], buttons_include: ['consent:yes', 'consent:no'] }
+      expect_db: { onboarding_step: consent }
+    - send: { type: button, id: 'consent:yes' }
+      expect: { i18n: ['consent.v2.accepted_welcome'] }
+      expect_db:
+        { onboarding_step: done, consent_version: v2, audit_actions_include: [consent_given] }
+    - send: { type: image, fixture: rx_003 }
+      expect:
+        {
+          replies_min: 2,
+          text_includes: ['Dolo 650'],
+          buttons_include:
+            [
+              'rx:reminders:{last_document}',
+              'rx:generic:{last_document}',
+              'rx:wrong:{last_document}',
+            ],
+        }
+      expect_db: { document_kinds: [prescription], medication_count_min: 1 }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+      expect:
+        {
+          buttons_include:
+            [
+              'rem:confirm:{last_document}',
+              'rem:change:{last_document}',
+              'rem:cancel:{last_document}',
+            ],
+        }
+    - send: { type: button, id: 'rem:confirm:{last_document}' }
+      expect_db: { reminder_count_min: 2 }
+    - advance_time: '08:00 next day'
+      expect: { buttons_include: ['rem:taken:*', 'rem:snooze:*', 'rem:skip:*'] }
+      expect_db: { reminder_status: sent }
+    - send: { type: text, text: 'le li' }
+      expect_db: { reminder_status: taken }
+    - send: { type: text, text: 'delete' }
+      expect: { buttons_include: ['delete:confirm', 'delete:cancel'] }
+      expect_db: { user_exists: true }
+    - send: { type: button, id: 'delete:confirm' }
+      expect_db:
+        {
+          user_exists: false,
+          s3_prefix_empty: true,
+          rows_for_user: 0,
+          audit_actions_include: [user_deleted],
+        }
+
+- name: reminder_outside_the_24h_window_is_a_template
+  description: a user who has been silent for more than 24 hours can only be reached with a template
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_004 }
+      expect: { replies_min: 2, text_includes: ['Dolo 650'] }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+    - send: { type: button, id: 'rem:confirm:{last_document}' }
+    - update_user: { last_inbound_hours_ago: 30 }
+      note: the user has not written for 30 hours
+    - advance_time: '08:00 next day'
+      expect: { template: dose_reminder }

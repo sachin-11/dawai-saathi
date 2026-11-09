@@ -1,0 +1,110 @@
+name: Eval (real models)
+
+# Real providers cost money, so this never runs on a PR. It runs weekly and on demand.
+#   * a cost cap (EVAL_MAX_USD) aborts the run when it is passed; an aborted suite counts as FAILED
+#   * only synthetic datasets may be sent: every dataset manifest must say contains_real_phi: false
+#   * secrets are only handed to the run step as environment variables; nothing here prints them
+# Setup: repository secrets ANTHROPIC_API_KEY / OPENAI_API_KEY (/ SARVAM_API_KEY) and repository
+# variables LLM_PRIMARY, LLM_FALLBACK, VISION_MODEL, TEXT_MODEL, CHEAP_MODEL (+ FALLBACK_*). See docs/eval-process.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suites:
+        description: 'Comma separated suites (emergency, rx, lab, voice, redteam, readability)'
+        default: 'emergency,rx,lab,redteam,readability'
+      max_usd:
+        description: 'Cost cap in USD for the whole run'
+        default: '5'
+  schedule:
+    - cron: '0 3 * * 1' # Mondays 03:00 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: eval-real
+  cancel-in-progress: false
+
+jobs:
+  eval-real:
+    name: real-mode evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUITES: ${{ inputs.suites || 'emergency,rx,lab,redteam,readability' }}
+      EVAL_MAX_USD: ${{ inputs.max_usd || '5' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/ai-service/uv.lock
+
+      - name: Install
+        run: uv sync --frozen
+        working-directory: apps/ai-service
+
+      - name: Datasets are synthetic only
+        run: uv run --project apps/ai-service python -m evals.harness.cli check-datasets
+
+      - name: Generate the synthetic images
+        run: |
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_rx.py
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_lab.py
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_redteam.py
+
+      - name: Run the suites with real models (capped)
+        id: run
+        continue-on-error: true # still upload the report and update the issue when a gate fails
+        env:
+          LLM_MODE: real
+          LLM_PRIMARY: ${{ vars.LLM_PRIMARY }}
+          LLM_FALLBACK: ${{ vars.LLM_FALLBACK }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          VISION_MODEL: ${{ vars.VISION_MODEL }}
+          TEXT_MODEL: ${{ vars.TEXT_MODEL }}
+          CHEAP_MODEL: ${{ vars.CHEAP_MODEL }}
+          FALLBACK_VISION_MODEL: ${{ vars.FALLBACK_VISION_MODEL }}
+          FALLBACK_TEXT_MODEL: ${{ vars.FALLBACK_TEXT_MODEL }}
+          FALLBACK_CHEAP_MODEL: ${{ vars.FALLBACK_CHEAP_MODEL }}
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused
+          SERVICE_TOKEN: eval-real-not-a-secret
+        run: |
+          uv run --project apps/ai-service python -m evals.harness.cli run \
+            --suite "$SUITES" --mode real --max-usd "$EVAL_MAX_USD"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-reports-real
+          path: evals/reports/*
+          if-no-files-found: ignore
+
+      - name: Open or update the "Weekly eval report" issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.run.outcome }}
+        run: |
+          report=$(ls -t evals/reports/*.md 2>/dev/null | head -n 1 || true)
+          {
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} (result: ${RESULT})"
+            echo
+            if [ -n "$report" ]; then sed -n '1,40p' "$report"; else echo "No report was written."; fi
+          } > issue-body.md
+          number=$(gh issue list --state open --search '"Weekly eval report" in:title' --json number --jq '.[0].number' || true)
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file issue-body.md
+          else
+            gh issue create --title "Weekly eval report" --body-file issue-body.md
+          fi
+
+      - name: Fail the job when a gate failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1

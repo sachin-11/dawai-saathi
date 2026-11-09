@@ -1,7 +1,7 @@
 """The lab eval gate as a test (M12): `make test` and CI fail when a safety metric regresses.
 
 Generates a small synthetic set into a temp folder (the images are not committed) and runs the SAME
-code as `evals/run_lab_eval.py` in the two offline modes. They do not measure model accuracy; they prove
+code as the `lab` eval suite in the two offline modes. They do not measure model accuracy; they prove
 that the deterministic layers around the model keep their promises: every critical value is raised, no
 diagnosis wording, no number that is not on the page, no PHI.
 """
@@ -25,8 +25,10 @@ def load(path: Path, name: str):
     return module
 
 
+from tests.eval_support import gate_failures  # noqa: E402
+
 generator = load(ROOT / "evals" / "scripts" / "make_synthetic_lab.py", "make_synthetic_lab")
-runner = load(ROOT / "evals" / "run_lab_eval.py", "run_lab_eval")
+from evals.suites import lab as runner  # noqa: E402
 
 COUNT = 12  # includes 4 reports with a critical value and one multi-page PDF
 
@@ -64,7 +66,7 @@ def test_the_dataset_has_critical_values_and_a_multi_page_report(cases):
 def test_every_hard_gate_is_zero(cases, mode, language):
     results = asyncio.run(runner.evaluate(cases, mode, language))
     scores = runner.score(results, language)
-    assert runner.gate_failures(scores, mode) == []
+    assert gate_failures("lab", runner.to_metrics([(results, scores)]), mode) == []
     assert scores.critical.total >= 3 and scores.critical.ok == scores.critical.total
     assert scores.errors == 0
 
@@ -90,5 +92,5 @@ def test_the_gate_really_fails_when_a_critical_value_is_missed(cases):
         reply=victim.output.reply,
         extraction=extraction.model_copy(update={"results": tampered}),
     )
-    failures = runner.gate_failures(runner.score(results), "fake")
-    assert any("critical-value recall" in f for f in failures)
+    failures = gate_failures("lab", runner.to_metrics([(results, runner.score(results))]), "fake")
+    assert any("critical_recall" in f for f in failures)

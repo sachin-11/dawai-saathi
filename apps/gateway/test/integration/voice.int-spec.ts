@@ -58,7 +58,7 @@ const reply = (requestId: string, overrides: Partial<ProcessResponse> = {}): Pro
   reply: { language: 'en', text: 'VOICE-ANSWER', buttons: [] },
   meta: {
     model: 'fake-model',
-    prompt_version: 'reply_templates_v7',
+    prompt_version: 'reply_templates_v8',
     latency_ms: 5,
     cost_usd: 0,
     trace_id: null,

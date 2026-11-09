@@ -66,9 +66,7 @@ class Settings(BaseSettings):
         default=60.0, gt=0, le=600, validation_alias="PROCESS_TIMEOUT_S"
     )
 
-    # ---- M9: pipeline and graph
-    # `graph` = the LangGraph pipeline; `minimal` = the pre-M9 code, kept one module as a rollback switch.
-    pipeline: Literal["graph", "minimal"] = Field(default="graph", validation_alias="PIPELINE")
+    # ---- M9: graph
     # Per-node time limits in seconds (a node that exceeds its limit falls back or fails the request).
     node_timeout_vision_s: float = Field(
         default=45.0, gt=0, le=300, validation_alias="NODE_TIMEOUT_VISION_S"

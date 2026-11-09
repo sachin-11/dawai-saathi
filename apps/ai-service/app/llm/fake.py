@@ -218,8 +218,42 @@ class FakeRule:
 FakeStep = str | dict[str, Any] | LLMError
 
 
+LAB_MARKER_RGB = (
+    20,
+    60,
+    200,
+)  # the "fake vision": a solid blue 32x32 square in the top-left corner
+_LAB_MARKER_TOLERANCE = 40
+
+
+def image_kind_hint(images: Sequence[ImageInput] | None) -> str | None:
+    """`lab_report` when the first image carries the blue corner marker, else None (M14 e2e fixtures).
+
+    The fake model never looks at a page, but a conversation test needs BOTH document types to reach the
+    AI service over HTTP. The marker is the deterministic stand-in for "the model recognised a lab report".
+    """
+    if not images:
+        return None
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        with Image.open(BytesIO(images[0].data)) as page:
+            pixel = page.convert("RGB").getpixel((16, 16))
+    except Exception:
+        return None
+    if isinstance(pixel, tuple) and all(
+        abs(int(pixel[i]) - LAB_MARKER_RGB[i]) <= _LAB_MARKER_TOLERANCE for i in range(3)
+    ):
+        return "lab_report"
+    return None
+
+
 def default_fake_response(
-    messages: Sequence[Message], response_model: type[BaseModel] | None
+    messages: Sequence[Message],
+    response_model: type[BaseModel] | None,
+    images: Sequence[ImageInput] | None = None,
 ) -> str:
     """The answer given when no script step or fixture rule applies."""
     if response_model is None:
@@ -228,7 +262,10 @@ def default_fake_response(
     fields = response_model.model_fields
     # M7: the prescription flow (classify -> extract -> compose). The fake never looks at pixels.
     if "kind" in fields and "quality" in fields and "confidence" in fields:
-        return json.dumps(SAMPLE_CLASSIFICATION)
+        hint = image_kind_hint(images)
+        return json.dumps(
+            {**SAMPLE_CLASSIFICATION, "kind": hint} if hint else SAMPLE_CLASSIFICATION
+        )
     if "is_lab_report" in fields:
         return json.dumps(SAMPLE_LAB_EXTRACTION)
     if "test_name" in fields:
@@ -311,7 +348,7 @@ class FakeProvider:
             text = step if isinstance(step, str) else json.dumps(step)
         else:
             text = self._answer_from_rules(messages) or default_fake_response(
-                messages, response_model
+                messages, response_model, images
             )
 
         return RawResult(

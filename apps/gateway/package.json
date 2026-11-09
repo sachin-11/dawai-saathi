@@ -22,7 +22,8 @@
     "postinstall": "prisma generate",
     "webhook": "ts-node scripts/send-test-webhook.ts",
     "prisma:generate": "prisma generate",
-    "contracts:types": "openapi-typescript ../../packages/contracts/openapi/ai-service.json -o src/ai-client/generated/ai-service.ts"
+    "contracts:types": "openapi-typescript ../../packages/contracts/openapi/ai-service.json -o src/ai-client/generated/ai-service.ts",
+    "test:e2e-conversations": "jest --config test/jest-e2e-conversations.json --runInBand"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -83,6 +84,7 @@
     "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "yaml": "2.9.1"
   }
 }

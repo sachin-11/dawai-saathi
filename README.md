@@ -85,7 +85,7 @@ make test-integration           # real Postgres/Redis/MinIO on separate ports (5
 
 Other targets: `make format`, `make build`, `make docker-build`, `make down`, `make logs`, `make migrate-dev name=<name>`, `make clean`, `make help`.
 
-Coming later: `make eval` (M14). For now it only prints which module will implement it.
+Evaluations: `make eval` (see [Quality and evals](#quality-and-evals-m14)).
 
 ### Test the webhook locally
 
@@ -164,11 +164,11 @@ Three guards run before any medical work (CLAUDE.md §2):
 2. **PHI redaction.** Presidio + spaCy (`en_core_web_sm`) with Indian recognisers (mobile, Aadhaar-like, PAN, ABHA, PIN, hospital ids, names after Mr / Dr / "mera naam"). Applied to the text sent to models, to log fields named `text|body|prompt|output` and to Langfuse. Doses, schedules and lab values are never redacted. `REDACTION_ENABLED=false` is refused in production.
 3. **Scope guard.** Only medicines, prescriptions and lab reports. Everything else (cricket, coding, diet advice ...) gets a fixed polite reply; the model never writes it.
 
-The emergency phrases live in ONE file, `packages/contracts/safety/emergency-keywords.json`. After editing it run `make safety-data` (or `make contracts`); a test in each app fails if its copy is stale. `make eval-emergency` runs the emergency eval set (`evals/datasets/emergency/`), writes a report to `evals/reports/` and fails when recall drops below 100%; `make eval-emergency MODE=real` does the manual run with your real model keys.
+The emergency phrases live in ONE file, `packages/contracts/safety/emergency-keywords.json`. After editing it run `make safety-data` (or `make contracts`); a test in each app fails if its copy is stale. `make eval SUITE=emergency` runs the emergency eval set (`evals/datasets/emergency/`), writes a report to `evals/reports/` and fails when recall drops below 100%; `make eval SUITE=emergency MODE=real EVAL_MAX_USD=1` does the manual run with your real model keys.
 
 ## LangGraph pipeline (M9)
 
-The AI service runs a LangGraph state machine (`apps/ai-service/app/graph/`). `PIPELINE=graph` is the default; `PIPELINE=minimal` is the pre-graph rollback switch. `make graph` regenerates the diagram below (`docs/architecture/graph.mmd`; `GRAPH_PNG=1` also renders a PNG through mermaid.ink, which receives node names only). Per-node limits: `NODE_TIMEOUT_*_S`, `GRAPH_RECURSION_LIMIT`. `DEMO_SERVICE_TOKEN` (optional, at least 16 characters, different from `SERVICE_TOKEN`) lets the web demo send `options.include_trace` to `/v1/process` and receive a `debug_trace`; no other caller gets it. Regression check against the minimal pipeline: `uv run --project apps/ai-service python evals/run_pipeline_comparison.py`.
+The AI service runs a LangGraph state machine (`apps/ai-service/app/graph/`). `make graph` regenerates the diagram below (`docs/architecture/graph.mmd`; `GRAPH_PNG=1` also renders a PNG through mermaid.ink, which receives node names only). Per-node limits: `NODE_TIMEOUT_*_S`, `GRAPH_RECURSION_LIMIT`. `DEMO_SERVICE_TOKEN` (optional, at least 16 characters, different from `SERVICE_TOKEN`) lets the web demo send `options.include_trace` to `/v1/process` and receive a `debug_trace`; no other caller gets it. Regression check against the minimal pipeline: `uv run --project apps/ai-service python evals/run_pipeline_comparison.py`.
 
 ```mermaid
 ---
@@ -276,7 +276,7 @@ photo / PDF ─► pre-process (EXIF stripped, resized, blur/dark check) ─► 
 - **With a real model:** set `LLM_MODE=real` and the model ids (see "AI service"). `VISION_MODEL` reads the prescription, `TEXT_MODEL` phrases the lines, and **`CHEAP_MODEL` must accept images** (it classifies the photo). `EXTRACTION_MIN_CONFIDENCE` (default 0.75) is the "say so, do not guess" threshold; `VISION_MAX_PX` and `IMAGE_MIN_SHARPNESS` tune the image check.
 - **Containerised AI service:** presigned S3 URLs are bound to the hostname they were signed for. If the AI service reaches S3 under another name than the gateway (for example `http://minio:9000`), set `S3_AI_ENDPOINT` for the gateway and add that host to `ALLOWED_MEDIA_HOSTS` of the AI service.
 - **Reminder clock times:** a written "morning / afternoon / evening / night" is saved as `MED_TIME_MORNING` (08:00), `MED_TIME_AFTERNOON` (14:00), `MED_TIME_EVENING` (18:00), `MED_TIME_NIGHT` (21:00), Asia/Kolkata.
-- **Prescription eval:** `make eval-rx` generates 24 synthetic prescription images (`evals/datasets/prescriptions/`, see its README), replays them through the pipeline with a fake model and writes `evals/reports/<date>-rx_extract_v1-rx-fake.md`. The fake modes check the safety rules around the model (flag recall, no PHI leakage, no invented medicine, grounded replies), not model accuracy. `make eval-rx MODE=fake-noisy` injects model mistakes; **`make eval-rx MODE=real`** runs your real provider on the images (needs keys, costs money) and is the only mode that measures reading quality.
+- **Prescription eval:** `make eval SUITE=rx` generates 24 synthetic prescription images (`evals/datasets/prescriptions/`, see its README), replays them through the pipeline with a fake model and writes a report to `evals/reports/`. The fake modes check the safety rules around the model (flag recall, no PHI leakage, no invented medicine, grounded replies), not model accuracy. `make eval SUITE=rx MODE=fake-noisy` injects model mistakes; **`make eval SUITE=rx MODE=real EVAL_MAX_USD=2`** runs your real provider on the images (needs keys, costs money) and is the only mode that measures reading quality.
 - Migration `20261108100000_rx_persistence` (run `make migrate`) makes `medications.frequency_per_day` nullable (as-needed medicines), adds `medications.as_needed` and a unique `documents.message_id`.
 
 ## Medicine catalog and generic finder (M8)
@@ -313,8 +313,8 @@ medicine whose written strength or form contradicts the catalog product, and any
 list lives in `apps/ai-service/app/safety/no_substitute.yaml` and **must be reviewed by a pharmacist
 before launch**. A saving is only stated when both the brand price and the alternative price are known.
 
-**Evals (offline, no keys):** `make eval-matcher` runs 279 synthetic cases and fails on any wrong-strength,
-wrong-form/release, wrong-salt or forbidden suggestion (all four must be 0); `make eval-rx` now also checks
+**Evals (offline, no keys):** `make eval SUITE=matcher` runs 279 synthetic cases and fails on any wrong-strength,
+wrong-form/release, wrong-salt or forbidden suggestion (all four must be 0); `make eval SUITE=rx` now also checks
 suggestions end to end on the synthetic prescriptions. Both run in CI.
 
 Settings: `DRUG_TRGM_MIN`, `DRUG_MATCH_MIN`, `DRUG_VECTOR_MIN`, `MIN_SAVINGS_PCT`, `VECTOR_BACKEND`,
@@ -339,7 +339,7 @@ called safe. Source, licence reasoning and the partial coverage: [`data/SOURCES.
 ```bash
 make migrate                # m11_interactions: new interactions columns + medication_warnings
 make seed                   # also loads data/seed/interactions_core.csv (idempotent)
-make eval-interactions      # 135 offline cases; every safety gate must be 0
+make eval SUITE=interactions   # 135 offline cases; every safety gate must be 0
 ```
 
 **On WhatsApp**
@@ -383,7 +383,7 @@ text      -> classify -> lab_question ("TSH 6.2 matlab kya?") -> composer -> ver
 
 Setup: `make migrate` (migration `m12_lab_reports`), then `make seed` (loads `data/seed/lab_tests.yaml`; check it with
 `uv run --project apps/ai-service python data/scripts/seed_lab_tests.py --check`).
-Evals: `make eval-lab` (fake replay, offline, CI gate); with keys `make eval-lab MODE=real`. Hard gates: critical-value
+Evals: `make eval SUITE=lab` (fake replay, offline, CI gate); with keys `make eval SUITE=lab MODE=real EVAL_MAX_USD=2`. Hard gates: critical-value
 recall 100%, critical line first, zero diagnosis wording, zero values that are not on the page, zero PHI leakage.
 Reference data is **not clinically reviewed**: see `data/SOURCES.md` before any launch.
 
@@ -407,9 +407,9 @@ redaction, intent and the usual branches. Replies are text; with `VOICE ON` shor
 
 Fake mode (`LLM_MODE=fake`) uses a fake speech provider: no keys, no ffmpeg, no audio needed.
 
-Evals: `make eval-voice` (fake replay of 100 synthetic prompts, CI gate; hard gate: emergency recall on voice 100%).
+Evals: `make eval SUITE=voice` (fake replay of 100 synthetic prompts, CI gate; hard gate: emergency recall on voice 100%).
 Real providers: build the audio (`uv run --project apps/ai-service python evals/scripts/make_synthetic_voice.py`,
-needs a TTS provider and ffmpeg), then `make eval-voice MODE=real` writes the Whisper vs Sarvam table to
+needs a TTS provider and ffmpeg), then `make eval SUITE=voice MODE=real EVAL_MAX_USD=2` writes the Whisper vs Sarvam table to
 `evals/reports/`. Synthetic TTS speech is easier than real elderly speakers: see `docs/modules/M13.md`.
 
 Manual WhatsApp test: send the voice notes "Dolo 650 ka generic batao" (reply starts with `🎧 Aapne poocha: ...`),
@@ -477,14 +477,53 @@ Tests: `make test` (unit, fake clock) and `make test-integration` (`reminders.in
 | `make migrate` | Apply database migrations (`make migrate-dev name=…` creates one) |
 | `make db-reset` | Wipe local volumes, restart infra, re-migrate (asks first) |
 | `make safety-data` | Copy the shared emergency keywords into both apps |
-| `make eval-emergency` | Emergency-detection eval (rules, then rules + classifier) |
 | `make seed` / `make embed` | Load the medicine catalog / embed it for the vector fallback (see M8 section) |
-| `make eval-matcher` | Drug matching + generic finder eval (all safety gates must be zero) |
-| `make eval-interactions` | Interaction checker eval (135 cases, every safety gate must be zero) |
-| `make eval-rx` | Prescription eval on synthetic images (`MODE=fake-noisy`, or `MODE=real` with your keys) |
 | `make seed` | Load catalog datasets |
-| `make eval-voice` | Voice eval (fake replay; `MODE=real` for the Whisper vs Sarvam table) |
-| `make eval` | Run evaluation suite → `evals/reports/` |
+| `make eval` | All eval suites in fake mode with gates → `evals/reports/<date>-<sha>.md`. `SUITE=rx`, `MODE=real EVAL_MAX_USD=2` |
+| `make eval-baseline SUITE=rx REASON="…"` | Store the current metrics as the baseline (a reason is required) |
+| `make eval-summary` / `make eval-list` / `make eval-checks` | README table / list suites / PR checks (prompt versions, eval evidence) |
+| `make e2e` | Conversation scenarios through the real gateway + AI service (needs `make test-infra-up`) |
+
+## Quality and evals (M14)
+
+One harness runs every check that is not a unit test: **8 suites** (emergency, matcher, interactions, rx, lab,
+voice, redteam, e2e_conversations) plus a soft readability judge. Each suite calls the real pipeline, produces
+metrics, and is judged against `evals/thresholds.yaml`: **hard gates** (zero hallucinated medicines, 100% emergency
+recall, zero wrong-strength generics, zero PHI leakage, all red-team assertions...) fail the run always, **soft
+thresholds** fail only when a metric gets worse than its stored baseline (`evals/baselines/`) by more than a tolerance.
+
+```bash
+make eval                           # everything, fake models, with gates  -> evals/reports/<date>-<sha>.md + .json
+make eval SUITE=redteam             # one suite
+make eval SUITE=rx MODE=real EVAL_MAX_USD=2   # real provider, aborts when the cost cap is passed
+make eval-baseline SUITE=rx REASON="why the numbers moved"   # then add a Decisions Log row
+make e2e                            # only the conversation scenarios (needs make test-infra-up)
+make eval-checks BASE=origin/main   # prompt versions + eval evidence for the current branch
+```
+
+How to change a prompt or a model safely: [docs/eval-process.md](docs/eval-process.md). **Fake modes prove the plumbing
+and the safety layers, not how well a model reads or resists an attack**; real-mode numbers come from
+`make eval ... MODE=real` and the weekly `eval-real.yml` workflow, and are not in the table below.
+
+<!-- eval-summary:start -->
+_Latest full offline run: 2026-11-09 at `f401ec7`. Fake modes check the plumbing and the safety layers, not model reading accuracy; real-mode numbers are not in this table._
+
+| Suite | Mode | Cases | Hard gates | Result | Key metric |
+|---|---|---|---|---|---|
+| emergency | rules | 152 | 2/2 | PASS | recall_rules_tier 100.0% |
+| emergency | fake | 152 | 2/2 | PASS | recall_rules_tier 100.0% |
+| matcher | fake | 284 | 7/7 | PASS | correct_product_rate 97.6% |
+| interactions | fake | 135 | 8/8 | PASS | pair_recall 100.0% |
+| rx | fake | 24 | 8/8 | PASS | field_name_exact 100.0% |
+| rx | fake-noisy | 24 | 8/8 | PASS | field_name_exact 100.0% |
+| lab | fake | 36 | 8/8 | PASS | critical_recall 100.0% |
+| lab | fake-noisy | 36 | 8/8 | PASS | critical_recall 100.0% |
+| voice | fake | 100 | 4/4 | PASS | emergency_recall_voice 100.0% |
+| voice | fake-noisy | 100 | 4/4 | PASS | emergency_recall_voice 100.0% |
+| redteam | fake | 65 | 11/11 | PASS | assertion_pass_rate 100.0% |
+| readability | fake | 40 | 2/2 | PASS | readability_mean 5.00 |
+| e2e_conversations | fake | 14 | 3/3 | PASS | scenario_pass_rate 100.0% |
+<!-- eval-summary:end -->
 
 ## User commands (on WhatsApp)
 

@@ -1,0 +1,7 @@
+{
+  "name": "voice",
+  "version": 1,
+  "description": "Prompt texts written for this project; audio is generated with TTS (evals/scripts/make_synthetic_voice.py).",
+  "synthetic": true,
+  "contains_real_phi": false
+}

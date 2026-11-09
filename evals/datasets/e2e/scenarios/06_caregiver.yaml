@@ -1,0 +1,26 @@
+- name: caregiver_invite_and_missed_dose_alert
+  description: the caregiver agrees by replying YES; missed doses alert them with a label and a time only
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_000 }
+      expect: { replies_min: 2 }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+    - send: { type: button, id: 'rem:confirm:{last_document}' }
+    - send: { type: text, text: 'CAREGIVER +{caregiver_phone}' }
+      expect: { replies_min: 1 }
+    - send: { type: text, text: 'Papa' }
+      expect: { to_caregiver: { template: caregiver_invite } }
+      expect_db: { caregiver_status: pending }
+    - send: { from: caregiver, type: text, text: 'YES' }
+      expect_db: { caregiver_status: verified, audit_actions_include: [caregiver_verified] }
+    - advance_time: '18:00 next day'
+      expect:
+        {
+          to_caregiver:
+            {
+              template: caregiver_missed_dose_alert,
+              text_includes: ['Papa'],
+              text_excludes: ['Dolo', 'Pantop', '650'],
+            },
+        }
+      expect_db: { audit_actions_include: [caregiver_alert_sent] }

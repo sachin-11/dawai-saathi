@@ -1,0 +1,39 @@
+- name: emergency_in_the_middle_of_a_reminder_setup
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_002 }
+      expect: { replies_min: 2 }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+    - send: { type: button, id: 'rem:change:{last_document}' }
+      note: the bot now waits for typed times
+    - send: { type: text, text: 'I have severe chest pain and cannot breathe' }
+      expect: { text_includes: ['112'] }
+
+- name: stop_reminders_command
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_002 }
+      expect: { replies_min: 2 }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+    - send: { type: button, id: 'rem:confirm:{last_document}' }
+      expect_db: { reminders_enabled: true }
+    - send: { type: text, text: 'STOP REMINDERS' }
+      expect: { replies_min: 1 }
+      expect_db: { reminders_enabled: false }
+    - send: { type: text, text: 'START REMINDERS' }
+      expect_db: { reminders_enabled: true }
+
+- name: delete_in_the_middle_of_a_flow
+  description: DELETE wins over a half-finished reminder edit and wipes everything
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_002 }
+      expect: { replies_min: 2 }
+      expect_db: { medication_count_min: 1 }
+    - send: { type: button, id: 'rx:reminders:{last_document}' }
+    - send: { type: button, id: 'rem:change:{last_document}' }
+    - send: { type: text, text: 'DELETE' }
+      expect: { buttons_include: ['delete:confirm', 'delete:cancel'] }
+      expect_db: { user_exists: true }
+    - send: { type: button, id: 'delete:confirm' }
+      expect_db: { user_exists: false, s3_prefix_empty: true, rows_for_user: 0 }

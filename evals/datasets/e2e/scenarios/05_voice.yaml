@@ -1,0 +1,29 @@
+- name: voice_note_commands
+  description: MEDS works by voice; DELETE by voice only shows the confirm button
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_000 }
+      expect: { replies_min: 2 }
+    - send: { type: audio, says: 'meds' }
+      expect: { replies_min: 1, text_includes: ['Dolo 650'] }
+    - send: { type: audio, says: 'delete my data' }
+      expect: { buttons_include: ['delete:confirm'] }
+      expect_db: { user_exists: true, medication_count_min: 1 }
+
+- name: voice_note_needs_consent_v2
+  description: a user on the old consent text is asked once before audio goes to a speech provider
+  setup: { onboarded: true, language: en, consent_version: v1 }
+  steps:
+    - send: { type: audio, says: 'meds' }
+      expect: { buttons_include: ['voice:ok', 'voice:no'] }
+      expect_db: { consent_version: v1 }
+    - send: { type: button, id: 'voice:ok' }
+      expect_db: { consent_version: v2, audit_actions_include: [consent_updated] }
+    - send: { type: audio, says: 'meds' }
+      expect: { replies_min: 1 }
+
+- name: spoken_emergency_is_answered_first
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: audio, says: 'mere papa behosh ho gaye hain' }
+      expect: { text_includes: ['112'] }

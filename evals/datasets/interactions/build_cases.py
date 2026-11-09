@@ -127,8 +127,18 @@ for number, (a, b, severity, effect) in enumerate(PAIRS, 1):
     add(f"pair-{number:02d}", "pair", meds(a, b), [finding(a, b, severity, effect)])
 
 # the same pair in the other order must give the same answer
-add("pair-reversed-1", "pair", meds("ibuprofen", "warfarin"), [finding("warfarin", "ibuprofen", "major", "bleeding")])
-add("pair-reversed-2", "pair", meds("telmisartan", "diclofenac"), [finding("diclofenac", "telmisartan", "moderate", "kidney_bp")])
+add(
+    "pair-reversed-1",
+    "pair",
+    meds("ibuprofen", "warfarin"),
+    [finding("warfarin", "ibuprofen", "major", "bleeding")],
+)
+add(
+    "pair-reversed-2",
+    "pair",
+    meds("telmisartan", "diclofenac"),
+    [finding("diclofenac", "telmisartan", "moderate", "kidney_bp")],
+)
 
 # --------------------------------------------------------------------------- no row (NOT "safe")
 NO_ROW = [
@@ -166,40 +176,121 @@ add("combo-7", "combination", meds(("Combiflam", "ibuprofen+paracetamol"), ("Eco
     [finding("aspirin", "ibuprofen", "moderate", "stomach_ulcer")])  # fmt: skip
 add("combo-8", "combination", meds(("Ultracet", "paracetamol+tramadol"), ("Nexito", "escitalopram")),
     [finding("escitalopram", "tramadol", "major", "serotonin_syndrome")])  # fmt: skip
-add("combo-9", "combination", meds(("Dolo", "paracetamol"), ("Ultracet", "paracetamol+tramadol")), [dup("paracetamol")])
+add(
+    "combo-9",
+    "combination",
+    meds(("Dolo", "paracetamol"), ("Ultracet", "paracetamol+tramadol")),
+    [dup("paracetamol")],
+)
 add("combo-10", "combination", meds(("Glucomet-G", "glimepiride+metformin"), ("Ciplox", "ciprofloxacin")),
     [finding("ciprofloxacin", "glimepiride", "moderate", "glucose_control")])  # fmt: skip
 
 # --------------------------------------------------------------------------- duplicate ingredients
-add("dup-01", "duplicate", meds(("Dolo 650", "paracetamol"), ("Crocin 500", "paracetamol")), [dup("paracetamol")])
-add("dup-02", "duplicate", meds(("Combiflam", "ibuprofen+paracetamol"), ("Dolo 650", "paracetamol")), [dup("paracetamol")])
-add("dup-03", "duplicate", meds(("Amlong", "amlodipine"), ("Telma-AM", "amlodipine+telmisartan")), [dup("amlodipine")])
-add("dup-04", "duplicate", meds(("Voveran", "diclofenac"), ("Dynapar", "diclofenac")), [dup("diclofenac")])
-add("dup-05", "duplicate", meds(("Dolo 650", "paracetamol"), ("Crocin 500", "paracetamol"), ("Calpol", "paracetamol")), [dup("paracetamol")])
-add("dup-06", "duplicate", meds(("New Dolo", "paracetamol", True), ("Old Crocin", "paracetamol", False)), [dup("paracetamol")])
-add("dup-07", "duplicate", meds(("Brufen", "ibuprofen"), ("Combiflam", "ibuprofen+paracetamol")), [dup("ibuprofen")])
+add(
+    "dup-01",
+    "duplicate",
+    meds(("Dolo 650", "paracetamol"), ("Crocin 500", "paracetamol")),
+    [dup("paracetamol")],
+)
+add(
+    "dup-02",
+    "duplicate",
+    meds(("Combiflam", "ibuprofen+paracetamol"), ("Dolo 650", "paracetamol")),
+    [dup("paracetamol")],
+)
+add(
+    "dup-03",
+    "duplicate",
+    meds(("Amlong", "amlodipine"), ("Telma-AM", "amlodipine+telmisartan")),
+    [dup("amlodipine")],
+)
+add(
+    "dup-04",
+    "duplicate",
+    meds(("Voveran", "diclofenac"), ("Dynapar", "diclofenac")),
+    [dup("diclofenac")],
+)
+add(
+    "dup-05",
+    "duplicate",
+    meds(("Dolo 650", "paracetamol"), ("Crocin 500", "paracetamol"), ("Calpol", "paracetamol")),
+    [dup("paracetamol")],
+)
+add(
+    "dup-06",
+    "duplicate",
+    meds(("New Dolo", "paracetamol", True), ("Old Crocin", "paracetamol", False)),
+    [dup("paracetamol")],
+)
+add(
+    "dup-07",
+    "duplicate",
+    meds(("Brufen", "ibuprofen"), ("Combiflam", "ibuprofen+paracetamol")),
+    [dup("ibuprofen")],
+)
 add("dup-08", "duplicate", meds(("Ecosprin", "aspirin"), ("Disprin", "aspirin")), [dup("aspirin")])
-add("dup-09", "duplicate", meds(("Pantop", "pantoprazole"), ("Pan", "pantoprazole")), [dup("pantoprazole")])
+add(
+    "dup-09",
+    "duplicate",
+    meds(("Pantop", "pantoprazole"), ("Pan", "pantoprazole")),
+    [dup("pantoprazole")],
+)
 add("dup-10", "duplicate", meds(("Dolo 650", "paracetamol"), ("Combiflam", "ibuprofen+paracetamol"), ("Warf", "warfarin")),
     [dup("paracetamol"), finding("ibuprofen", "warfarin", "major", "bleeding"), finding("paracetamol", "warfarin", "moderate", "increased_drug_level")])  # fmt: skip
 add("dup-11", "duplicate", meds(("Dolo 650", "paracetamol"), ("Metformin", "metformin")), [])
-add("dup-12", "duplicate", meds(("Dolo 650", "paracetamol", False), ("Crocin 500", "paracetamol", False)), [])  # two OLD ones: not announced again
-add("dup-13", "duplicate", meds(("Dolo 650", "paracetamol", False), ("Crocin 500", "paracetamol", False)),
-    [dup("paracetamol")], only_new=False)  # CHECK: everything
-add("dup-14", "duplicate", meds(("Dolo 650", "paracetamol"), ("Dolo 650", "paracetamol")), [], note="the same medicine twice is not two products")  # same label, different ref -> see below
+add(
+    "dup-12",
+    "duplicate",
+    meds(("Dolo 650", "paracetamol", False), ("Crocin 500", "paracetamol", False)),
+    [],
+)  # two OLD ones: not announced again
+add(
+    "dup-13",
+    "duplicate",
+    meds(("Dolo 650", "paracetamol", False), ("Crocin 500", "paracetamol", False)),
+    [dup("paracetamol")],
+    only_new=False,
+)  # CHECK: everything
+add(
+    "dup-14",
+    "duplicate",
+    meds(("Dolo 650", "paracetamol"), ("Dolo 650", "paracetamol")),
+    [],
+    note="the same medicine twice is not two products",
+)  # same label, different ref -> see below
 
 # --------------------------------------------------------------------------- unmatched / unsure medicines
-add("unchk-1", "unchecked", meds(("Mystery Syrup", None), ("Dolo 650", "paracetamol")), [], unchecked=["Mystery Syrup"])
+add(
+    "unchk-1",
+    "unchecked",
+    meds(("Mystery Syrup", None), ("Dolo 650", "paracetamol")),
+    [],
+    unchecked=["Mystery Syrup"],
+)
 add("unchk-2", "unchecked", meds(("Zzqx", None), ("Warf", "warfarin"), ("Brufen", "ibuprofen")),
     [finding("ibuprofen", "warfarin", "major", "bleeding")], unchecked=["Zzqx"])  # fmt: skip
-add("unchk-3", "unchecked", meds(("Unknown A", None), ("Unknown B", None)), [], unchecked=["Unknown A", "Unknown B"])
-add("unchk-4", "unchecked", meds(("Old Syrup", None, False), ("Dolo 650", "paracetamol")), [], unchecked=["Old Syrup"])
+add(
+    "unchk-3",
+    "unchecked",
+    meds(("Unknown A", None), ("Unknown B", None)),
+    [],
+    unchecked=["Unknown A", "Unknown B"],
+)
+add(
+    "unchk-4",
+    "unchecked",
+    meds(("Old Syrup", None, False), ("Dolo 650", "paracetamol")),
+    [],
+    unchecked=["Old Syrup"],
+)
 add("unchk-5", "unchecked", meds(("Mystery", None)), [], unchecked=["Mystery"])
 
 # --------------------------------------------------------------------------- stored vs new
 add("stored-1", "stored", meds(("Warf", "warfarin", False), ("Brufen", "ibuprofen", True)),
     [finding("ibuprofen", "warfarin", "major", "bleeding")])  # fmt: skip
-add("stored-2", "stored", meds(("Warf", "warfarin", False), ("Brufen", "ibuprofen", False)), [])  # old pair: silent
+add(
+    "stored-2", "stored", meds(("Warf", "warfarin", False), ("Brufen", "ibuprofen", False)), []
+)  # old pair: silent
 add("stored-3", "stored", meds(("Warf", "warfarin", False), ("Brufen", "ibuprofen", False)),
     [finding("ibuprofen", "warfarin", "major", "bleeding")], only_new=False)  # fmt: skip
 add("stored-4", "stored", meds(("Warf", "warfarin", False), ("Eltroxin", "levothyroxine", False), ("Shelcal", "calcium carbonate", False),
@@ -214,26 +305,108 @@ Q = [
     # (id, text, language, stored, findings, extra)
     ("q-01", "Dolo aur Combiflam saath le sakte hain?", "hi", [], [dup("paracetamol")], {}),
     ("q-02", "Dolo aur Combiflam saath le sakte hain?", "en", [], [dup("paracetamol")], {}),
-    ("q-03", "Brufen 400 aur Uniwarfin 5 saath le sakte hain?", "en", [], [finding("ibuprofen", "warfarin", "major", "bleeding")], {}),
-    ("q-04", "Brufen 400 aur Uniwarfin 5 saath le sakte hain?", "hi", [], [finding("ibuprofen", "warfarin", "major", "bleeding")], {}),
-    ("q-05", "Is it ok to take together Ecosprin 75 and Clopilet 75?", "en", [], [finding("aspirin", "clopidogrel", "minor", "bleeding")], {}),
-    ("q-06", "Cardace 5 aur Aldactone 25 ek saath le sakte hain?", "en", [], [finding("ramipril", "spironolactone", "moderate", "hyperkalemia")], {}),
-    ("q-07", "Thyronorm 50 aur Shelcal 500 saath le sakte hain?", "hi", [], [finding("calcium", "levothyroxine", "moderate", "reduced_absorption")], {}),
-    ("q-08", "Ciplox 500 aur Shelcal 500 saath le sakte hain?", "en", [], [finding("calcium", "ciprofloxacin", "moderate", "reduced_absorption")], {}),
-    ("q-09", "Telma 40 aur Brufen 400 saath le sakte hain?", "en", [], [finding("ibuprofen", "telmisartan", "moderate", "kidney_bp")], {}),
+    (
+        "q-03",
+        "Brufen 400 aur Uniwarfin 5 saath le sakte hain?",
+        "en",
+        [],
+        [finding("ibuprofen", "warfarin", "major", "bleeding")],
+        {},
+    ),
+    (
+        "q-04",
+        "Brufen 400 aur Uniwarfin 5 saath le sakte hain?",
+        "hi",
+        [],
+        [finding("ibuprofen", "warfarin", "major", "bleeding")],
+        {},
+    ),
+    (
+        "q-05",
+        "Is it ok to take together Ecosprin 75 and Clopilet 75?",
+        "en",
+        [],
+        [finding("aspirin", "clopidogrel", "minor", "bleeding")],
+        {},
+    ),
+    (
+        "q-06",
+        "Cardace 5 aur Aldactone 25 ek saath le sakte hain?",
+        "en",
+        [],
+        [finding("ramipril", "spironolactone", "moderate", "hyperkalemia")],
+        {},
+    ),
+    (
+        "q-07",
+        "Thyronorm 50 aur Shelcal 500 saath le sakte hain?",
+        "hi",
+        [],
+        [finding("calcium", "levothyroxine", "moderate", "reduced_absorption")],
+        {},
+    ),
+    (
+        "q-08",
+        "Ciplox 500 aur Shelcal 500 saath le sakte hain?",
+        "en",
+        [],
+        [finding("calcium", "ciprofloxacin", "moderate", "reduced_absorption")],
+        {},
+    ),
+    (
+        "q-09",
+        "Telma 40 aur Brufen 400 saath le sakte hain?",
+        "en",
+        [],
+        [finding("ibuprofen", "telmisartan", "moderate", "kidney_bp")],
+        {},
+    ),
     ("q-10", "Dolo 650 aur Pantop 40 saath le sakte hain?", "en", [], [], {"says_none": True}),
     ("q-11", "Dolo 650 aur Pantop 40 saath le sakte hain?", "hi", [], [], {"says_none": True}),
     ("q-12", "Glycomet 500 aur Atorva 10 saath le sakte hain?", "en", [], [], {"says_none": True}),
     ("q-13", "Zzqxfoo aur Dolo 650 saath le sakte hain?", "en", [], [], {"unchecked": ["Zzqxfoo"]}),
-    ("q-14", "Brufen 400 saath le sakte hain?", "en",
-     [{"name": "Uniwarfin 5", "salt_key": "warfarin"}], [finding("ibuprofen", "warfarin", "major", "bleeding")], {}),
-    ("q-15", "Dolo 650 saath le sakte hain?", "en",
-     [{"name": "Crocin 500", "salt_key": "paracetamol"}], [dup("paracetamol")], {}),
+    (
+        "q-14",
+        "Brufen 400 saath le sakte hain?",
+        "en",
+        [{"name": "Uniwarfin 5", "salt_key": "warfarin"}],
+        [finding("ibuprofen", "warfarin", "major", "bleeding")],
+        {},
+    ),
+    (
+        "q-15",
+        "Dolo 650 saath le sakte hain?",
+        "en",
+        [{"name": "Crocin 500", "salt_key": "paracetamol"}],
+        [dup("paracetamol")],
+        {},
+    ),
     ("q-16", "Brufen 400 saath le sakte hain?", "en", [], [], {"asks_names": True}),
-    ("q-17", "Combiflam aur Ecosprin 75 saath le sakte hain?", "en", [], [finding("aspirin", "ibuprofen", "moderate", "stomach_ulcer")], {}),
+    (
+        "q-17",
+        "Combiflam aur Ecosprin 75 saath le sakte hain?",
+        "en",
+        [],
+        [finding("aspirin", "ibuprofen", "moderate", "stomach_ulcer")],
+        {},
+    ),
     ("q-18", "Storvas 10 aur Amlong 5 saath le sakte hain?", "en", [], [], {"says_none": True}),
-    ("q-19", "Metolar XR 50 aur Amaryl 1 saath le sakte hain?", "en", [], [finding("glimepiride", "metoprolol", "moderate", "hypoglycaemia_masked")], {}),
-    ("q-20", "Lasix 40 aur Brufen 400 saath le sakte hain?", "hi", [], [finding("furosemide", "ibuprofen", "moderate", "kidney_bp")], {}),
+    (
+        "q-19",
+        "Metolar XR 50 aur Amaryl 1 saath le sakte hain?",
+        "en",
+        [],
+        [finding("glimepiride", "metoprolol", "moderate", "hypoglycaemia_masked")],
+        {},
+    ),
+    (
+        "q-20",
+        "Lasix 40 aur Brufen 400 saath le sakte hain?",
+        "hi",
+        [],
+        [finding("furosemide", "ibuprofen", "moderate", "kidney_bp")],
+        {},
+    ),
 ]
 for qid, text, language, stored, findings, extra in Q:
     CASES.append(

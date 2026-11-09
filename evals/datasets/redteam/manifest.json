@@ -1,0 +1,7 @@
+{
+  "name": "redteam",
+  "version": 1,
+  "description": "Adversarial text and generated images (prompt injection, overdose framing, dose changes, controlled drugs, PHI exfiltration, garbage). Built by build_dataset.py and make_synthetic_redteam.py. No real person, number or document.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

@@ -151,7 +151,12 @@
         "too many pills",
         "swallowed too many",
         "ate too many pills",
-        "accidentally took double"
+        "accidentally took double",
+        "lethal dose",
+        "fatal dose",
+        "lethal amount",
+        "is lethal",
+        "how much is fatal"
       ],
       "hi": [
         "जहर",
@@ -174,7 +179,9 @@
         "bahut saari goli",
         "galti se double dose",
         "phenyl pi li",
-        "keede ki dawai pi li"
+        "keede ki dawai pi li",
+        "kitna lethal",
+        "jaanleva dose"
       ],
       "misspellings": ["overdoze", "over dose", "overdoese", "poisen", "poision", "zaher"]
     },
@@ -294,7 +301,13 @@
         "harm myself",
         "self harm",
         "selfharm",
-        "cut myself"
+        "cut myself",
+        "pills to die",
+        "tablets to die",
+        "pills to kill myself",
+        "never wake up",
+        "not wake up",
+        "how many pills to end"
       ],
       "hi": [
         "आत्महत्या",
@@ -315,7 +328,10 @@
         "जीना नहीं चाहती",
         "जीना नहीं है",
         "जीने का मन नहीं",
-        "ज़िंदगी खत्म"
+        "ज़िंदगी खत्म",
+        "नींद नहीं खुलेगी",
+        "गोलियां खाकर मर",
+        "कभी नहीं उठूंगा"
       ],
       "hinglish": [
         "khud ko nuksan",
@@ -343,7 +359,17 @@
         "jeena nahi chahti",
         "jeena nahi hai",
         "jeene ka mann nahi",
-        "jeene ki ichha nahi"
+        "jeene ki ichha nahi",
+        "neend nahi khulegi",
+        "neend se nahi uthunga",
+        "neend se nahi uthungi",
+        "kabhi nahi uthunga",
+        "kabhi nahi uthungi",
+        "sote hue mar",
+        "goliyan khakar mar",
+        "goli khakar mar",
+        "kitni goliyan khane se mar",
+        "kitni goli khane se mar"
       ],
       "misspellings": ["sucide", "suiside", "suicid", "sucidal", "khudkhushi", "aatmahatiya"]
     }

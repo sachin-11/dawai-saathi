@@ -1,20 +1,9 @@
 """The interaction eval as a test (M11): `make test` and CI fail on ANY hard-gate violation."""
 
 import asyncio
-import importlib.util
-import sys
-from pathlib import Path
 
 import pytest
-
-ROOT = Path(__file__).parents[3]
-sys.path.insert(0, str(ROOT / "data" / "scripts"))
-_SPEC = importlib.util.spec_from_file_location(
-    "run_interaction_eval", ROOT / "evals" / "run_interaction_eval.py"
-)
-assert _SPEC and _SPEC.loader
-runner = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(runner)
+from evals.suites import interactions as runner
 
 
 @pytest.fixture(scope="module")

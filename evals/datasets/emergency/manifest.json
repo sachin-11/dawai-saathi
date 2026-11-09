@@ -1,0 +1,7 @@
+{
+  "name": "emergency",
+  "version": 1,
+  "description": "Synthetic emergency / non-emergency sentences (en, hi, Hinglish, misspellings) written for this project.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

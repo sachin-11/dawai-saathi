@@ -25,7 +25,15 @@ BRANDS: dict[str, tuple[str, str, str, str, str | None, bool, bool]] = {
     "Crocin 500": ("paracetamol", "500mg", "tablet", "ir", None, False, True),
     "Combiflam": ("ibuprofen+paracetamol", "400mg+325mg", "tablet", "ir", None, False, False),
     "Omez": ("omeprazole", "20mg", "capsule", "ir", "20 mg", False, False),
-    "Augmentin 625 Duo": ("amoxicillin+clavulanic acid", "500mg+125mg", "tablet", "ir", None, False, True),
+    "Augmentin 625 Duo": (
+        "amoxicillin+clavulanic acid",
+        "500mg+125mg",
+        "tablet",
+        "ir",
+        None,
+        False,
+        True,
+    ),
     "Azithral 500": ("azithromycin", "500mg", "tablet", "ir", None, False, True),
     "Cetzine": ("cetirizine", "10mg", "tablet", "ir", "10 mg", False, True),
     "Allegra 120": ("fexofenadine", "120mg", "tablet", "ir", None, False, False),
@@ -110,7 +118,9 @@ def case(category: str, name: str, strength: str | None, form: str | None, gold,
         "name": name,
         "strength": strength,
         "form": form,
-        "gold": None if gold is None else dict(zip(("salt_key", "strength_key", "form_key", "release_type"), gold)),
+        "gold": None
+        if gold is None
+        else dict(zip(("salt_key", "strength_key", "form_key", "release_type"), gold)),
         "excluded": flags.get("excluded", False),
         "forbid_suggestion": flags.get("forbid", False),
         "expect_suggestion": flags.get("expect", False),
@@ -126,7 +136,14 @@ def build() -> list[dict]:
         for category, name in (
             ("brand_exact", brand),
             ("brand_squeezed", lowered),
-            ("brand_prefixed", f"Tab. {brand}" if form == "tablet" else f"Cap. {brand}" if form == "capsule" else brand),
+            (
+                "brand_prefixed",
+                f"Tab. {brand}"
+                if form == "tablet"
+                else f"Cap. {brand}"
+                if form == "capsule"
+                else brand,
+            ),
             ("brand_suffixed", f"{brand.upper()} TAB" if form == "tablet" else brand.upper()),
             ("brand_hyphen", brand.replace(" ", "-")),
             ("brand_typo", typo(brand)),
@@ -135,10 +152,22 @@ def build() -> list[dict]:
 
     for text, brand in DEVANAGARI:
         salt, strength_key, form, release, written, excluded, expect = BRANDS[brand]
-        rows.append(case("devanagari", text, written, None, (salt, strength_key, form, release), excluded=excluded, expect=expect))
+        rows.append(
+            case(
+                "devanagari",
+                text,
+                written,
+                None,
+                (salt, strength_key, form, release),
+                excluded=excluded,
+                expect=expect,
+            )
+        )
 
     for name, strength, form, gold, excluded, expect in SALT_WRITTEN:
-        rows.append(case("salt_written", name, strength, form, gold, excluded=excluded, expect=expect))
+        rows.append(
+            case("salt_written", name, strength, form, gold, excluded=excluded, expect=expect)
+        )
 
     # The written strength contradicts the product: never compare.
     for name, strength in (("Dolo 650", "500 mg"), ("Dolo 650", "1000 mg"), ("Dolo 500", "650 mg"), ("Azithral 500", "250 mg"),
@@ -146,11 +175,22 @@ def build() -> list[dict]:
         rows.append(case("wrong_strength", name, strength, None, None, forbid=True))
 
     # The written form contradicts the product.
-    for name, form in (("Dolo 650", "syrup"), ("Azithral 500", "injection"), ("Omez", "tablet"), ("Atorva 10", "syrup")):
+    for name, form in (
+        ("Dolo 650", "syrup"),
+        ("Azithral 500", "injection"),
+        ("Omez", "tablet"),
+        ("Atorva 10", "syrup"),
+    ):
         rows.append(case("wrong_form", name, None, form, None, forbid=True))
 
     # The form is written inside the name (typed questions, abbreviations): same rule.
-    for name in ("Dolo 650 syrup", "Azithral 500 injection", "Atorva 10 eye drops", "Dolo 650 chewable tablet", "Omez tablets"):
+    for name in (
+        "Dolo 650 syrup",
+        "Azithral 500 injection",
+        "Atorva 10 eye drops",
+        "Dolo 650 chewable tablet",
+        "Omez tablets",
+    ):
         rows.append(case("form_in_name", name, None, None, None, forbid=True))
 
     # Numberless brand and no strength written, or two strengths fit: unsafe to compare.
@@ -158,8 +198,26 @@ def build() -> list[dict]:
         rows.append(case("strength_unverified", name, None, None, None, forbid=True))
 
     # A plain prescription must not be tied to a modified-release product, or the other way round.
-    rows.append(case("release", "Glycomet 500", None, None, ("metformin", "500mg", "tablet", "ir"), expect=True))
-    rows.append(case("release", "Glycomet SR 500", None, None, ("metformin", "500mg", "tablet", "sr"), excluded=True))
+    rows.append(
+        case(
+            "release",
+            "Glycomet 500",
+            None,
+            None,
+            ("metformin", "500mg", "tablet", "ir"),
+            expect=True,
+        )
+    )
+    rows.append(
+        case(
+            "release",
+            "Glycomet SR 500",
+            None,
+            None,
+            ("metformin", "500mg", "tablet", "sr"),
+            excluded=True,
+        )
+    )
 
     for name in UNKNOWN:
         rows.append(case("unknown", name, None, None, None, forbid=True))

@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v7
+version: reply_templates_v8
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -16,6 +16,8 @@ texts:
     I am not a doctor. Always ask your doctor or pharmacist before changing anything.
   coming_soon: |-
     Thanks for your message! This feature is coming soon. For now, send HELP to see what I can do.
+
+    I am not a doctor. Always ask your doctor or pharmacist before changing a dose or stopping a medicine.
   received_media: |-
     I received your file. Reading it will be available very soon. Thank you for your patience!
   emergency.general: |-
@@ -34,6 +36,8 @@ texts:
     I can only help with medicines, prescriptions and lab reports, so I cannot answer that.
 
     You can send a clear photo of your prescription or lab report, or ask me about a medicine. Send HELP to see everything I can do.
+
+    For any question about your medicine or its dose, please ask your doctor or pharmacist.
   greeting: |-
     Namaste! 🙏 I am Dawai Saathi.
 

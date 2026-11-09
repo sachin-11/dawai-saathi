@@ -1,0 +1,17 @@
+# Lint config for evals/ (M14): the AI service rules, minus the ones that do not fit scripts and CLIs.
+extend = "../apps/ai-service/pyproject.toml"
+
+[lint]
+extend-ignore = [
+  "T201",  # the CLI prints its results
+  "S603", "S607",  # fixed argv, no shell: git / pnpm
+  "S101",  # asserts in tests
+  "N818",  # BudgetExceeded reads better than BudgetExceededError
+  "ANN",   # eval scripts and tests are not a typed API
+  "D",
+  "PLR",
+  "C901",
+  "E501",
+  "ERA001",
+  "SIM", "PERF", "RUF", "B", "TRY", "EM", "FBT", "PT", "S311", "S105", "S106", "E402", "N", "A", "ARG", "PLW", "PTH",
+]

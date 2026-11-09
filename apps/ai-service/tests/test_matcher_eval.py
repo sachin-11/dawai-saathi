@@ -3,22 +3,16 @@
 import asyncio
 import importlib.util
 import json
-import sys
 from pathlib import Path
 from typing import ClassVar
 
 import pytest
+from evals.suites import matcher as runner
 
 from tests.catalog_support import row
+from tests.eval_support import gate_failures
 
 ROOT = Path(__file__).parents[3]
-sys.path.insert(0, str(ROOT / "data" / "scripts"))
-_SPEC = importlib.util.spec_from_file_location(
-    "run_matcher_eval", ROOT / "evals" / "run_matcher_eval.py"
-)
-assert _SPEC and _SPEC.loader
-runner = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(runner)
 
 
 @pytest.fixture(scope="module")
@@ -76,7 +70,7 @@ class TestDataset:
 class TestHardGates:
     def test_every_gate_is_zero(self, results: list) -> None:
         m = runner.metrics(results)
-        assert runner.gate_failures(m) == [], m["gates"]
+        assert gate_failures("matcher", runner.to_metrics(results, m), "fake") == [], m["gates"]
         assert m["gates"] == dict.fromkeys(runner.GATES, 0)
 
     def test_no_wrong_product_and_no_false_match_on_unknown_names(self, results: list) -> None:
@@ -143,4 +137,7 @@ class TestTheGatesDetectViolations:
             ["forbidden_suggestion"],
         )
         tampered[tampered.index(victim)] = poisoned
-        assert runner.gate_failures(runner.metrics(tampered)) != []
+        assert (
+            gate_failures("matcher", runner.to_metrics(tampered, runner.metrics(tampered)), "fake")
+            != []
+        )

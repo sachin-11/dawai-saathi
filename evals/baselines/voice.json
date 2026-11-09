@@ -1,0 +1,53 @@
+{
+  "history": [
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    },
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake-noisy",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    }
+  ],
+  "modes": {
+    "fake": {
+      "cases": 100,
+      "dataset_hash": "24e545f67e5f",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "command_accuracy": 1.0,
+        "command_in_sentence": 0.0,
+        "cost_per_case_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "delete_side_effects": 0.0,
+        "duration_s": 4.375132,
+        "emergency_recall_voice": 1.0,
+        "misheard_answered": 0.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    },
+    "fake-noisy": {
+      "cases": 100,
+      "dataset_hash": "24e545f67e5f",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "command_accuracy": 0.818182,
+        "command_in_sentence": 0.0,
+        "cost_per_case_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "delete_side_effects": 0.0,
+        "duration_s": 4.52826,
+        "emergency_recall_voice": 1.0,
+        "misheard_answered": 0.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    }
+  },
+  "suite": "voice"
+}

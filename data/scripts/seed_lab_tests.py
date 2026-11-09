@@ -28,8 +28,8 @@ sys.path.insert(0, str(ROOT / "apps" / "ai-service"))
 from app.labs.catalog import LabTest, build_lab_tests, load_seed  # noqa: E402
 from app.safety.critical_values import load_critical_values  # noqa: E402
 
-REVIEW = ROOT / "data" / "review"
-REPORTS = ROOT / "data" / "reports"
+REVIEW = Path(os.environ.get("SEED_REVIEW_DIR", ROOT / "data" / "review"))
+REPORTS = Path(os.environ.get("SEED_REPORT_DIR", ROOT / "data" / "reports"))
 
 INSERT = """
 INSERT INTO lab_tests (
@@ -38,6 +38,11 @@ INSERT INTO lab_tests (
   doctor_questions_hi, qualitative_normal, hi_reviewed
 ) VALUES ($1,$2,$3,$4,$5,$6,$7::lab_sex,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20)
 """
+
+
+def _shown(path: Path) -> Path:
+    """A path relative to the repo when it is inside it (reports can be redirected with SEED_REPORT_DIR)."""
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
 
 
 def problems(tests: list[LabTest]) -> list[str]:
@@ -175,7 +180,7 @@ def main() -> int:
     review = write_review_file(tests)
     report = write_report(tests)
     print(
-        f"{len(tests)} lab tests; report: {report.relative_to(ROOT)}; Hindi review: {review.relative_to(ROOT)}"
+        f"{len(tests)} lab tests; report: {_shown(report)}; Hindi review: {_shown(review)}"
     )
     if found:
         print("PROBLEMS:\n  " + "\n  ".join(found), file=sys.stderr)

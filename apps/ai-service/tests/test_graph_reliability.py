@@ -189,13 +189,6 @@ class TestErrorsKeepTheirMeaning:
             await GraphPipeline().run(text_request("kya kar sakte ho?"), make_ctx(provider))
         assert METRICS.node_errors_total[("classify", "unavailable")] == 1
 
-    async def test_the_rollback_switch_still_works(self):
-        from app.main import default_pipeline
-        from app.pipeline.rx import RxPipeline
-
-        assert isinstance(default_pipeline(make_settings()), GraphPipeline)
-        assert isinstance(default_pipeline(make_settings(PIPELINE="minimal")), RxPipeline)
-
     async def test_the_node_names_in_the_trace_are_stable_for_the_demo(self):
         output = await GraphPipeline().run(text_request("hello"), make_ctx(FakeProvider()))
         assert nodes_run(output) == [

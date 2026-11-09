@@ -1,23 +1,17 @@
 """The emergency eval gate as a test: `make test` and CI fail when recall regresses.
 
-Runs the SAME code as `evals/run_emergency_eval.py` on `evals/datasets/emergency/emergency.jsonl`
+Runs the SAME code as the `emergency` eval suite (`evals/suites/emergency.py`) on `evals/datasets/emergency/emergency.jsonl`
 (rules only and rules + fake classifier; both offline). The manual full run with a real model is
 described in docs/modules/M6.md.
 """
 
 import asyncio
-import importlib.util
 import json
-from pathlib import Path
 
 import pytest
+from evals.suites import emergency as runner
 
-ROOT = Path(__file__).parents[3]
-RUNNER_PATH = ROOT / "evals" / "run_emergency_eval.py"
-spec = importlib.util.spec_from_file_location("run_emergency_eval", RUNNER_PATH)
-assert spec and spec.loader
-runner = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(runner)
+from tests.eval_support import gate_failures
 
 
 @pytest.fixture(scope="module")
@@ -79,8 +73,8 @@ class TestRulesGate:
                 )
 
     def test_the_gate_function_agrees(self, rows: list) -> None:
-        metrics = runner.metrics(run(rows, "rules"))
-        assert runner.gate_failures(metrics, "rules") == []
+        metrics = runner.to_metrics(run(rows, "rules"))
+        assert gate_failures("emergency", metrics, "rules") == []
 
 
 class TestFullModeWithTheFakeClassifier:
@@ -88,7 +82,7 @@ class TestFullModeWithTheFakeClassifier:
         outcomes = run(rows, "fake")
         missed = [o.row.text for o in outcomes if o.row.expected_emergency and not o.flagged]
         assert missed == []
-        assert runner.gate_failures(runner.metrics(outcomes), "fake") == []
+        assert gate_failures("emergency", runner.to_metrics(outcomes), "fake") == []
 
     def test_the_classifier_stage_really_adds_coverage(self, rows: list) -> None:
         rules_only = sum(o.flagged for o in run(rows, "rules") if o.row.expected_emergency)
@@ -101,18 +95,17 @@ class TestGateLogic:
         outcomes = run(rows, "rules")
         victim = next(o for o in outcomes if o.row.tier == "rules")
         victim.result = type(victim.result)(is_emergency=False)
-        failures = runner.gate_failures(runner.metrics(outcomes), "rules")
-        assert failures and "100%" in failures[0]
+        failures = gate_failures("emergency", runner.to_metrics(outcomes), "rules")
+        assert failures and "recall_rules_tier" in failures[0]
 
     def test_a_flagged_clear_negative_fails_the_gate(self, rows: list) -> None:
         outcomes = run(rows, "rules")
         clear = next(o for o in outcomes if o.row.kind == "clear")
         clear.result = type(clear.result)(is_emergency=True)
-        assert runner.gate_failures(runner.metrics(outcomes), "rules")
+        assert gate_failures("emergency", runner.to_metrics(outcomes), "rules")
 
     def test_the_report_names_the_gate_result_and_sections(self, rows: list) -> None:
         outcomes = run(rows, "rules")
-        text = runner.report(outcomes, "rules", [])
+        text = runner.report(outcomes, "rules")
         for heading in ("Recall per language", "Recall per category", "Near misses"):
             assert heading in text
-        assert "Gate: PASS" in text

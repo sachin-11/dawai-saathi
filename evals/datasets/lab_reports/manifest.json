@@ -1,0 +1,7 @@
+{
+  "name": "lab_reports",
+  "version": 1,
+  "description": "Generated lab report images/PDFs with FAKE patient names, ids and phones (evals/scripts/make_synthetic_lab.py).",
+  "synthetic": true,
+  "contains_real_phi": false
+}
