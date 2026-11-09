@@ -24,7 +24,7 @@ from app.llm.types import (
     LLMTimeoutError,
     Message,
 )
-from app.pipeline.minimal import IntentResult
+from app.tools.intent import IntentResult
 
 MESSAGES = [Message("system", "SYSTEM RULES"), Message("user", "hello 9876543210")]
 SECRET_PROMPT = "hello 9876543210"

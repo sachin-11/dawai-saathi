@@ -9,3 +9,5 @@ apps/ai-service
 
 # Generated synthetic prescription labels (evals/scripts/make_synthetic_rx.py)
 evals/datasets/prescriptions/labels/
+evals/baselines/
+evals/reports/

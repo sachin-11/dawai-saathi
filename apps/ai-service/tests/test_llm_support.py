@@ -10,9 +10,9 @@ from app.llm.breaker import CircuitBreaker
 from app.llm.fake import FakeProvider, FakeRule, default_fake_response
 from app.llm.pricing import DEFAULT_PRICING_PATH, ModelPrice, PricingTable
 from app.llm.types import ImageInput, LLMServerError, Message
-from app.pipeline.minimal import IntentResult
 from app.safety.disclaimers import DISCLAIMERS, add_disclaimer
 from app.schemas.process import MAX_REPLY_CHARS, Language
+from app.tools.intent import IntentResult
 
 
 class TestCircuitBreaker:

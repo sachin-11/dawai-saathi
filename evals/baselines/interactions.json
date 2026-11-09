@@ -1,0 +1,33 @@
+{
+  "history": [
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    }
+  ],
+  "modes": {
+    "fake": {
+      "cases": 135,
+      "dataset_hash": "12ba9d270ba5",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "cost_per_case_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "duplicate_recall": 1.0,
+        "duration_s": 1.37196,
+        "hallucinated": 0.0,
+        "other_violations": 0.0,
+        "pair_recall": 1.0,
+        "severity_wording": 0.0,
+        "stop_advice": 0.0,
+        "unchecked_called_safe": 0.0,
+        "wrong_severity": 0.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    }
+  },
+  "suite": "interactions"
+}

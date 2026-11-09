@@ -33,7 +33,7 @@ from app.catalog.salt_aliases import SALT_ALIASES  # noqa: E402
 
 SEED = ROOT / "data" / "seed"
 RAW = ROOT / "data" / "raw"
-REPORTS = ROOT / "data" / "reports"
+REPORTS = Path(os.environ.get("SEED_REPORT_DIR", ROOT / "data" / "reports"))
 
 UPSERT = """
 INSERT INTO drugs (
@@ -51,6 +51,11 @@ ON CONFLICT (source, source_ref) DO UPDATE SET
   is_generic=EXCLUDED.is_generic, is_janaushadhi=EXCLUDED.is_janaushadhi,
   janaushadhi_code=EXCLUDED.janaushadhi_code
 """
+
+
+def _shown(path: Path) -> Path:
+    """A path relative to the repo when it is inside it (reports can be redirected with SEED_REPORT_DIR)."""
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
 
 
 def collect(args: argparse.Namespace) -> list[tuple[str, LoadResult]]:
@@ -182,7 +187,7 @@ def main() -> int:
     records, duplicates = dedupe(results)
     write_csv(records, Path(args.out))
     report = write_report(results, len(records), duplicates)
-    print(f"{len(records)} catalog rows -> {args.out}; report: {report.relative_to(ROOT)}")
+    print(f"{len(records)} catalog rows -> {args.out}; report: {_shown(report)}")
     for name, result in results:
         print(
             f"  {name}: read {result.rows_read}, accepted {len(result.records)}, rejected {sum(result.rejected.values())}"

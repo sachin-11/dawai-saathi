@@ -1,0 +1,20 @@
+- name: consent_decline_blocks_documents
+  description: a user who says "not now" gets nothing processed or stored
+  steps:
+    - send: { type: text, text: 'hello' }
+      expect: { buttons_include: ['lang:hi', 'lang:en'] }
+    - send: { type: button, id: 'lang:en' }
+      expect: { i18n: ['consent.v2.body'] }
+    - send: { type: button, id: 'consent:no' }
+      expect: { i18n: ['consent.v2.declined'] }
+      expect_db: { onboarding_step: consent }
+    - send: { type: image, fixture: rx_001 }
+      expect: { i18n: ['consent.v2.reminder'], text_excludes: ['Dolo'] }
+      expect_db: { document_count: 0, s3_prefix_empty: true }
+
+- name: emergency_before_consent
+  description: an emergency message is answered first, even for a number that has not agreed to anything
+  steps:
+    - send: { type: text, text: 'my father is unconscious and not breathing' }
+      expect: { text_includes: ['112'] }
+      expect_db: { document_count: 0 }

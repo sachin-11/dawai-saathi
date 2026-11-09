@@ -1,0 +1,7 @@
+{
+  "name": "judge",
+  "version": 1,
+  "description": "30 short example replies with a readability score 1-5. LABELS ARE BY THE DEVELOPER / THE ASSISTANT, not an independent panel: have a Hindi-speaking reader relabel them before trusting the judge-human agreement number.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

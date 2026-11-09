@@ -1,0 +1,75 @@
+{
+  "history": [
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    },
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake-noisy",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    }
+  ],
+  "modes": {
+    "fake": {
+      "cases": 36,
+      "dataset_hash": "dbe2d65cdf7b",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "cost_per_case_usd": 0.0,
+        "cost_per_document_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "critical_line_first": 1.0,
+        "critical_recall": 1.0,
+        "diagnosis_reports": 0.0,
+        "duration_s": 27.760188,
+        "errors": 0.0,
+        "hallucinated_values": 0.0,
+        "latency_p50_ms": 348.8962,
+        "latency_p95_ms": 518.0384,
+        "mapping_accuracy": 1.0,
+        "phi_leaks_extraction_reply": 0.0,
+        "phi_leaks_logs": 0.0,
+        "phi_leaks_traces": 0.0,
+        "printed_range_accuracy": 1.0,
+        "status_accuracy": 1.0,
+        "unmatched_gold_rows": 0.0,
+        "value_unit_accuracy": 1.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    },
+    "fake-noisy": {
+      "cases": 36,
+      "dataset_hash": "dbe2d65cdf7b",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "cost_per_case_usd": 0.0,
+        "cost_per_document_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "critical_line_first": 1.0,
+        "critical_recall": 1.0,
+        "diagnosis_reports": 0.0,
+        "duration_s": 30.960104,
+        "errors": 0.0,
+        "hallucinated_values": 0.0,
+        "latency_p50_ms": 390.48,
+        "latency_p95_ms": 580.0608,
+        "mapping_accuracy": 1.0,
+        "phi_leaks_extraction_reply": 0.0,
+        "phi_leaks_logs": 0.0,
+        "phi_leaks_traces": 0.0,
+        "printed_range_accuracy": 1.0,
+        "status_accuracy": 1.0,
+        "unmatched_gold_rows": 0.0,
+        "value_unit_accuracy": 1.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    }
+  },
+  "suite": "lab"
+}

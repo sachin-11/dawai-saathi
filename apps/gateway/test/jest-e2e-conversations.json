@@ -1,0 +1,10 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": "e2e-conversations/.*\\.e2e-spec\\.ts$",
+  "testTimeout": 240000,
+  "transform": {
+    "^.+\\.ts$": "ts-jest"
+  }
+}

@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.labs.catalog import LabTest
+from app.safety.injection import looks_like_instruction
 from app.schemas.lab_report import LabReportExtraction, LabResult
 
 # ------------------------------------------------------------------ values
@@ -270,7 +271,34 @@ def conversion_factor(test: LabTest, unit_norm: str) -> float | None:
 # ------------------------------------------------------------------ the whole report
 
 
+# (field, max chars, max words, punctuation such as `;` `<` `>` allowed): text read from the page is DATA (M14 red team). A field that
+# reads like an order to the assistant is dropped, so the row is treated as unreadable and never repeated.
+_FIELD_LIMITS: tuple[tuple[str, int, int, bool], ...] = (
+    ("raw_test_name", 70, 10, False),
+    ("unit", 24, 4, False),
+    ("value_raw", 24, 4, True),  # "<0.5", ">1000" are real values
+    ("section", 50, 8, False),
+    ("lab_ref_text", 120, 22, True),
+)
+
+
+def sanitise_result(result: LabResult) -> LabResult:
+    update: dict[str, object] = {}
+    for attribute, max_len, max_words, allow in _FIELD_LIMITS:
+        field = getattr(result, attribute)
+        text = field if isinstance(field, str) or field is None else field.value
+        if looks_like_instruction(
+            text, max_len=max_len, max_words=max_words, allow_punctuation=allow
+        ):
+            # `section` is a plain string, every other field is a {value, confidence} pair
+            update[attribute] = (
+                None if isinstance(field, str) else type(field)(value=None, confidence=0.0)
+            )
+    return result.model_copy(update=update) if update else result
+
+
 def normalize_result(result: LabResult, index: LabIndex) -> LabResult:
+    result = sanitise_result(result)
     name = result.raw_test_name.value or ""
     match = index.match(name, result.unit.value, result.section) if name else None
     parsed = parse_value(result.value_raw.value)

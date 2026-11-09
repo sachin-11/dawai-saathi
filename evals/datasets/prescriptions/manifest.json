@@ -1,0 +1,7 @@
+{
+  "name": "prescriptions",
+  "version": 1,
+  "description": "Generated prescription images with FAKE patient, doctor and clinic strings (evals/scripts/make_synthetic_rx.py).",
+  "synthetic": true,
+  "contains_real_phi": false
+}

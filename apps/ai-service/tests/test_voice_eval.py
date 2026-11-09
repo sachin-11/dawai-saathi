@@ -1,6 +1,6 @@
 """The voice eval gate as a test (M13): `make test` and CI fail when a voice safety metric regresses.
 
-Runs the SAME code as `evals/run_voice_eval.py` in the two offline modes on the committed 100 prompts.
+Runs the SAME code as the `voice` eval suite in the two offline modes on the committed 100 prompts.
 They do not measure speech accuracy; they prove that the pipeline around the speech service keeps its
 promises: every emergency prompt ends in the emergency reply (also damaged or low-confidence), no command
 inside a sentence, DELETE by voice only detected, no answer about a misheard medicine.
@@ -24,7 +24,10 @@ def load(path: Path, name: str):
     return module
 
 
-runner = load(ROOT / "evals" / "run_voice_eval.py", "run_voice_eval")
+from evals.suites import voice as runner  # noqa: E402
+
+from tests.eval_support import gate_failures  # noqa: E402
+
 generator = load(ROOT / "evals" / "scripts" / "make_synthetic_voice.py", "make_synthetic_voice")
 
 
@@ -52,7 +55,9 @@ def test_the_voice_safety_gates_hold(noisy: bool):
     rows = runner.load_rows()
     outcomes = asyncio.run(runner.run_fake(rows, noisy=noisy))
     gates = runner.score_fake(outcomes, noisy=noisy)
-    assert runner.fake_failures(gates) == []
+    assert (
+        gate_failures("voice", runner._fake_metrics(gates), "fake-noisy" if noisy else "fake") == []
+    )
     assert gates.emergency_total >= 40 and gates.emergency_recall == 1.0
 
 

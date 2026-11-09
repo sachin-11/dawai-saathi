@@ -1,0 +1,7 @@
+{
+  "name": "interactions",
+  "version": 1,
+  "description": "Hand-written interaction and duplicate-ingredient cases over the curated core list.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

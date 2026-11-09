@@ -134,7 +134,9 @@ BURIED: list[tuple[str, str, str]] = [
     (
         "cardiac",
         "hinglish",
-        _FILLER * 3 + "Abhi achanak unko seene me bahut dard ho raha hai aur pasina aa raha hai. " + _FILLER * 3,
+        _FILLER * 3
+        + "Abhi achanak unko seene me bahut dard ho raha hai aur pasina aa raha hai. "
+        + _FILLER * 3,
     ),
     (
         "breathing",
@@ -144,8 +146,7 @@ BURIED: list[tuple[str, str, str]] = [
     (
         "self_harm",
         "en",
-        "I have been taking my medicines regularly and visiting the clinic every month. "
-        * 6
+        "I have been taking my medicines regularly and visiting the clinic every month. " * 6
         + "Honestly I do not see the point any more and I want to end my life tonight. "
         + "Anyway, please tell me when to take the evening tablet. " * 4,
     ),

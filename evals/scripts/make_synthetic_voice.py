@@ -119,7 +119,9 @@ def build_prompts() -> list[dict[str, Any]]:
 
     # Emergency phrases come from the M6 set (rules tier), a deterministic spread over every category
     # and language: no phrase is invented here, so a new keyword set cannot silently shrink the gate.
-    source = [json.loads(line) for line in EMERGENCY_SOURCE.read_text(encoding="utf-8").splitlines()]
+    source = [
+        json.loads(line) for line in EMERGENCY_SOURCE.read_text(encoding="utf-8").splitlines()
+    ]
     positives = [r for r in source if r["expected_emergency"] and r.get("tier") == "rules"]
     by_category: dict[str, list[dict[str, Any]]] = {}
     for row in positives:
@@ -177,9 +179,13 @@ async def build_audio(rows: list[dict[str, Any]], limit: int | None) -> None:
     settings = load_settings()
     pricing = AudioPricing.load()
     speakers = {
-        "hi": [s.strip() for s in os.environ.get("VOICE_EVAL_SPEAKERS_HI", "").split(",") if s.strip()]
+        "hi": [
+            s.strip() for s in os.environ.get("VOICE_EVAL_SPEAKERS_HI", "").split(",") if s.strip()
+        ]
         or [None],
-        "en": [s.strip() for s in os.environ.get("VOICE_EVAL_SPEAKERS_EN", "").split(",") if s.strip()]
+        "en": [
+            s.strip() for s in os.environ.get("VOICE_EVAL_SPEAKERS_EN", "").split(",") if s.strip()
+        ]
         or [None],
     }
     providers: dict[tuple[str, str | None], TTSProvider] = {}
@@ -187,7 +193,11 @@ async def build_audio(rows: list[dict[str, Any]], limit: int | None) -> None:
     def provider_for(lang: str, speaker: str | None) -> TTSProvider:
         key = (lang, speaker)
         if key not in providers:
-            if settings.tts_primary == "openai" and settings.openai_api_key and settings.tts_model_openai:
+            if (
+                settings.tts_primary == "openai"
+                and settings.openai_api_key
+                and settings.tts_model_openai
+            ):
                 providers[key] = OpenAITTS(
                     settings.openai_api_key.get_secret_value(),
                     settings.tts_model_openai,
@@ -237,9 +247,13 @@ async def build_audio(rows: list[dict[str, Any]], limit: int | None) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument("--prompts-only", action="store_true", help="write prompts.jsonl, no audio")
-    parser.add_argument("--limit", type=int, default=None, help="only the first N prompts (a trial)")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="only the first N prompts (a trial)"
+    )
     args = parser.parse_args()
     rows = build_prompts()
     DATASET_DIR.mkdir(parents=True, exist_ok=True)

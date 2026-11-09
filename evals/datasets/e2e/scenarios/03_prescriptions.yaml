@@ -1,0 +1,41 @@
+- name: prescription_and_generic_details
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_000 }
+      expect:
+        {
+          replies_min: 2,
+          text_includes: ['Dolo 650', 'not a doctor'],
+          buttons_include: ['rx:generic:{last_document}'],
+        }
+      expect_db: { document_kinds: [prescription] }
+    - send: { type: button, id: 'rx:generic:{last_document}' }
+      expect:
+        {
+          replies_min: 1,
+          text_includes: ['Dolo'],
+          text_excludes: ['you should switch', 'stop taking'],
+        }
+
+- name: duplicate_ingredient_across_two_prescriptions
+  description: the same salt from two different doctors is flagged (F6)
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: rx_000 }
+      expect: { replies_min: 2 }
+    - send: { type: image, fixture: rx_001 }
+      expect: { replies_min: 2 }
+      expect_db:
+        { document_count: 2, warning_types: [duplicate_ingredient], medication_count_min: 2 }
+
+- name: lab_report_twice_and_reports_command
+  setup: { onboarded: true, language: en }
+  steps:
+    - send: { type: image, fixture: lab_a }
+      expect: { replies_min: 2, text_includes: ['not a doctor'] }
+      expect_db: { document_kinds: [lab_report], lab_results_min: 1 }
+    - send: { type: image, fixture: lab_b }
+      expect: { replies_min: 2 }
+      expect_db: { document_count: 2 }
+    - send: { type: text, text: 'REPORTS' }
+      expect: { replies_min: 1 }

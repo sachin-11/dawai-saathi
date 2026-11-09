@@ -12,7 +12,7 @@ GATEWAY_DIR := apps/gateway
 # Real environment variables already set in your shell are overridden by .env, so unset them if needed.
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
-.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval-emergency eval-rx eval-matcher eval-interactions eval-lab eval-voice embed graph \
+.PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval eval-data eval-baseline eval-summary eval-list eval-checks test-evals e2e embed graph \
         up down migrate seed eval
 
 help: ## Show available targets
@@ -129,20 +129,27 @@ seed: ## Load the medicine catalog (curated brands + Jan Aushadhi if data/raw/pm
 	$(WITH_ENV) uv run --project $(AI_DIR) python data/scripts/seed_lab_tests.py
 embed: ## Embed the catalog for the vector fallback (Pinecone when VECTOR_BACKEND=pinecone, else a check only)
 	$(WITH_ENV) uv run --project $(AI_DIR) python data/scripts/embed_catalog.py
-eval-emergency: ## Emergency-detection eval (rules + fake classifier). Real model: add `MODE=real`
-	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode rules
-	uv run --project $(AI_DIR) python evals/run_emergency_eval.py --mode $(or $(MODE),fake)
-eval-matcher: ## Drug matching + generic finder eval: every safety gate must be zero
-	uv run --project $(AI_DIR) python evals/run_matcher_eval.py
-eval-interactions: ## Interaction checker eval (135 cases, offline): every safety gate must be zero
-	uv run --project $(AI_DIR) python evals/run_interaction_eval.py
-eval-rx: ## Prescription eval on synthetic images (fake replay). Real model: `make eval-rx MODE=real` (needs keys)
+# ---- evals (M14): ONE harness, many suites. See docs/eval-process.md ----
+EVAL := uv run --project $(AI_DIR) python -m evals.harness.cli
+
+eval-data: ## Build the synthetic eval images that are not committed (prescriptions, lab reports, red-team)
 	@[ -d evals/datasets/prescriptions/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_rx.py
-	uv run --project $(AI_DIR) python evals/run_rx_eval.py --mode $(or $(MODE),fake)
-eval-lab: ## Lab report eval on synthetic reports (fake replay). Real model: `make eval-lab MODE=real` (needs keys)
 	@[ -d evals/datasets/lab_reports/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_lab.py
-	uv run --project $(AI_DIR) python evals/run_lab_eval.py --mode $(or $(MODE),fake)
-eval-voice: ## Voice eval on the synthetic prompt set (fake replay). Real: `make eval-voice MODE=real` (needs audio + keys, see docs/modules/M13.md)
-	uv run --project $(AI_DIR) python evals/run_voice_eval.py --mode $(or $(MODE),fake)
-eval: ## [M14] Run the evaluation suite
-	@echo "make eval: not implemented yet - arrives in M14 (eval harness & CI gates)."
+	@[ -d evals/datasets/redteam/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_redteam.py
+	@[ -d evals/datasets/e2e/images ] || uv run --project $(AI_DIR) python evals/scripts/make_synthetic_e2e.py
+eval: eval-data ## All suites in fake mode with gates. One suite / real: `make eval SUITE=rx MODE=real EVAL_MAX_USD=2`
+	$(WITH_ENV) $(EVAL) run $(if $(SUITE),--suite $(SUITE)) --mode $(or $(MODE),fake) $(if $(EVAL_MAX_USD),--max-usd $(EVAL_MAX_USD))
+eval-baseline: eval-data ## Store the current metrics as the baseline: `make eval-baseline SUITE=rx REASON="why it moves"`
+	$(WITH_ENV) $(EVAL) baseline --suite $(or $(SUITE),all) --mode $(or $(MODE),fake) --reason "$(REASON)"
+eval-summary: ## Write the latest full fake-mode results into README.md (between the eval-summary markers)
+	$(EVAL) summary
+eval-list: ## List the eval suites, their modes and the estimated real-mode cost
+	$(EVAL) list
+eval-checks: ## PR checks: prompt versions bumped, eval evidence present, dataset manifests synthetic (BASE=origin/main)
+	$(EVAL) check-datasets
+	$(EVAL) check-prompts --base $(or $(BASE),origin/main)
+	$(EVAL) check-evidence --base $(or $(BASE),origin/main)
+test-evals: ## Unit tests of the eval harness itself
+	cd $(AI_DIR) && uv run python -m pytest ../../evals/tests -q
+e2e: ## [M14] End-to-end conversation scenarios (gateway + AI service, fake providers, needs `make test-infra-up`)
+	pnpm --filter @dawai/gateway run test:e2e-conversations

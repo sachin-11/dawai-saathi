@@ -7,8 +7,7 @@ import pytest
 
 from app.llm.fake import FakeProvider
 from app.llm.types import LLMServerError
-from app.pipeline.minimal import MinimalPipeline
-from app.pipeline.rx import RxPipeline
+from app.pipeline.graph import GraphPipeline
 from app.schemas.process import InputType, Intent
 from tests.rx_support import (
     CLASSIFY_RX,
@@ -21,7 +20,7 @@ from tests.rx_support import (
     sample_jpeg,
 )
 
-PIPELINE = RxPipeline(MinimalPipeline())
+PIPELINE = GraphPipeline()
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +104,8 @@ class TestLowConfidence:
         assert len(provider.calls) == 2  # no composer call
 
     async def test_schema_failure_after_repair_says_so_and_never_guesses(self):
-        provider = FakeProvider([CLASSIFY_RX, {"nonsense": 1}, {"still": "bad"}])
+        # the graph tries the normal prompt + one repair, then ONE stricter-prompt retry + its repair
+        provider = FakeProvider([CLASSIFY_RX, *[{"nonsense": 1}] * 4])
         output = await PIPELINE.run(image_request("en"), make_ctx(provider))
         assert output.extraction is not None and output.extraction.status == "needs_review"
         assert output.extraction.medicines == []
@@ -113,7 +113,7 @@ class TestLowConfidence:
 
     async def test_a_hallucinated_extra_phi_key_is_a_schema_failure(self):
         bad = extraction(medicine(), patient_name="Ramesh Kumar")
-        provider = FakeProvider([CLASSIFY_RX, bad, bad])
+        provider = FakeProvider([CLASSIFY_RX, *[bad] * 4])
         output = await PIPELINE.run(image_request("en"), make_ctx(provider))
         assert output.extraction is not None and output.extraction.medicines == []
         assert "Ramesh" not in output.reply.text

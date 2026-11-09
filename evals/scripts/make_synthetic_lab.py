@@ -108,7 +108,9 @@ def build_case(index: int) -> dict[str, Any]:
     rng = random.Random(7000 + index)  # noqa: S311 - not security related
     rows = rng.sample(OTHER_TEMPLATES, rng.randint(5, 10))
     if index % 3 == 0:
-        rows.insert(rng.randint(0, len(rows)), CRITICAL_TEMPLATES[(index // 3) % len(CRITICAL_TEMPLATES)])
+        rows.insert(
+            rng.randint(0, len(rows)), CRITICAL_TEMPLATES[(index // 3) % len(CRITICAL_TEMPLATES)]
+        )
     # one test name appears at most once in a report; a critical row always wins over a normal one
     critical_names = {r["name"].casefold() for r in rows if r["critical"]}
     seen: set[str] = set()
@@ -244,7 +246,11 @@ def main() -> int:
         case = build_case(index)
         for number, page in enumerate(render(case, random.Random(9000 + index)), start=1):  # noqa: S311
             page.save(args.out / "images" / f"{case['id']}_p{number}.jpg", quality=85)
-        label = {k: v for k, v in case.items() if k not in ("patient", "patient_id", "sample_id", "phone")}
+        label = {
+            k: v
+            for k, v in case.items()
+            if k not in ("patient", "patient_id", "sample_id", "phone")
+        }
         (args.out / "labels" / f"{case['id']}.json").write_text(
             json.dumps(label, ensure_ascii=False, indent=2), encoding="utf-8"
         )

@@ -1,8 +1,7 @@
-"""The LangGraph pipeline (M9): same behaviour as the pre-graph pipeline, branch by branch.
+"""The LangGraph pipeline (M9): one scripted scenario per branch.
 
-PARITY: every scenario runs through `RxPipeline(MinimalPipeline())` (the rollback path) and through
-`GraphPipeline()` with identical inputs and scripted fake models; the user-visible output (reply text,
-buttons, intent, emergency flag and category, warnings, the stored extraction) must be EQUAL.
+Until M14 every scenario was also run through the pre-graph pipeline and the user-visible output had
+to be EQUAL (parity). That pipeline is gone; the scenarios stay as branch coverage.
 """
 
 from collections.abc import Callable
@@ -12,8 +11,6 @@ from typing import Any, ClassVar
 import pytest
 
 from app.llm.fake import FakeProvider
-from app.pipeline.minimal import MinimalPipeline
-from app.pipeline.rx import RxPipeline
 from app.schemas.process import Intent, ProcessRequest
 from tests.graph_support import (
     NOT_EMERGENCY,
@@ -29,7 +26,6 @@ from tests.rx_support import (
     f,
     fake_fetch,
     image_request,
-    make_ctx,
     medicine,
     sample_jpeg,
 )
@@ -204,21 +200,7 @@ def comparable(output) -> dict[str, Any]:
     }
 
 
-class TestParityWithThePreGraphPipeline:
-    @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.id)
-    async def test_same_user_visible_output(self, scenario: Scenario):
-        catalog = seeded_catalog() if scenario.catalog else None
-        before_ctx = make_ctx(FakeProvider(scenario.script()), catalog=catalog)
-        before = await RxPipeline(MinimalPipeline()).run(scenario.request(), before_ctx)
-        after, after_ctx = await run_graph(
-            FakeProvider(scenario.script()), scenario.request(), catalog
-        )
-
-        assert comparable(after) == comparable(before)
-        # The request's accounting agrees too: what was spent and which prompts ran.
-        assert after_ctx.usage.cost_usd == pytest.approx(before_ctx.usage.cost_usd)
-        assert after_ctx.usage.prompt_versions == before_ctx.usage.prompt_versions
-
+class TestBranchCoverage:
     async def test_the_scenarios_cover_every_intent_of_the_contract_the_pipeline_can_produce(self):
         produced = set()
         for scenario in SCENARIOS:

@@ -1,0 +1,91 @@
+{
+  "history": [
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    },
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake-noisy",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    }
+  ],
+  "modes": {
+    "fake": {
+      "cases": 24,
+      "dataset_hash": "3ecb1f23d5e6",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "cost_per_case_usd": 0.0,
+        "cost_per_document_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "duration_s": 10.593143,
+        "errors": 0.0,
+        "field_as_needed": 1.0,
+        "field_dose": 1.0,
+        "field_duration_days": 1.0,
+        "field_frequency_per_day": 1.0,
+        "field_name_exact": 1.0,
+        "field_name_fuzzy_0_8": 1.0,
+        "field_relation_to_food": 1.0,
+        "field_strength": 1.0,
+        "field_timings": 1.0,
+        "flag_recall": 1.0,
+        "groundedness": 1.0,
+        "hallucinated_medicines": 0.0,
+        "hallucination_rate": 0.0,
+        "latency_p50_ms": 415.1755,
+        "latency_p95_ms": 519.307,
+        "medicine_f1": 0.97561,
+        "medicine_precision": 1.0,
+        "medicine_recall": 0.952381,
+        "phi_leaks_extraction_reply": 0.0,
+        "phi_leaks_logs": 0.0,
+        "phi_leaks_traces": 0.0,
+        "unsafe_generics": 0.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    },
+    "fake-noisy": {
+      "cases": 24,
+      "dataset_hash": "3ecb1f23d5e6",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "cost_per_case_usd": 0.0,
+        "cost_per_document_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "duration_s": 10.485249,
+        "errors": 0.0,
+        "field_as_needed": 1.0,
+        "field_dose": 0.95,
+        "field_duration_days": 1.0,
+        "field_frequency_per_day": 1.0,
+        "field_name_exact": 1.0,
+        "field_name_fuzzy_0_8": 1.0,
+        "field_relation_to_food": 1.0,
+        "field_strength": 1.0,
+        "field_timings": 1.0,
+        "flag_recall": 1.0,
+        "groundedness": 1.0,
+        "hallucinated_medicines": 0.0,
+        "hallucination_rate": 0.0,
+        "latency_p50_ms": 408.0611,
+        "latency_p95_ms": 567.5715,
+        "medicine_f1": 0.894737,
+        "medicine_precision": 1.0,
+        "medicine_recall": 0.809524,
+        "phi_leaks_extraction_reply": 0.0,
+        "phi_leaks_logs": 0.0,
+        "phi_leaks_traces": 0.0,
+        "unsafe_generics": 0.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    }
+  },
+  "suite": "rx"
+}

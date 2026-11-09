@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any
 
+from app.safety.injection import looks_like_instruction
 from app.schemas.prescription import (
     Field,
     FoodField,
@@ -280,10 +281,25 @@ def effective_frequency_confidence(medicine: Medicine) -> float:
     return min(code, per_day)
 
 
+_TEXT_LIMITS: tuple[tuple[str, int, int], ...] = (
+    ("name", 70, 10),
+    ("dose", 40, 6),
+    ("instructions", 200, 40),
+)
+
+
 def validate_medicine(medicine: Medicine, min_confidence: float) -> Medicine:
     """Apply every deterministic rule to ONE medicine; returns a corrected copy."""
     updated = medicine.model_copy(deep=True)
     notes: list[str] = []
+
+    # --- text read from the page is DATA: a value that reads like an order to the assistant is dropped
+    # (M14 red team). A dropped name or dose makes the line "unreadable", so the user is asked to confirm.
+    for attribute, max_len, max_words in _TEXT_LIMITS:
+        field: TextField = getattr(updated, attribute)
+        if looks_like_instruction(field.value, max_len=max_len, max_words=max_words):
+            notes.append("injected_text_removed")
+            setattr(updated, attribute, TextField(value=None, confidence=0.0))
 
     # --- frequency: the written code is the truth
     info = parse_frequency_code(updated.frequency_code.value)

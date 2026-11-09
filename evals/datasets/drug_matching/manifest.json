@@ -1,0 +1,7 @@
+{
+  "name": "drug_matching",
+  "version": 1,
+  "description": "Synthetic brand-name spellings and expected product keys, written for this project.",
+  "synthetic": true,
+  "contains_real_phi": false
+}

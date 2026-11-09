@@ -7,8 +7,7 @@ import pytest
 
 from app.catalog.service import CatalogService
 from app.llm.fake import FakeProvider
-from app.pipeline.minimal import MinimalPipeline
-from app.pipeline.rx import RxPipeline
+from app.pipeline.graph import GraphPipeline
 from app.schemas.catalog import DrugMatch, GenericAlternative, GenericSuggestion, MatchMethod
 from app.schemas.process import InputType, Intent, Language, ProcessRequest
 from app.tools.generic_render import DetailItem, render_generic_reply, verify_generic_text
@@ -25,7 +24,7 @@ from tests.rx_support import (
     sample_jpeg,
 )
 
-PIPELINE = RxPipeline(MinimalPipeline())
+PIPELINE = GraphPipeline()
 HEADERS = {"X-Service-Token": SERVICE_TOKEN}
 
 
@@ -241,7 +240,7 @@ class TestTypedGenericQuery:
 
     async def ask(self, text: str, language: str = "en", service: CatalogService | None = None):
         ctx = make_ctx(FakeProvider(), catalog=service or catalog())
-        return await MinimalPipeline().run(self.request(text, language), ctx)
+        return await GraphPipeline().run(self.request(text, language), ctx)
 
     async def test_dolo_650_ka_generic_batao(self):
         output = await self.ask("Dolo 650 ka generic batao")
@@ -280,7 +279,7 @@ class TestTypedGenericQuery:
 
     async def test_without_a_catalog_it_is_the_old_coming_soon(self):
         ctx = make_ctx(FakeProvider(), catalog=None)
-        output = await MinimalPipeline().run(self.request("Dolo 650 ka generic batao"), ctx)
+        output = await GraphPipeline().run(self.request("Dolo 650 ka generic batao"), ctx)
         assert "coming soon" in output.reply.text
 
     async def test_a_catalog_outage_is_not_reported_as_an_unknown_medicine(self):

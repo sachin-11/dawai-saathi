@@ -75,39 +75,80 @@ jobs:
       - name: Pytest
         run: uv run pytest
 
-      # Safety gate (M6): recall on the emergency set must be 100% (rules stage on keyword rows,
-      # rules + fake classifier on all positives). The report is kept as a build artifact.
-      - name: Emergency eval (rules, then rules + fake classifier)
-        run: |
-          uv run python ../../evals/run_emergency_eval.py --mode rules
-          uv run python ../../evals/run_emergency_eval.py --mode fake
+      # The eval harness itself (gates, baselines, PR checks) is tested like any other code.
+      - name: Eval harness tests
+        run: uv run pytest ../../evals/tests
 
-      # Safety gates (M7, M8): prescription replay and the drug matcher / generic finder. Hard gates:
-      # zero wrong-strength, wrong-form/release, wrong-salt and forbidden generic suggestions.
-      - name: Prescription eval and drug matcher eval (offline)
+  # ---- evals (M14): one harness, one suite per job, in parallel. Every job fails on a hard gate or a
+  # regression against evals/baselines/*.json. Fake models: they check the plumbing and the safety layers,
+  # never model accuracy (that is eval-real.yml).
+  evals:
+    name: eval (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [ai-service]
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [emergency, matcher, interactions, rx, lab, voice, redteam, readability]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/ai-service/uv.lock
+
+      - name: Install
+        run: uv sync --frozen
+        working-directory: apps/ai-service
+
+      - name: Dataset manifests are synthetic
+        run: uv run --project apps/ai-service python -m evals.harness.cli check-datasets
+
+      - name: Generate the synthetic images
         run: |
-          uv run python ../../evals/scripts/make_synthetic_rx.py
-          uv run python ../../evals/run_rx_eval.py --mode fake
-          uv run python ../../evals/run_rx_eval.py --mode fake-noisy
-          uv run python ../../evals/run_matcher_eval.py
-          uv run python ../../evals/run_interaction_eval.py
-          uv run python ../../evals/scripts/make_synthetic_lab.py
-          uv run python ../../evals/run_lab_eval.py --mode fake
-          uv run python ../../evals/run_lab_eval.py --mode fake-noisy
-          uv run python ../../evals/run_voice_eval.py --mode fake
-          uv run python ../../evals/run_voice_eval.py --mode fake-noisy
-          uv run python ../../evals/run_pipeline_comparison.py --no-report
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_rx.py
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_lab.py
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_redteam.py
+
+      - name: Run the suite (fake models) with gates
+        run: uv run --project apps/ai-service python -m evals.harness.cli run --suite ${{ matrix.suite }} --mode fake
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: eval-reports
-          path: |
-            evals/reports/*emergency*.md
-            evals/reports/*rx*.md
-            evals/reports/*drug-matcher*.md
-            evals/reports/*voice*.md
+          name: eval-report-${{ matrix.suite }}
+          path: evals/reports/*
           if-no-files-found: ignore
+
+  # ---- PR hygiene (M14): prompt versions and eval evidence. Needs the base branch, so full history.
+  pr-checks:
+    name: pr checks (prompt versions · eval evidence)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/ai-service/uv.lock
+
+      - name: Install
+        run: uv sync --frozen
+        working-directory: apps/ai-service
+
+      - name: A changed prompt has a new version
+        run: uv run --project apps/ai-service python -m evals.harness.cli check-prompts --base origin/${{ github.base_ref }}
+
+      - name: Risky changes carry an updated eval report
+        run: uv run --project apps/ai-service python -m evals.harness.cli check-evidence --base origin/${{ github.base_ref }}
 
   integration:
     name: integration (postgres · redis · minio)
@@ -199,6 +240,21 @@ jobs:
 
       - name: AI service integration tests
         run: pnpm --filter @dawai/ai-service run test:integration
+
+      # M14: scripted multi-turn chats through the real gateway and the real AI service (fake models, mocked
+      # WhatsApp), reported and gated like every other suite. The runner starts uvicorn itself.
+      - name: End-to-end conversations (eval suite)
+        run: |
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_rx.py
+          uv run --project apps/ai-service python evals/scripts/make_synthetic_e2e.py
+          uv run --project apps/ai-service python -m evals.harness.cli run --suite e2e_conversations --mode fake
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report-e2e_conversations
+          path: evals/reports/*
+          if-no-files-found: ignore
 
       # Contract-first (M5): the committed OpenAPI file and the generated TypeScript types must match
       # what the AI service code produces today. Fails when someone changed a schema without `make contracts`.

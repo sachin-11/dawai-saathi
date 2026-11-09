@@ -1,0 +1,59 @@
+{
+  "history": [
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "rules",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    },
+    {
+      "date": "2026-11-09",
+      "git_sha": "f401ec7",
+      "mode": "fake",
+      "reason": "M14 harness consolidation: first baselines of the unified harness"
+    }
+  ],
+  "modes": {
+    "fake": {
+      "cases": 152,
+      "dataset_hash": "07c40f56c2a3",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "category_accuracy": 0.945652,
+        "clear_negatives_flagged": 0.0,
+        "cost_per_case_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "duration_s": 0.057327,
+        "false_positive_rate_clear": 0.0,
+        "missed_positives": 0.0,
+        "near_miss_flag_rate": 0.95,
+        "precision": 0.828829,
+        "recall": 1.0,
+        "recall_rules_tier": 1.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    },
+    "rules": {
+      "cases": 152,
+      "dataset_hash": "07c40f56c2a3",
+      "git_sha": "f401ec7",
+      "metrics": {
+        "category_accuracy": 1.0,
+        "clear_negatives_flagged": 0.0,
+        "cost_per_case_usd": 0.0,
+        "cost_usd_total": 0.0,
+        "duration_s": 0.035672,
+        "false_positive_rate_clear": 0.0,
+        "missed_positives": 6.0,
+        "near_miss_flag_rate": 0.95,
+        "precision": 0.819048,
+        "recall": 0.934783,
+        "recall_rules_tier": 1.0
+      },
+      "reason": "M14 harness consolidation: first baselines of the unified harness",
+      "updated": "2026-11-09"
+    }
+  },
+  "suite": "emergency"
+}

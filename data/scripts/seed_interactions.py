@@ -31,8 +31,8 @@ from app.interactions.effects import EFFECTS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SEED = ROOT / "data" / "seed"
-REPORTS = ROOT / "data" / "reports"
-REVIEW = ROOT / "data" / "review"
+REPORTS = Path(os.environ.get("SEED_REPORT_DIR", ROOT / "data" / "reports"))
+REVIEW = Path(os.environ.get("SEED_REVIEW_DIR", ROOT / "data" / "review"))
 
 UPSERT = """
 INSERT INTO interactions (
@@ -46,6 +46,11 @@ ON CONFLICT (salt_a, salt_b) DO UPDATE SET
   hi_reviewed=EXCLUDED.hi_reviewed, evidence_level=EXCLUDED.evidence_level,
   source_ref=EXCLUDED.source_ref, source_version=EXCLUDED.source_version
 """
+
+
+def _shown(path: Path) -> Path:
+    """A path relative to the repo when it is inside it (reports can be redirected with SEED_REPORT_DIR)."""
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
 
 
 def collect(reviewed_path: Path) -> LoadResult:
@@ -164,9 +169,9 @@ def main() -> int:
     pairs_csv, effects_csv = write_review_files(result)
     print(
         f"{len(result.records)} interaction pairs ({result.rows_read} core rows, "
-        f"{sum(result.rejected.values())} rejected); report: {report.relative_to(ROOT)}"
+        f"{sum(result.rejected.values())} rejected); report: {_shown(report)}"
     )
-    print(f"Hindi review files: {pairs_csv.relative_to(ROOT)}, {effects_csv.relative_to(ROOT)}")
+    print(f"Hindi review files: {_shown(pairs_csv)}, {_shown(effects_csv)}")
     if sum(result.rejected.values()):
         print("REJECTED rows: see the report", file=sys.stderr)
         return 1
