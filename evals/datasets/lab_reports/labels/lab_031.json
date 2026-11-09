@@ -1,0 +1,103 @@
+{
+  "id": "lab_031",
+  "layout": "mixed",
+  "pages": 1,
+  "date": "2026-08-27",
+  "age": null,
+  "sex": null,
+  "lab": "Prime Path Labs",
+  "results": [
+    {
+      "name": "Haemoglobin",
+      "value_raw": "13.6",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "N",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Platelet Count",
+      "value_raw": "2.5",
+      "unit": "lakhs/cumm",
+      "ref_low": 1.5,
+      "ref_high": 4.5,
+      "ref_text": "1.5 - 4.5",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "PLT",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Procalcitonin",
+      "value_raw": "0.3",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": 0.5,
+      "ref_text": "< 0.5",
+      "flag": null,
+      "section": "Other",
+      "test_code": null,
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "LDL Cholesterol",
+      "value_raw": "168",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 100,
+      "ref_text": "< 100",
+      "flag": "H",
+      "section": "Lipid Profile",
+      "test_code": "LDL",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Total Cholesterol",
+      "value_raw": "245",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 200,
+      "ref_text": "< 200",
+      "flag": "H",
+      "section": "Lipid Profile",
+      "test_code": "CHOL",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "HDL Cholesterol",
+      "value_raw": "34",
+      "unit": "mg/dL",
+      "ref_low": 40,
+      "ref_high": null,
+      "ref_text": "> 40",
+      "flag": "L",
+      "section": "Lipid Profile",
+      "test_code": "HDL",
+      "status": "low",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Neha Kapoor", "PID-942826", "SMP86728466", "9863893349"]
+}

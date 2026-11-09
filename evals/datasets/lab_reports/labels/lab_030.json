@@ -1,0 +1,103 @@
+{
+  "id": "lab_030",
+  "layout": "multipage",
+  "pages": 2,
+  "date": "2026-04-27",
+  "age": 58,
+  "sex": "m",
+  "lab": "Sanjeevani Diagnostics",
+  "results": [
+    {
+      "name": "Haemoglobin",
+      "value_raw": "11.2",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "L",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "Total Leucocyte Count",
+      "value_raw": "7200",
+      "unit": "/cumm",
+      "ref_low": 4000,
+      "ref_high": 11000,
+      "ref_text": "4000 - 11000",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "TLC",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Platelet Count",
+      "value_raw": "15000",
+      "unit": "/cumm",
+      "ref_low": 150000,
+      "ref_high": 450000,
+      "ref_text": "150000 - 450000",
+      "flag": "L",
+      "section": "CBC",
+      "test_code": "PLT",
+      "status": "critical_low",
+      "critical": true
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Fasting Blood Sugar",
+      "value_raw": "5.2",
+      "unit": "mmol/L",
+      "ref_low": 3.9,
+      "ref_high": 5.5,
+      "ref_text": "3.9 - 5.5",
+      "flag": null,
+      "section": "Blood Sugar",
+      "test_code": "FBS",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "HDL Cholesterol",
+      "value_raw": "34",
+      "unit": "mg/dL",
+      "ref_low": 40,
+      "ref_high": null,
+      "ref_text": "> 40",
+      "flag": "L",
+      "section": "Lipid Profile",
+      "test_code": "HDL",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "SGPT (ALT)",
+      "value_raw": "38",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 45,
+      "ref_text": "0 - 45",
+      "flag": null,
+      "section": "Liver Function Test",
+      "test_code": "SGPT",
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Rakesh Patel", "PID-608472", "SMP93612691", "9817278779"]
+}

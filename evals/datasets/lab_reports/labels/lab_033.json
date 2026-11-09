@@ -1,0 +1,103 @@
+{
+  "id": "lab_033",
+  "layout": "categories",
+  "pages": 1,
+  "date": "2026-06-28",
+  "age": 34,
+  "sex": "f",
+  "lab": "City Care Pathology",
+  "results": [
+    {
+      "name": "Haemoglobin",
+      "value_raw": "13.6",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "N",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Procalcitonin",
+      "value_raw": "0.3",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": 0.5,
+      "ref_text": "< 0.5",
+      "flag": null,
+      "section": "Other",
+      "test_code": null,
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Total Leucocyte Count",
+      "value_raw": "7200",
+      "unit": "/cumm",
+      "ref_low": 4000,
+      "ref_high": 11000,
+      "ref_text": "4000 - 11000",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "TLC",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "HDL Cholesterol",
+      "value_raw": "34",
+      "unit": "mg/dL",
+      "ref_low": 40,
+      "ref_high": null,
+      "ref_text": "> 40",
+      "flag": "L",
+      "section": "Lipid Profile",
+      "test_code": "HDL",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Urine Glucose",
+      "value_raw": "Nil",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URGLU",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Potassium",
+      "value_raw": "6.8",
+      "unit": "mmol/L",
+      "ref_low": 3.5,
+      "ref_high": 5.1,
+      "ref_text": "3.5 - 5.1",
+      "flag": "H",
+      "section": "Electrolytes",
+      "test_code": "K",
+      "status": "critical_high",
+      "critical": true
+    }
+  ],
+  "phi_strings": ["Neha Kapoor", "PID-664943", "SMP69405226", "9875095647"]
+}

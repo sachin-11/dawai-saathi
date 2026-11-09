@@ -187,6 +187,7 @@ class TestTopology:
             r.CLASSIFY, r.VISION_EXTRACT_RX, r.VALIDATE_RX, r.NORMALIZE_DRUGS, r.GENERIC_FINDER,
             r.CONFIDENCE_GATE, r.EXTRACT_QUERY, r.COMPOSER, r.VERIFIER, r.TEMPLATES, r.RX_FALLBACK,
             r.EXTRACT_INTERACTION_QUERY, r.MATCH_QUERY_MEDICINES, r.INTERACTION_CHECK,
+            r.VISION_EXTRACT_LAB, r.LAB_NORMALIZE, r.LAB_COMPARE, r.LAB_GATE, r.LAB_QUESTION,
         }  # fmt: skip
         reachable, frontier = {"__start__"}, ["__start__"]
         while frontier:
@@ -206,4 +207,6 @@ class TestTopology:
     def test_nothing_reaches_the_composer_without_passing_the_catalog_or_the_gate(self):
         graph = build_graph().get_graph()
         into_composer = {e.source for e in graph.edges if e.target == r.COMPOSER}
-        assert into_composer == {r.GENERIC_FINDER, r.CONFIDENCE_GATE, r.INTERACTION_CHECK}
+        assert into_composer == {
+            r.GENERIC_FINDER, r.CONFIDENCE_GATE, r.INTERACTION_CHECK, r.LAB_GATE, r.LAB_QUESTION,
+        }  # fmt: skip

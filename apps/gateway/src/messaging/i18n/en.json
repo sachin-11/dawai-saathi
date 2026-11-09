@@ -117,5 +117,13 @@
   "interaction.details_button": "Interaction details",
   "interaction.details_none": "There are no active interaction notes saved for your medicines. Send CHECK to check them again.",
   "check.need_two": "I need at least two active medicines to check them against each other. Send a photo of your prescription to add them.",
-  "meds.list_header_warn": "Your active medicines (⚠️ = possible interaction or the same medicine twice; send CHECK for details):"
+  "meds.list_header_warn": "Your active medicines (⚠️ = possible interaction or the same medicine twice; send CHECK for details):",
+  "lab.wrong_ack": "Thank you for telling me. I marked this lab report as \"needs checking\" and will not use it to compare with your later reports. Please show the report to your doctor, or send a clearer photo.",
+  "lab.not_found": "I could not find that report any more. Please send the photo again.",
+  "reports.none": "You have no lab reports saved yet. Send a clear photo of a lab report and I will explain it.",
+  "reports.header": "Your last lab reports (tap one to see its summary again):",
+  "reports.item": "{{n}}. {{date}} — {{tests}} tests, {{outside}} outside the range",
+  "reports.item_nodate": "{{n}}. Report sent on {{date}} — {{tests}} tests, {{outside}} outside the range",
+  "reports.more": "More",
+  "reports.prompt": "Which report do you want to see?"
 }

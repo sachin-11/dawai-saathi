@@ -19,6 +19,7 @@ from app.llm.types import ImageInput
 from app.safety.emergency_guard import EmergencyResult
 from app.schemas.catalog import DrugMatch, GenericSuggestion
 from app.schemas.interactions import InteractionReport
+from app.schemas.lab_report import LabReportExtraction
 from app.schemas.prescription import PrescriptionExtraction
 from app.schemas.process import Intent, ProcessRequest, Reply, Warning
 from app.tools.generic_render import DetailItem
@@ -74,8 +75,15 @@ class GraphState(BaseModel):
     # M11: the medicines named in an "can I take X and Y together?" question, as the user wrote them
     interaction_names: list[str] = Field(default_factory=list)
 
+    # M12: a typed question about one lab test ("TSH 6.2 matlab kya?"): the test as written, and the
+    # finished (rendered) answer; the verifier checks it like any other reply
+    lab_question_text: str | None = None
+    lab_question_code: str | None = None
+    lab_question_value: str | None = None
+
     # ---- domain
     rx_extraction: PrescriptionExtraction | None = None
+    lab_extraction: LabReportExtraction | None = None
     gate_failure: str | None = None
     drug_matches: list[DrugMatch | None] = Field(default_factory=list)  # aligned with medicines
     generics: list[GenericSuggestion | None] = Field(default_factory=list)  # aligned with medicines

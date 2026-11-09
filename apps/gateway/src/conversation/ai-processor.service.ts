@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { AiClient, toRequestId } from '../ai-client/ai-client';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import { StorageService } from '../common/storage/storage.service';
+import { LabReportService } from '../documents/lab-report.service';
 import { DOCUMENT_ID_PLACEHOLDER, PrescriptionService } from '../documents/prescription.service';
 import { MediaService } from '../messaging/media.service';
 import { MessagesService } from '../messaging/messages.service';
@@ -48,6 +49,7 @@ export class AiProcessor {
     private readonly whatsapp: WhatsAppClient,
     private readonly audit: AuditService,
     private readonly prescriptions: PrescriptionService,
+    private readonly labReports: LabReportService,
     private readonly interactionFlow: InteractionFlowService,
     private readonly logger: PinoLogger,
   ) {
@@ -88,7 +90,9 @@ export class AiProcessor {
       }
       // Save before answering: the reply's buttons carry the document id, and a reply must never
       // promise "saved" for something that was not.
-      const documentId = await this.savePrescription(user, job, response, prepared.s3Key);
+      const documentId =
+        (await this.savePrescription(user, job, response, prepared.s3Key)) ??
+        (await this.saveLabReport(user, job, response, prepared.s3Key));
       await this.sendReply(response, session, documentId);
       await this.offerInteractionDetails(response, session, documentId);
       this.logResponse(job, response);
@@ -154,7 +158,14 @@ export class AiProcessor {
       request_id: toRequestId(job.waMessageId),
       user: { language: user.language, age: null, sex: null },
       input,
-      context: { active_medications: await this.users.activeMedicationSalts(user.id) },
+      context: {
+        active_medications: await this.users.activeMedicationSalts(user.id),
+        // M12: earlier lab results (canonical code / value / unit / date) for the "since last report"
+        // lines. Only a photo or PDF can be a lab report, so text messages skip the query.
+        ...(input.type === 'image'
+          ? { previous_lab_results: await this.labReports.previousResults(user.id) }
+          : {}),
+      },
     };
   }
 
@@ -172,7 +183,7 @@ export class AiProcessor {
     s3Key: string | null,
   ): Promise<string | null> {
     const extraction = response.extraction;
-    if (response.intent !== 'prescription' || !extraction) {
+    if (response.intent !== 'prescription' || !extraction || extraction.kind !== 'prescription') {
       return null;
     }
     if (!s3Key) return null;
@@ -196,6 +207,44 @@ export class AiProcessor {
         warnings_created: saved.warningsCreated,
       },
       'prescription saved',
+    );
+    return saved.documentId;
+  }
+
+  /**
+   * M12: a lab report the AI service could read (or partly read, or not at all) is saved as a
+   * `documents` row (kind lab_report) plus one `lab_results` row per result. A typed question about
+   * a test (no extraction) saves nothing.
+   */
+  private async saveLabReport(
+    user: UserState,
+    job: InboundJobData,
+    response: ProcessResponse,
+    s3Key: string | null,
+  ): Promise<string | null> {
+    const extraction = response.extraction;
+    if (response.intent !== 'lab_report' || !extraction || extraction.kind !== 'lab_report') {
+      return null;
+    }
+    if (!s3Key) return null;
+    const saved = await this.labReports.save({
+      userId: user.id,
+      messageId: job.messageId,
+      s3Key,
+      extraction,
+      meta: response.meta,
+    });
+    this.logger.info(
+      {
+        request_id: job.requestId,
+        user_id: user.id,
+        document_id: saved.documentId,
+        status: saved.status,
+        results: extraction.results?.length ?? 0,
+        critical: extraction.has_critical,
+        created: saved.created,
+      },
+      'lab report saved',
     );
     return saved.documentId;
   }

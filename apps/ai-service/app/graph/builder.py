@@ -19,6 +19,13 @@ from app.graph.nodes.interaction_nodes import (
     interaction_check,
     match_query_medicines,
 )
+from app.graph.nodes.lab_nodes import (
+    lab_compare,
+    lab_gate,
+    lab_normalize,
+    lab_question,
+    vision_extract_lab,
+)
 from app.graph.nodes.prepare_image import prepare_image
 from app.graph.nodes.redact import redact
 from app.graph.nodes.rx_nodes import (
@@ -60,6 +67,11 @@ def build_graph() -> CompiledGraph:
         (r.VERIFIER, verifier),
         (r.TEMPLATES, templates),
         (r.RX_FALLBACK, rx_fallback_renderer),
+        (r.VISION_EXTRACT_LAB, vision_extract_lab),
+        (r.LAB_NORMALIZE, lab_normalize),
+        (r.LAB_COMPARE, lab_compare),
+        (r.LAB_GATE, lab_gate),
+        (r.LAB_QUESTION, lab_question),
     ):
         graph.add_node(name, node)
 
@@ -91,6 +103,8 @@ def build_graph() -> CompiledGraph:
         r.after_classify,
         {
             r.VISION_EXTRACT_RX: r.VISION_EXTRACT_RX,
+            r.VISION_EXTRACT_LAB: r.VISION_EXTRACT_LAB,
+            r.LAB_QUESTION: r.LAB_QUESTION,
             r.EXTRACT_QUERY: r.EXTRACT_QUERY,
             r.EXTRACT_INTERACTION_QUERY: r.EXTRACT_INTERACTION_QUERY,
             r.TEMPLATES: r.TEMPLATES,
@@ -104,6 +118,29 @@ def build_graph() -> CompiledGraph:
             r.VISION_EXTRACT_RX: r.VISION_EXTRACT_RX,
             r.TEMPLATES: r.TEMPLATES,
         },
+    )
+    graph.add_conditional_edges(
+        r.VISION_EXTRACT_LAB,
+        r.after_vision_extract_lab,
+        {
+            r.LAB_NORMALIZE: r.LAB_NORMALIZE,
+            r.VISION_EXTRACT_LAB: r.VISION_EXTRACT_LAB,
+            r.TEMPLATES: r.TEMPLATES,
+        },
+    )
+    graph.add_conditional_edges(
+        r.LAB_NORMALIZE,
+        r.after_lab_normalize,
+        {r.LAB_COMPARE: r.LAB_COMPARE, r.TEMPLATES: r.TEMPLATES},
+    )
+    graph.add_conditional_edges(
+        r.LAB_COMPARE, r.after_lab_compare, {r.LAB_GATE: r.LAB_GATE, r.TEMPLATES: r.TEMPLATES}
+    )
+    graph.add_conditional_edges(
+        r.LAB_GATE, r.after_lab_gate, {r.COMPOSER: r.COMPOSER, r.TEMPLATES: r.TEMPLATES}
+    )
+    graph.add_conditional_edges(
+        r.LAB_QUESTION, r.after_lab_question, {r.COMPOSER: r.COMPOSER, r.TEMPLATES: r.TEMPLATES}
     )
     graph.add_edge(r.VALIDATE_RX, r.NORMALIZE_DRUGS)
     graph.add_conditional_edges(

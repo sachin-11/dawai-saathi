@@ -21,7 +21,7 @@ class PdfRejectedError(Exception):
         self.code = code
 
 
-def render_pdf_pages(data: bytes, *, max_px: int) -> list[Image.Image]:
+def render_pdf_pages(data: bytes, *, max_px: int, pages: int = RENDER_PAGES) -> list[Image.Image]:
     """The first pages as RGB images, longest side about `max_px`. Raises PdfRejectedError."""
     try:
         pdf = pdfium.PdfDocument(data)
@@ -39,7 +39,7 @@ def render_pdf_pages(data: bytes, *, max_px: int) -> list[Image.Image]:
         if page_count > MAX_PDF_PAGES:
             raise PdfRejectedError("too_many_pages", "the PDF has too many pages")
         images: list[Image.Image] = []
-        for index in range(min(page_count, RENDER_PAGES)):
+        for index in range(min(page_count, pages)):
             page = pdf[index]
             try:
                 width, height = page.get_size()

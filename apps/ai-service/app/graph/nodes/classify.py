@@ -34,6 +34,8 @@ async def classify(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
     )
     if intent is Intent.generic_query and ctx.catalog is not None:
         return {"intent": intent}
+    if intent is Intent.lab_report and ctx.labs is not None:
+        return {"intent": intent}  # M12: "TSH 6.2 matlab kya?" -> lab_question
     if (
         intent is Intent.interaction_query
         and ctx.catalog is not None
@@ -51,7 +53,11 @@ async def _classify_image(state: GraphState, ctx: PipelineContext) -> dict[str, 
     kind = classification.kind
     update: dict[str, Any] = {"image_kind": kind}
     if kind == "lab_report":
-        return {**update, **static_reply("rx.lab_report", Intent.lab_report)}  # M12 placeholder
+        if ctx.labs is None:  # no lab catalog wired (tests / a rollback): the old placeholder reply
+            return {**update, **static_reply("rx.lab_report", Intent.lab_report)}
+        if classification.quality == "unreadable":
+            return {**update, **static_reply("lab.unreadable", Intent.lab_report)}
+        return {**update, "intent": Intent.lab_report}
     if kind == "medicine_strip":
         return {**update, **static_reply("rx.medicine_strip", Intent.other)}
     if kind == "other":

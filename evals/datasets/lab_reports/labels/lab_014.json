@@ -1,0 +1,77 @@
+{
+  "id": "lab_014",
+  "layout": "multipage",
+  "pages": 2,
+  "date": "2026-01-03",
+  "age": 58,
+  "sex": "f",
+  "lab": "Sanjeevani Diagnostics",
+  "results": [
+    {
+      "name": "Total Leucocyte Count",
+      "value_raw": "7200",
+      "unit": "/cumm",
+      "ref_low": 4000,
+      "ref_high": 11000,
+      "ref_text": "4000 - 11000",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "TLC",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Potassium",
+      "value_raw": "4.2",
+      "unit": "mmol/L",
+      "ref_low": 3.5,
+      "ref_high": 5.1,
+      "ref_text": "3.5 - 5.1",
+      "flag": null,
+      "section": "Electrolytes",
+      "test_code": "K",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Urine Glucose",
+      "value_raw": "Nil",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URGLU",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Triglycerides",
+      "value_raw": "120",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 150,
+      "ref_text": "< 150",
+      "flag": null,
+      "section": "Lipid Profile",
+      "test_code": "TG",
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Neha Kapoor", "PID-732871", "SMP26097883", "9818257308"]
+}

@@ -69,6 +69,64 @@ SAMPLE_CLASSIFICATION: dict[str, Any] = {
     "confidence": 0.95,
 }
 
+
+def _f(value: object, confidence: float = 0.95) -> dict[str, object]:
+    return {"value": value, "confidence": confidence}
+
+
+def _lab_row(
+    name: str, value: str, unit: str | None, low: float | None, high: float | None,
+    ref_text: str | None, flag: str | None, section: str,
+) -> dict[str, object]:  # fmt: skip
+    return {
+        "raw_test_name": _f(name),
+        "value_raw": _f(value),
+        "unit": _f(unit),
+        "lab_ref_low": _f(low),
+        "lab_ref_high": _f(high),
+        "lab_ref_text": _f(ref_text),
+        "lab_flag": _f(flag, 0.9 if flag else 0.0),
+        "section": section,
+    }
+
+
+# `LLM_MODE=fake` + a lab photo (when the image is classified as a lab report) -> this sample report.
+SAMPLE_LAB_EXTRACTION: dict[str, Any] = {
+    "kind": "lab_report",
+    "is_lab_report": True,
+    "image_quality": "good",
+    "report_date": _f("2026-11-12"),
+    "patient_age": _f(45),
+    "patient_sex": _f("f"),
+    "results": [
+        _lab_row("Haemoglobin", "11.2", "g/dL", 12.0, 15.5, "12.0 - 15.5", "L", "CBC"),
+        _lab_row(
+            "Total Leucocyte Count", "7200", "/cumm", 4000.0, 11000.0, "4000 - 11000", None, "CBC"
+        ),
+        _lab_row("Platelet Count", "2.5", "lakhs/cumm", 1.5, 4.5, "1.5 - 4.5", None, "CBC"),
+        _lab_row(
+            "HbA1c (Glycated Haemoglobin)",
+            "7.2",
+            "%",
+            None,
+            None,
+            "Non-diabetic < 5.7, Pre-diabetic 5.7 - 6.4, Diabetic >= 6.5",
+            None,
+            "Blood sugar",
+        ),
+        _lab_row("TSH", "6.2", "µIU/mL", 0.4, 4.2, "0.4 - 4.2", "H", "Thyroid"),
+        _lab_row("Special Marker XYZ", "12", "U/L", None, None, None, None, "Other"),
+    ],
+    "overall_confidence": 0.9,
+    "notes_for_user": [],
+}
+
+SAMPLE_LAB_CLASSIFICATION: dict[str, Any] = {
+    "kind": "lab_report",
+    "quality": "good",
+    "confidence": 0.95,
+}
+
 _FOOD_EN = {"before": "before food", "after": "after food", "with": "with food"}
 _FOOD_HI = {"before": "खाने से पहले", "after": "खाने के बाद", "with": "खाने के साथ"}
 _TIME_EN = {"morning": "morning", "afternoon": "afternoon", "evening": "evening", "night": "night"}

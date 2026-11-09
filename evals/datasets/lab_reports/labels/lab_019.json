@@ -1,0 +1,77 @@
+{
+  "id": "lab_019",
+  "layout": "mixed",
+  "pages": 1,
+  "date": "2026-06-28",
+  "age": 34,
+  "sex": "f",
+  "lab": "Prime Path Labs",
+  "results": [
+    {
+      "name": "Urine Glucose",
+      "value_raw": "Nil",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URGLU",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Urine Protein",
+      "value_raw": "Positive",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URPROT",
+      "status": "qualitative_abnormal",
+      "critical": false
+    },
+    {
+      "name": "Haemoglobin",
+      "value_raw": "11.2",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "L",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "Vitamin D (25-OH)",
+      "value_raw": "14",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Deficient < 20, Insufficient 20 - 29, Sufficient 30 - 100",
+      "flag": "L",
+      "section": "Vitamins",
+      "test_code": "VITD",
+      "status": "low",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Asha Verma", "PID-339817", "SMP70125368", "9861282395"]
+}

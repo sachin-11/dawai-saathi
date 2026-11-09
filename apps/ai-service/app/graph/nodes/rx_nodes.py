@@ -30,6 +30,7 @@ from app.tools.vision_extract_rx import RX_EXTRACT_PROMPT_ID, extract_prescripti
 
 RX_EXTRACT_STRICT_PROMPT_ID = "rx_extract_strict_v1"
 EXTRACT_NODE = "vision_extract_rx"
+RX_MAX_PAGES = 3
 
 
 def _is_query(state: GraphState) -> bool:
@@ -47,7 +48,7 @@ async def vision_extract_rx(state: GraphState, ctx: PipelineContext) -> dict[str
     attempt = state.retries.get(EXTRACT_NODE, 0)
     prompt_id = RX_EXTRACT_PROMPT_ID if attempt == 0 else RX_EXTRACT_STRICT_PROMPT_ID
     extraction, result = await extract_prescription(
-        state.images,
+        state.images[:RX_MAX_PAGES],  # a PDF may be rendered for a lab report (more pages)
         router=ctx.router,
         prompts=ctx.prompts,
         deadline=ctx.deadline,

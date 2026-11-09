@@ -58,8 +58,9 @@ async def run_graph(
     request: ProcessRequest,
     catalog: CatalogService | None = None,
     interactions: Any = None,
+    labs: Any = None,
 ) -> tuple[PipelineOutput, PipelineContext]:
-    ctx = make_ctx(provider, catalog=catalog, interactions=interactions)
+    ctx = make_ctx(provider, catalog=catalog, interactions=interactions, labs=labs)
     output = await GraphPipeline().run(request, ctx)
     return output, ctx
 

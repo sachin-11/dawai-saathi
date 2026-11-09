@@ -9,6 +9,7 @@ import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
 import type { InteractionFlowService } from './interaction-flow.service';
+import type { LabActionsService } from './lab-actions.service';
 import type { OnboardingService } from './onboarding.service';
 import type { CaregiverFlowService } from './caregiver-flow.service';
 import type { PendingInputService } from './pending-input.service';
@@ -50,6 +51,7 @@ function setup(
   echoBot: { enabled: boolean; handle: jest.Mock };
   rxActions: { handle: jest.Mock };
   interactionFlow: { check: jest.Mock; details: jest.Mock };
+  labActions: { list: jest.Mock; handle: jest.Mock; handleRep: jest.Mock };
   ai: { handle: jest.Mock };
   reminderFlow: { list: jest.Mock; handleButton: jest.Mock };
   caregiverFlow: { startAdd: jest.Mock; remove: jest.Mock };
@@ -86,6 +88,11 @@ function setup(
     check: jest.fn().mockResolvedValue('check_done'),
     details: jest.fn().mockResolvedValue('ix_details'),
   };
+  const labActions = {
+    list: jest.fn().mockResolvedValue('reports_list'),
+    handle: jest.fn().mockResolvedValue('lab_all'),
+    handleRep: jest.fn().mockResolvedValue('report_shown'),
+  };
   const reminderFlow = {
     list: jest.fn().mockResolvedValue('rem_list'),
     handleButton: jest.fn().mockResolvedValue('rem_ack'),
@@ -105,6 +112,7 @@ function setup(
     deletion as unknown as DeletionFlowService,
     rxActions as unknown as RxActionsService,
     interactionFlow as unknown as InteractionFlowService,
+    labActions as unknown as LabActionsService,
     reminderFlow as unknown as ReminderFlowService,
     caregiverFlow as unknown as CaregiverFlowService,
     pendingInput as unknown as PendingInputService,
@@ -114,6 +122,7 @@ function setup(
     logger as unknown as PinoLogger,
   );
   return {
+    labActions,
     router,
     session,
     onboarding,
@@ -393,6 +402,63 @@ describe('InboundRouter', () => {
       await s.router.route(job({ signals: { command: 'help' } }), NOW);
       await s.router.route(job({ signals: { emergency: 'general' } }), NOW);
       expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lab reports (M12)', () => {
+    const DOC = '3f2b8c1e-5d0a-4b7e-9c61-0a1b2c3d4e5f';
+    const buttonJob = (id: string): InboundJobData =>
+      job({ type: 'button', button: { id, title: 'whatever the title says' } });
+
+    it('REPORTS goes to the lab actions, never to the AI', async () => {
+      const s = setup(user());
+      await expect(s.router.route(job({ signals: { command: 'reports' } }), NOW)).resolves.toBe(
+        'reports_list',
+      );
+      expect(s.labActions.list).toHaveBeenCalled();
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it.each(['all', 'wrong'] as const)(
+      'routes lab:%s:<id> by id, never by title',
+      async (action) => {
+        const s = setup(user());
+        await expect(s.router.route(buttonJob(`lab:${action}:${DOC}`), NOW)).resolves.toBe(
+          'lab_all',
+        );
+        expect(s.labActions.handle).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'user-1' }),
+          { action, documentId: DOC },
+          s.session,
+        );
+        expect(s.ai.handle).not.toHaveBeenCalled();
+      },
+    );
+
+    it('routes rep:show:<id> and rep:page:<n> to the REPORTS list', async () => {
+      const s = setup(user());
+      await s.router.route(buttonJob(`rep:show:${DOC}`), NOW);
+      await s.router.route(buttonJob('rep:page:1'), NOW);
+      expect(s.labActions.handleRep).toHaveBeenNthCalledWith(
+        1,
+        expect.anything(),
+        { kind: 'show', documentId: DOC },
+        s.session,
+      );
+      expect(s.labActions.handleRep).toHaveBeenNthCalledWith(
+        2,
+        expect.anything(),
+        { kind: 'page', page: 1 },
+        s.session,
+      );
+    });
+
+    it('REPORTS does not work before consent (onboarding comes first)', async () => {
+      const s = setup(user({ onboardingStep: 'consent' }));
+      await expect(s.router.route(job({ signals: { command: 'reports' } }), NOW)).resolves.toBe(
+        'onboarding',
+      );
+      expect(s.labActions.list).not.toHaveBeenCalled();
     });
   });
 

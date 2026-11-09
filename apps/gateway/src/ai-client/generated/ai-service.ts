@@ -104,6 +104,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/lab-render': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Lab Render */
+    post: operations['lab_render_v1_lab_render_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/process': {
     parameters: {
       query?: never;
@@ -227,6 +244,26 @@ export interface components {
       | 'stroke'
       | 'severe_allergy'
       | 'self_harm';
+    /** FlagField */
+    FlagField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: ('H' | 'L' | 'N' | 'A') | null;
+    };
+    /** FloatField */
+    FloatField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: number | null;
+    };
     /** FoodField */
     FoodField: {
       /**
@@ -464,6 +501,128 @@ export interface components {
       /** Unchecked */
       unchecked?: components['schemas']['UncheckedMedicine'][];
     };
+    /** LabRenderRequest */
+    LabRenderRequest: {
+      extraction: components['schemas']['LabReportExtraction'];
+      language: components['schemas']['Language'];
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: 'summary' | 'all';
+      /** Request Id */
+      request_id: string;
+    };
+    /** LabRenderResponse */
+    LabRenderResponse: {
+      reply: components['schemas']['Reply'];
+      /** Request Id */
+      request_id: string;
+    };
+    /** LabReportExtraction */
+    LabReportExtraction: {
+      /**
+       * Has Critical
+       * @default false
+       */
+      has_critical: boolean;
+      /**
+       * Image Quality
+       * @enum {string}
+       */
+      image_quality: 'good' | 'poor' | 'unreadable';
+      /** Is Lab Report */
+      is_lab_report: boolean;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: 'lab_report';
+      /** Notes For User */
+      notes_for_user?: string[];
+      /**
+       * Overall Confidence
+       * @default 0
+       */
+      overall_confidence: number;
+      patient_age: components['schemas']['IntField'];
+      patient_sex: components['schemas']['SexField'];
+      report_date: components['schemas']['DateField'];
+      /** Results */
+      results?: components['schemas']['LabResult'][];
+      /**
+       * Status
+       * @default done
+       * @enum {string}
+       */
+      status: 'done' | 'needs_review' | 'failed';
+      /**
+       * Unknown Count
+       * @default 0
+       */
+      unknown_count: number;
+      /**
+       * Used General Range
+       * @default false
+       */
+      used_general_range: boolean;
+    };
+    /** LabResult */
+    LabResult: {
+      /** Category */
+      category?: string | null;
+      lab_flag: components['schemas']['FlagField'];
+      lab_ref_high: components['schemas']['FloatField'];
+      lab_ref_low: components['schemas']['FloatField'];
+      lab_ref_text: components['schemas']['TextField'];
+      /**
+       * Needs Confirmation
+       * @default false
+       */
+      needs_confirmation: boolean;
+      /**
+       * Range Basis
+       * @default none
+       * @enum {string}
+       */
+      range_basis: 'printed' | 'flag' | 'fallback' | 'none';
+      /** Range Text */
+      range_text?: string | null;
+      raw_test_name: components['schemas']['TextField'];
+      /** Section */
+      section?: string | null;
+      /**
+       * Status
+       * @default unknown
+       * @enum {string}
+       */
+      status:
+        | 'normal'
+        | 'high'
+        | 'low'
+        | 'borderline'
+        | 'critical_high'
+        | 'critical_low'
+        | 'qualitative_abnormal'
+        | 'unknown';
+      /** Test Code */
+      test_code?: string | null;
+      trend?: components['schemas']['Trend'] | null;
+      unit: components['schemas']['TextField'];
+      /** Unit Canonical */
+      unit_canonical?: string | null;
+      /** Value Canonical */
+      value_canonical?: number | null;
+      /**
+       * Value Comparator
+       * @default =
+       * @enum {string}
+       */
+      value_comparator: '<' | '>' | '=';
+      /** Value Num */
+      value_num?: number | null;
+      value_raw: components['schemas']['TextField'];
+    };
     /**
      * Language
      * @enum {string}
@@ -540,9 +699,8 @@ export interface components {
       /** Is Prescription */
       is_prescription: boolean;
       /**
-       * Kind
-       * @default prescription
-       * @constant
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
        */
       kind: 'prescription';
       /** Medicines */
@@ -561,6 +719,24 @@ export interface components {
        * @enum {string}
        */
       status: 'done' | 'needs_review' | 'failed';
+    };
+    /**
+     * PreviousLabResult
+     * @description M12: one result of an earlier lab report, in the test's CANONICAL unit. Nothing else about the
+     *     earlier report is sent (no name, lab or document id).
+     */
+    PreviousLabResult: {
+      /**
+       * Report Date
+       * Format: date
+       */
+      report_date: string;
+      /** Test Code */
+      test_code: string;
+      /** Unit */
+      unit: string;
+      /** Value */
+      value: number;
     };
     /** ProcessRequest */
     ProcessRequest: {
@@ -581,7 +757,13 @@ export interface components {
        */
       emergency: boolean;
       emergency_category?: components['schemas']['EmergencyCategory'] | null;
-      extraction?: components['schemas']['PrescriptionExtraction'] | null;
+      /** Extraction */
+      extraction?:
+        | (
+            | components['schemas']['PrescriptionExtraction']
+            | components['schemas']['LabReportExtraction']
+          )
+        | null;
       intent: components['schemas']['Intent'];
       interactions?: components['schemas']['InteractionReport'] | null;
       meta: components['schemas']['Meta'];
@@ -632,6 +814,8 @@ export interface components {
     RequestContext: {
       /** Active Medications */
       active_medications?: components['schemas']['ActiveMedication'][];
+      /** Previous Lab Results */
+      previous_lab_results?: components['schemas']['PreviousLabResult'][];
     };
     /** RequestOptions */
     RequestOptions: {
@@ -651,6 +835,16 @@ export interface components {
       ref: string;
       /** Salt Key */
       salt_key: string;
+    };
+    /** SexField */
+    SexField: {
+      /**
+       * Confidence
+       * @default 0
+       */
+      confidence: number;
+      /** Value */
+      value?: ('m' | 'f') | null;
     };
     /** StoredWarning */
     StoredWarning: {
@@ -710,6 +904,29 @@ export interface components {
       tokens_in?: number | null;
       /** Tokens Out */
       tokens_out?: number | null;
+    };
+    /**
+     * Trend
+     * @description Change since the user's previous report (canonical units). No judgement: only the direction and,
+     *     when the printed/fallback range makes it unambiguous, whether the value moved into / out of range.
+     */
+    Trend: {
+      /**
+       * Direction
+       * @enum {string}
+       */
+      direction: 'up' | 'down' | 'same';
+      /**
+       * Previous Date
+       * Format: date
+       */
+      previous_date: string;
+      /** Previous Value */
+      previous_value: number;
+      /** Range Change */
+      range_change?: ('into_range' | 'out_of_range') | null;
+      /** Unit */
+      unit: string;
     };
     /** UncheckedMedicine */
     UncheckedMedicine: {
@@ -897,6 +1114,46 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['InteractionDetailsResponse'];
+        };
+      };
+      /** @description Missing or wrong X-Service-Token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  lab_render_v1_lab_render_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        'x-service-token'?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LabRenderRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LabRenderResponse'];
         };
       };
       /** @description Missing or wrong X-Service-Token */

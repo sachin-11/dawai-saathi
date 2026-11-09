@@ -14,6 +14,7 @@ import { CaregiverFlowService } from './caregiver-flow.service';
 import { PendingInputService } from './pending-input.service';
 import { ReminderFlowService } from './reminder-flow.service';
 import { InteractionFlowService, parseIxButton } from './interaction-flow.service';
+import { LabActionsService, parseLabButton, parseRepButton } from './lab-actions.service';
 import { parseRxButton, RxActionsService } from './rx-actions.service';
 import { RepliesService, type ReplySession } from './replies.service';
 
@@ -40,6 +41,12 @@ export type RouteOutcome =
   | 'meds'
   | 'interaction_check'
   | 'interaction_details'
+  | 'lab_all'
+  | 'lab_wrong'
+  | 'lab_not_found'
+  | 'reports_list'
+  | 'reports_none'
+  | 'report_shown'
   | 'rx_wrong'
   | 'rx_reminders'
   | 'reminder_ack_text'
@@ -79,6 +86,7 @@ export class InboundRouter {
     private readonly deletion: DeletionFlowService,
     private readonly rxActions: RxActionsService,
     private readonly interactionFlow: InteractionFlowService,
+    private readonly labActions: LabActionsService,
     private readonly reminderFlow: ReminderFlowService,
     private readonly caregiverFlow: CaregiverFlowService,
     private readonly pendingInput: PendingInputService,
@@ -174,6 +182,9 @@ export class InboundRouter {
       await this.commands.meds(user, session);
       return 'meds';
     }
+    if (command === 'reports') {
+      return this.labActions.list(user, session);
+    }
     if (command === 'check') {
       await this.interactionFlow.check(user, session);
       return 'interaction_check';
@@ -211,6 +222,16 @@ export class InboundRouter {
     if (ixButton) {
       await this.interactionFlow.details(user, ixButton, session);
       return 'interaction_details';
+    }
+
+    // M12: `lab:all:<id>` / `lab:wrong:<id>` under a lab reply, `rep:show:<id>` / `rep:page:<n>` from REPORTS.
+    const labButton = buttonId ? parseLabButton(buttonId) : null;
+    if (labButton) {
+      return this.labActions.handle(user, labButton, session);
+    }
+    const repButton = buttonId ? parseRepButton(buttonId) : null;
+    if (repButton) {
+      return this.labActions.handleRep(user, repButton, session);
     }
 
     // Prescription buttons (`rx:wrong:<document id>` ...): matched by id, never by title.

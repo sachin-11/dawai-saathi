@@ -117,6 +117,7 @@ def make_ctx(
     settings: Settings | None = None,
     catalog: Any = None,
     interactions: Any = None,
+    labs: Any = None,
 ) -> PipelineContext:
     config = settings or make_settings()
     return PipelineContext(
@@ -130,4 +131,5 @@ def make_ctx(
         redactor=Redactor(enabled=True),
         catalog=catalog,
         interactions=interactions,
+        labs=labs,
     )

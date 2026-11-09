@@ -5,6 +5,7 @@ import type { AuditService } from '../audit/audit.service';
 import { AiServiceError } from '../ai-client/ai-client.errors';
 import type { ProcessRequest, ProcessResponse } from '../ai-client/types';
 import type { StorageService } from '../common/storage/storage.service';
+import type { LabReportService } from '../documents/lab-report.service';
 import type { PrescriptionService } from '../documents/prescription.service';
 import type { MediaService } from '../messaging/media.service';
 import type { MessagesService } from '../messaging/messages.service';
@@ -68,6 +69,7 @@ function setup(): {
   calls: string[];
   audit: { log: jest.Mock };
   prescriptions: { save: jest.Mock };
+  labReports: { save: jest.Mock; previousResults: jest.Mock };
   interactionFlow: { offerDetails: jest.Mock };
   session: Record<
     'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawButtonsWithPrompt' | 'rawEmergencyText',
@@ -118,6 +120,10 @@ function setup(): {
     }),
   };
   const interactionFlow = { offerDetails: track('interactionFlow.offerDetails') };
+  const labReports = {
+    save: track('labReports.save', { documentId: 'lab-doc-1', status: 'done', created: true }),
+    previousResults: jest.fn().mockResolvedValue([]),
+  };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
     messages as unknown as MessagesService,
@@ -127,6 +133,7 @@ function setup(): {
     whatsapp as unknown as WhatsAppClient,
     audit as unknown as AuditService,
     prescriptions as unknown as PrescriptionService,
+    labReports as unknown as LabReportService,
     interactionFlow as unknown as InteractionFlowService,
     logger as unknown as PinoLogger,
   );
@@ -140,6 +147,7 @@ function setup(): {
     whatsapp,
     audit,
     prescriptions,
+    labReports,
     interactionFlow,
     logger,
     calls,
@@ -605,5 +613,82 @@ describe('AiProcessor: prescriptions (M7)', () => {
     await s.processor.handle(user, imageJob, asSession(s));
     const logged = JSON.stringify(s.logger.info.mock.calls);
     expect(logged).not.toContain('Dolo 650');
+  });
+});
+
+describe('AiProcessor: lab reports (M12)', () => {
+  const imageJob = job({ type: 'image', media: { id: 'media-1', mimeType: 'image/jpeg' } });
+  const labButtons = [
+    { id: 'lab:all:{document_id}', title: 'See all tests' },
+    { id: 'lab:wrong:{document_id}', title: 'Something wrong' },
+  ];
+  const labResponse = (status: 'done' | 'needs_review' | 'failed' = 'done'): ProcessResponse => ({
+    ...aiReply({ text: 'Your report', buttons: labButtons }),
+    intent: 'lab_report',
+    extraction: {
+      kind: 'lab_report',
+      is_lab_report: true,
+      image_quality: 'good',
+      results: [],
+      status,
+      has_critical: false,
+    } as unknown as NonNullable<ProcessResponse['extraction']>,
+  });
+
+  it('sends the earlier results with a photo, and only with a photo', async () => {
+    const s = setup();
+    s.labReports.previousResults.mockResolvedValue([
+      { test_code: 'HB', value: 12, unit: 'g/dl', report_date: '2026-03-10' },
+    ]);
+    s.ai.process.mockResolvedValue(aiReply());
+    await s.processor.handle(user, imageJob, asSession(s));
+    expect(sentRequest(s).context?.previous_lab_results).toEqual([
+      { test_code: 'HB', value: 12, unit: 'g/dl', report_date: '2026-03-10' },
+    ]);
+
+    const t = setup();
+    t.ai.process.mockResolvedValue(aiReply());
+    await t.processor.handle(user, job(), asSession(t));
+    expect(t.labReports.previousResults).not.toHaveBeenCalled();
+    expect(sentRequest(t).context).not.toHaveProperty('previous_lab_results');
+  });
+
+  it('saves the lab report BEFORE replying and puts its id into the button ids', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue(labResponse());
+    await s.processor.handle(user, imageJob, asSession(s));
+    expect(s.labReports.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        messageId: 'msg-1',
+        s3Key: 'media/user-1/2026/11/msg-1.jpg',
+      }),
+    );
+    expect(s.prescriptions.save).not.toHaveBeenCalled();
+    expect(s.calls.indexOf('labReports.save')).toBeLessThan(s.calls.indexOf('session.rawButtons'));
+    expect(s.session.rawButtons).toHaveBeenCalledWith('Your report', [
+      { id: 'lab:all:lab-doc-1', title: 'See all tests' },
+      { id: 'lab:wrong:lab-doc-1', title: 'Something wrong' },
+    ]);
+  });
+
+  it('a typed question about a test (no extraction) saves nothing', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue({ ...aiReply(), intent: 'lab_report', extraction: null });
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.labReports.save).not.toHaveBeenCalled();
+    expect(s.prescriptions.save).not.toHaveBeenCalled();
+  });
+
+  it('a prescription is never saved as a lab report', async () => {
+    const s = setup();
+    s.ai.process.mockResolvedValue({
+      ...aiReply(),
+      intent: 'prescription',
+      extraction: rxExtraction(),
+    });
+    await s.processor.handle(user, imageJob, asSession(s));
+    expect(s.labReports.save).not.toHaveBeenCalled();
+    expect(s.prescriptions.save).toHaveBeenCalled();
   });
 });

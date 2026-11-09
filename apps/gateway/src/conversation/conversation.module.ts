@@ -15,6 +15,7 @@ import { CommandHandlersService } from './command-handlers.service';
 import { DeletionFlowService } from './deletion-flow.service';
 import { InboundRouter } from './inbound-router';
 import { InteractionFlowService } from './interaction-flow.service';
+import { LabActionsService } from './lab-actions.service';
 import { OnboardingService } from './onboarding.service';
 import { PendingInputService } from './pending-input.service';
 import { ReminderFlowService } from './reminder-flow.service';
@@ -43,6 +44,7 @@ import { RxActionsService } from './rx-actions.service';
     RepliesService,
     RxActionsService,
     InteractionFlowService,
+    LabActionsService,
     ReminderFlowService,
     CaregiverFlowService,
     PendingInputService,

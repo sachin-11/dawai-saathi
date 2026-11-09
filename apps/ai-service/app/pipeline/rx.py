@@ -87,7 +87,7 @@ class RxPipeline:
         self, images: list[ImageInput], ctx: PipelineContext, language: Language
     ) -> PipelineOutput:
         extraction, result = await extract_prescription(
-            images, router=ctx.router, prompts=ctx.prompts, deadline=ctx.deadline
+            images[:3], router=ctx.router, prompts=ctx.prompts, deadline=ctx.deadline
         )
         _track(ctx, result, RX_EXTRACT_PROMPT_ID)
         if extraction is None:

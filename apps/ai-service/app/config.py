@@ -144,6 +144,9 @@ class Settings(BaseSettings):
         default=12.0, ge=0.0, le=1000.0, validation_alias="IMAGE_MIN_SHARPNESS"
     )
 
+    # M12: pages of a lab-report PDF that are rendered and read (one report can have several pages).
+    lab_max_pages: int = Field(default=6, ge=1, le=10, validation_alias="LAB_MAX_PAGES")
+
     # ---- M8: catalog matching and generic suggestions
     drug_trgm_min: float = Field(default=0.45, ge=0.0, le=1.0, validation_alias="DRUG_TRGM_MIN")
     # Below this score a match is only shown, never used for a generic suggestion.

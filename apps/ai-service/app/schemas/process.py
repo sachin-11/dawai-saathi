@@ -6,12 +6,14 @@ that file, never written by hand. Change a model here, run `make contracts`, com
 CI fails if they are out of date.
 """
 
+from datetime import date
 from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.schemas.interactions import InteractionReport
+from app.schemas.lab_report import LabReportExtraction
 from app.schemas.prescription import PrescriptionExtraction
 
 # A WhatsApp message id (the gateway uses it as request id) or a UUID. Restricted to a log-safe
@@ -114,8 +116,20 @@ class ActiveMedication(_Strict):
     strength_key: str | None = Field(default=None, max_length=100)
 
 
+class PreviousLabResult(_Strict):
+    """M12: one result of an earlier lab report, in the test's CANONICAL unit. Nothing else about the
+    earlier report is sent (no name, lab or document id)."""
+
+    test_code: str = Field(min_length=1, max_length=32)
+    value: float
+    unit: str = Field(max_length=32)
+    report_date: date
+
+
 class RequestContext(_Strict):
     active_medications: list[ActiveMedication] = Field(default_factory=list, max_length=50)
+    # M12: results of the user's lab reports of the last 12 months, for the "since last report" lines.
+    previous_lab_results: list[PreviousLabResult] = Field(default_factory=list, max_length=600)
 
 
 class RequestOptions(_Strict):
@@ -135,9 +149,9 @@ class ProcessRequest(_Strict):
 # ------------------------------------------------------------------ response
 
 
-# `extraction` is the intent-specific structured payload. M7 ships the prescription payload; M12
-# turns this alias into a union discriminated by `kind` (prescription | lab_report).
-Extraction = PrescriptionExtraction
+# `extraction` is the intent-specific structured payload, a union discriminated by `kind`
+# (M12: prescription | lab_report).
+Extraction = Annotated[PrescriptionExtraction | LabReportExtraction, Field(discriminator="kind")]
 
 
 class Warning(BaseModel):

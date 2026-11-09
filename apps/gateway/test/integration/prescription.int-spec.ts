@@ -12,6 +12,7 @@ import nock from 'nock';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
+import type { PrescriptionExtraction } from '../../src/documents/prescription.mapping';
 import type { ProcessResponse } from '../../src/ai-client/types';
 import { CryptoService } from '../../src/common/crypto/crypto.service';
 import { hashPhone } from '../../src/common/crypto/crypto.util';
@@ -422,7 +423,7 @@ describe('prescription flow (integration)', () => {
       select: { id: true },
     });
     const extraction = (await prisma.document.findUniqueOrThrow({ where: { id: document.id } }))
-      .extraction as unknown as NonNullable<ProcessResponse['extraction']>;
+      .extraction as unknown as PrescriptionExtraction;
 
     const service = app.get(PrescriptionService);
     const input = {
@@ -459,7 +460,7 @@ describe('prescription flow (integration)', () => {
       overall_confidence: 0,
       notes_for_user: [],
       status: 'failed',
-    } as unknown as NonNullable<ProcessResponse['extraction']>;
+    } as unknown as PrescriptionExtraction;
     const saved = await app.get(PrescriptionService).save({
       userId,
       messageId: message.id,

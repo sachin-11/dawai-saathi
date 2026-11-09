@@ -12,7 +12,7 @@ from typing import Any
 import structlog
 
 from app.graph.nodes._util import language_of
-from app.graph.nodes.composer import template_reply
+from app.graph.nodes.composer import build_lab_reply, template_reply
 from app.graph.state import GraphState, NodeError
 from app.graph.traced import STATUS_KEY, traced_node
 from app.observability.metrics import METRICS
@@ -46,6 +46,21 @@ async def rx_fallback_renderer(state: GraphState, ctx: PipelineContext) -> dict[
     log.warning("composer_grounding_failed", reasons=failures)  # codes only, never text
     drop_generics = any(code.startswith(_GENERIC_PREFIX) for code in failures)
     errors = [NodeError(node="verifier", code=failures[0] if failures else "failed")]
+
+    if state.intent is Intent.lab_report:
+        # Rendered again from the data only, without explanations / trends / questions: the smallest
+        # honest reply. A lab question that failed its check becomes "I have no information".
+        working = state
+        if state.lab_question_text is not None:
+            from app.tools.lab_render import render_lab_question
+
+            answer = render_lab_question(None, None, language_of(state))
+            working = state.model_copy(
+                update={"lab_question_text": answer.text, "lab_question_code": None}
+            )
+        index = await ctx.labs.index() if ctx.labs is not None else None
+        rendered = build_lab_reply(working, ctx, index, "minimal")
+        return {**rendered, "errors": errors, STATUS_KEY: "fallback"}
 
     if state.intent is Intent.generic_query:
         items = state.generic_items
