@@ -14,7 +14,12 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.llm.fake_rx import SAMPLE_CLASSIFICATION, SAMPLE_EXTRACTION, fake_compose
+from app.llm.fake_rx import (
+    SAMPLE_CLASSIFICATION,
+    SAMPLE_EXTRACTION,
+    SAMPLE_LAB_EXTRACTION,
+    fake_compose,
+)
 from app.llm.types import ImageInput, LLMError, Message, RawResult
 
 FAKE_MODEL = "fake-model"
@@ -178,6 +183,30 @@ def _fake_interaction_extract(messages: Sequence[Message]) -> dict[str, Any]:
     return {"medicine_names": names[:4], "confidence": 0.9 if names else 0.2}
 
 
+_LAB_FILLER = frozenset(
+    {
+        "matlab", "kya", "hai", "hota", "hoti", "what", "is", "mean", "means", "meaning", "ka", "ki",
+        "ke", "ko", "mera", "meri", "my", "level", "value", "result", "report", "me", "mein", "aaya",
+        "aya", "came", "test", "batao", "samjhao", "explain", "tell", "about", "for", "the", "a", "an",
+        "ye", "yeh", "to", "of", "normal", "high", "low", "kitna", "kitni", "chahiye", "should",
+        "be", "does", "do", "se", "hain",
+    }
+)  # fmt: skip
+
+
+def _fake_lab_question_extract(messages: Sequence[Message]) -> dict[str, Any]:
+    """Offline stand-in for `lab_question_extract_v1`: the first non-filler word is the test, the first
+    number is its value. It copies words from the message and nothing else."""
+    last = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    words = last.replace("<message>", " ").replace("</message>", " ").replace("?", " ").split()
+    name = next(
+        (w for w in words if w.lower() not in _LAB_FILLER and not w.replace(".", "").isdigit()),
+        None,
+    )
+    value = next((w for w in words if w.replace(".", "", 1).isdigit()), None)
+    return {"test_name": name, "value": value, "unit": None, "confidence": 0.9 if name else 0.2}
+
+
 @dataclass(frozen=True, slots=True)
 class FakeRule:
     """If `match` (case-insensitive) occurs in the last user message, answer with `response`."""
@@ -200,6 +229,10 @@ def default_fake_response(
     # M7: the prescription flow (classify -> extract -> compose). The fake never looks at pixels.
     if "kind" in fields and "quality" in fields and "confidence" in fields:
         return json.dumps(SAMPLE_CLASSIFICATION)
+    if "is_lab_report" in fields:
+        return json.dumps(SAMPLE_LAB_EXTRACTION)
+    if "test_name" in fields:
+        return json.dumps(_fake_lab_question_extract(messages))
     if "is_prescription" in fields:
         return json.dumps(SAMPLE_EXTRACTION)
     if "items" in fields:

@@ -79,6 +79,7 @@ async def process(
         redactor=state.redactor,
         catalog=state.catalog,
         interactions=state.interactions,
+        labs=state.labs,
     )
     try:
         async with asyncio.timeout(settings.process_timeout_s):

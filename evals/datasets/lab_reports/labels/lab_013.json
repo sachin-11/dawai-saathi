@@ -1,0 +1,77 @@
+{
+  "id": "lab_013",
+  "layout": "categories",
+  "pages": 1,
+  "date": "2026-11-25",
+  "age": null,
+  "sex": "f",
+  "lab": "Sanjeevani Diagnostics",
+  "results": [
+    {
+      "name": "Total Cholesterol",
+      "value_raw": "245",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 200,
+      "ref_text": "< 200",
+      "flag": "H",
+      "section": "Lipid Profile",
+      "test_code": "CHOL",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Uric Acid",
+      "value_raw": "8.1",
+      "unit": "mg/dL",
+      "ref_low": 3.4,
+      "ref_high": 7.0,
+      "ref_text": "3.4 - 7.0",
+      "flag": "H",
+      "section": "Kidney Function Test",
+      "test_code": "URIC",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "SGPT (ALT)",
+      "value_raw": "38",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 45,
+      "ref_text": "0 - 45",
+      "flag": null,
+      "section": "Liver Function Test",
+      "test_code": "SGPT",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Potassium",
+      "value_raw": "4.2",
+      "unit": "mmol/L",
+      "ref_low": 3.5,
+      "ref_high": 5.1,
+      "ref_text": "3.5 - 5.1",
+      "flag": null,
+      "section": "Electrolytes",
+      "test_code": "K",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Haemoglobin",
+      "value_raw": "13.6",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "N",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Asha Verma", "PID-774346", "SMP94663973", "9831877584"]
+}

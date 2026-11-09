@@ -64,7 +64,7 @@ async def _prepare(media: FetchedMedia, settings: Settings) -> list[PreparedImag
 
     def work() -> list[PreparedImage]:
         if media.mime == "application/pdf":
-            pages = render_pdf_pages(media.data, max_px=max_px)
+            pages = render_pdf_pages(media.data, max_px=max_px, pages=settings.lab_max_pages)
             return [prepare_pil(p, max_px=max_px, min_sharpness=sharpness) for p in pages]
         if media.mime not in IMAGE_MIME_TYPES:
             raise ImagePrepError("not_an_image", "not an image")

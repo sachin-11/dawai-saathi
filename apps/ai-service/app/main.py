@@ -20,6 +20,7 @@ from app.catalog.service import CatalogService
 from app.config import Settings, get_settings
 from app.db.session import Database
 from app.interactions.service import InteractionService
+from app.labs.service import LabService
 from app.llm.factory import build_llm_router
 from app.llm.router import LLMRouter
 from app.llm.types import LLMConfigError
@@ -56,6 +57,7 @@ def create_app(
     pipeline: Pipeline | None = None,
     catalog: CatalogService | None = None,
     interactions: InteractionService | None = None,
+    labs: LabService | None = None,
 ) -> FastAPI:
     """Build the app. The keyword arguments let tests inject fakes; production uses the defaults."""
     settings = settings or get_settings()
@@ -85,6 +87,7 @@ def create_app(
     app.state.interactions = interactions or InteractionService.from_settings(
         settings, app.state.db.session_factory
     )
+    app.state.labs = labs or LabService.from_sessions(app.state.db.session_factory)
     app.state.pipeline = pipeline or default_pipeline(settings)
     app.state.llm_router = llm_router or _default_llm_router(settings)
 

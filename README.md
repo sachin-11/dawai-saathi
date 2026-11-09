@@ -197,13 +197,20 @@ graph TD;
 	verifier(verifier)
 	templates(templates)
 	rx_fallback(rx_fallback)
+	vision_extract_lab(vision_extract_lab)
+	lab_normalize(lab_normalize)
+	lab_compare(lab_compare)
+	lab_gate(lab_gate)
+	lab_question(lab_question)
 	__end__([<p>__end__</p>]):::last
 	__start__ -.-> emergency_guard;
 	__start__ -.-> prepare_image;
 	__start__ -.-> transcribe;
 	classify -.-> extract_interaction_query;
 	classify -.-> extract_query;
+	classify -.-> lab_question;
 	classify -.-> templates;
+	classify -.-> vision_extract_lab;
 	classify -.-> vision_extract_rx;
 	composer --> verifier;
 	confidence_gate -.-> composer;
@@ -222,6 +229,14 @@ graph TD;
 	interaction_check -.-> composer;
 	interaction_check -.-> confidence_gate;
 	interaction_check -.-> templates;
+	lab_compare -.-> lab_gate;
+	lab_compare -.-> templates;
+	lab_gate -.-> composer;
+	lab_gate -.-> templates;
+	lab_normalize -.-> lab_compare;
+	lab_normalize -.-> templates;
+	lab_question -.-> composer;
+	lab_question -.-> templates;
 	match_query_medicines -.-> interaction_check;
 	match_query_medicines -.-> templates;
 	normalize_drugs -.-> generic_finder;
@@ -233,10 +248,13 @@ graph TD;
 	validate_rx --> normalize_drugs;
 	verifier -.-> __end__;
 	verifier -.-> rx_fallback;
+	vision_extract_lab -.-> lab_normalize;
+	vision_extract_lab -.-> templates;
 	vision_extract_rx -.-> templates;
 	vision_extract_rx -.-> validate_rx;
 	rx_fallback --> __end__;
 	templates --> __end__;
+	vision_extract_lab -.-> vision_extract_lab;
 	vision_extract_rx -.-> vision_extract_rx;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
@@ -341,6 +359,36 @@ lines in `data/review/interactions_hi_reviewed.csv`, columns `salt_a,salt_b,mana
 Endpoints (internal, service token): `POST /v1/interaction-check` (CHECK) and `POST /v1/interaction-details`
 (the details button). Neither calls a model.
 
+## Lab reports (M12)
+
+Send a photo or PDF (up to `LAB_MAX_PAGES` = 6 pages) of a lab report. The bot reads the tests, compares each value
+with the range **printed on your report** (fallback: the flag the lab printed, then a general range for your
+age / sex, and says so), and explains in plain Hindi / English what is inside or outside the range and what the
+test measures. It never diagnoses. A critical value always puts `🚨 ... contact your doctor today` on the first line.
+
+```
+photo/PDF -> classify -> vision_extract_lab -> lab_normalize -> lab_compare -> lab_gate -> composer -> verifier
+text      -> classify -> lab_question ("TSH 6.2 matlab kya?") -> composer -> verifier
+```
+
+* Everything after the vision call is deterministic (units, `lakhs/cumm`, `mmol/L`, ranges, critical values, trends).
+  The reply is rendered from the structured data (no model words); the verifier blocks any number that is not in the
+  data and any diagnosis / treatment wording (`app/tools/lab_verify.py`).
+* Buttons: `[See all tests]` (grouped by section) and `[Something wrong]` (the report leaves the trends).
+  Commands: `REPORTS` / `reports dikhao` (last 5 reports; tap one to see its summary again).
+* Trends: the gateway sends the canonical code / value / unit / date of earlier results (12 months, never a name).
+  The reply states the change without judgement ("HbA1c: 7.8 % (Mar 2026) -> 7.2 % (Nov 2026)").
+* Age and sex printed on a report stay on that document only; they are never copied to the user profile.
+
+Setup: `make migrate` (migration `m12_lab_reports`), then `make seed` (loads `data/seed/lab_tests.yaml`; check it with
+`uv run --project apps/ai-service python data/scripts/seed_lab_tests.py --check`).
+Evals: `make eval-lab` (fake replay, offline, CI gate); with keys `make eval-lab MODE=real`. Hard gates: critical-value
+recall 100%, critical line first, zero diagnosis wording, zero values that are not on the page, zero PHI leakage.
+Reference data is **not clinically reviewed**: see `data/SOURCES.md` before any launch.
+
+Manual WhatsApp test: send two synthetic lab reports (`evals/datasets/lab_reports/images/`; the second one with a
+repeated test shows a "Since your last report" line), then `reports`, tap `See all tests`, and send `TSH 6.2 matlab kya?`.
+
 ## Conversation flow (M4)
 
 Every first-time number goes through the same short path, and **nothing is processed before consent**:
@@ -412,7 +460,7 @@ Tests: `make test` (unit, fake clock) and `make test-integration` (`reminders.in
 
 ## User commands (on WhatsApp)
 
-`HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
+`HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `DELETE`
 
 ## Privacy
 

@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import Boolean, Date, Enum, Integer, Numeric, Text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -102,3 +102,12 @@ class LabTest(Base):
     explanation_en: Mapped[str] = mapped_column(Text)
     explanation_hi: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(Text)
+    # ---- M12 (`unit` above is the canonical unit)
+    section: Mapped[str] = mapped_column(Text)
+    unit_conversions: Mapped[dict[str, object]] = mapped_column(JSONB)
+    critical_low: Mapped[Decimal | None] = mapped_column(Numeric)
+    critical_high: Mapped[Decimal | None] = mapped_column(Numeric)
+    doctor_questions_en: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    doctor_questions_hi: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    qualitative_normal: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    hi_reviewed: Mapped[bool] = mapped_column(Boolean)

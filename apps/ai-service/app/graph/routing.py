@@ -35,6 +35,11 @@ COMPOSER = "composer"
 VERIFIER = "verifier"
 TEMPLATES = "templates"
 RX_FALLBACK = "rx_fallback"
+VISION_EXTRACT_LAB = "vision_extract_lab"
+LAB_NORMALIZE = "lab_normalize"
+LAB_COMPARE = "lab_compare"
+LAB_GATE = "lab_gate"
+LAB_QUESTION = "lab_question"
 
 MAX_EXTRACTION_RETRIES = 1
 
@@ -70,6 +75,10 @@ def after_classify(state: GraphState) -> str:
         return TEMPLATES
     if state.image_kind == "prescription":
         return VISION_EXTRACT_RX
+    if state.image_kind == "lab_report":
+        return VISION_EXTRACT_LAB
+    if state.intent is Intent.lab_report:
+        return LAB_QUESTION
     if state.intent is Intent.generic_query:
         return EXTRACT_QUERY
     if state.intent is Intent.interaction_query:
@@ -85,6 +94,32 @@ def after_vision_extract(state: GraphState) -> str:
     if state.retries.get(VISION_EXTRACT_RX, 0) <= MAX_EXTRACTION_RETRIES:
         return VISION_EXTRACT_RX  # the single retry (stricter prompt)
     return TEMPLATES
+
+
+def after_vision_extract_lab(state: GraphState) -> str:
+    if state.template_key:  # the final "could not read this report" reply
+        return TEMPLATES
+    if state.lab_extraction is not None:
+        return LAB_NORMALIZE
+    if state.retries.get(VISION_EXTRACT_LAB, 0) <= MAX_EXTRACTION_RETRIES:
+        return VISION_EXTRACT_LAB  # the single retry (stricter prompt)
+    return TEMPLATES
+
+
+def after_lab_normalize(state: GraphState) -> str:
+    return _templated_or(state, LAB_COMPARE)
+
+
+def after_lab_compare(state: GraphState) -> str:
+    return _templated_or(state, LAB_GATE)
+
+
+def after_lab_gate(state: GraphState) -> str:
+    return _templated_or(state, COMPOSER)
+
+
+def after_lab_question(state: GraphState) -> str:
+    return _templated_or(state, COMPOSER)
 
 
 def after_extract_query(state: GraphState) -> str:

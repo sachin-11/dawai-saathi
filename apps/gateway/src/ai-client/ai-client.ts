@@ -14,6 +14,8 @@ import type {
   InteractionCheckResponse,
   InteractionDetailsRequest,
   InteractionDetailsResponse,
+  LabRenderRequest,
+  LabRenderResponse,
   ProcessRequest,
   ProcessResponse,
 } from './types';
@@ -129,6 +131,11 @@ export class AiClient {
       request,
       isGenericDetailsResponse,
     );
+  }
+
+  /** "See all tests" and `REPORTS`: a stored lab extraction rendered by the AI service (no model call). */
+  async labRender(request: LabRenderRequest): Promise<LabRenderResponse> {
+    return this.post('/v1/lab-render', 'ai.lab_render', request, isGenericDetailsResponse);
   }
 
   private async post<Res>(

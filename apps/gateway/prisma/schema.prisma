@@ -187,6 +187,7 @@ model User {
   medications        Medication[]
   reminders          Reminder[]
   medicationWarnings MedicationWarning[]
+  labResults         LabResult[]
   reminderSchedules  ReminderSchedule[]
 
   @@map("users")
@@ -260,6 +261,7 @@ model Document {
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   message     Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
   medications Medication[]
+  labResults  LabResult[]
 
   @@index([userId, createdAt])
   @@index([status])
@@ -514,9 +516,59 @@ model LabTest {
   explanationEn String   @map("explanation_en")
   explanationHi String   @map("explanation_hi")
   source        String
+  // ---- M12. `unit` above is the CANONICAL unit; one row per (code, sex, age band) of fallback ranges.
+  section             String   @default("")
+  /// {"<normalised printed unit>": factor | {"f": factor, "o": offset}}: canonical = printed * f + o
+  unitConversions     Json     @default("{}") @map("unit_conversions")
+  /// Copied from app/safety/critical_values.yaml by the seed (the yaml is the source of truth).
+  criticalLow         Decimal? @map("critical_low")
+  criticalHigh        Decimal? @map("critical_high")
+  doctorQuestionsEn   String[] @map("doctor_questions_en")
+  doctorQuestionsHi   String[] @map("doctor_questions_hi")
+  /// Words that mean "normal" for a qualitative test (urine protein: negative, nil, ...).
+  qualitativeNormal   String[] @map("qualitative_normal")
+  /// False until a human reviewed the Hindi text; until then the reply shows no Hindi explanation.
+  hiReviewed          Boolean  @default(false) @map("hi_reviewed")
 
   @@index([code])
   @@map("lab_tests")
+}
+
+enum LabResultStatus {
+  normal
+  high
+  low
+  borderline
+  critical_high
+  critical_low
+  qualitative_abnormal
+  unknown
+
+  @@map("lab_result_status")
+}
+
+/// M12: one row per result of a lab report, for trends and the REPORTS command. Holds no name, lab or
+/// patient id. Rows of a document marked "something is wrong" (status needs_review) are left out of trends.
+model LabResult {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  documentId         String          @map("document_id") @db.Uuid
+  /// Null for a test the catalog does not know ("other tests").
+  testCode           String?         @map("test_code")
+  valueNumCanonical  Decimal?        @map("value_num_canonical")
+  unitCanonical      String?         @map("unit_canonical")
+  valueRaw           String          @map("value_raw")
+  unitRaw            String?         @map("unit_raw")
+  status             LabResultStatus
+  reportDate         DateTime?       @map("report_date") @db.Date
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, testCode, reportDate])
+  @@index([documentId])
+  @@map("lab_results")
 }
 
 // ------------------------------------------------------------------ audit

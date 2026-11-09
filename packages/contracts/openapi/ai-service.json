@@ -274,6 +274,57 @@
         "title": "EmergencyCategory",
         "type": "string"
       },
+      "FlagField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "enum": ["H", "L", "N", "A"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "FlagField",
+        "type": "object"
+      },
+      "FloatField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "FloatField",
+        "type": "object"
+      },
       "FoodField": {
         "additionalProperties": false,
         "properties": {
@@ -895,6 +946,278 @@
         "title": "InteractionReport",
         "type": "object"
       },
+      "LabRenderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "extraction": {
+            "$ref": "#/components/schemas/LabReportExtraction"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "mode": {
+            "enum": ["summary", "all"],
+            "title": "Mode",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "language", "mode", "extraction"],
+        "title": "LabRenderRequest",
+        "type": "object"
+      },
+      "LabRenderResponse": {
+        "properties": {
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9._=+/-]{1,200}$",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": ["request_id", "reply"],
+        "title": "LabRenderResponse",
+        "type": "object"
+      },
+      "LabReportExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "has_critical": {
+            "default": false,
+            "title": "Has Critical",
+            "type": "boolean"
+          },
+          "image_quality": {
+            "enum": ["good", "poor", "unreadable"],
+            "title": "Image Quality",
+            "type": "string"
+          },
+          "is_lab_report": {
+            "title": "Is Lab Report",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "lab_report",
+            "default": "lab_report",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notes_for_user": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Notes For User",
+            "type": "array"
+          },
+          "overall_confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Overall Confidence",
+            "type": "number"
+          },
+          "patient_age": {
+            "$ref": "#/components/schemas/IntField"
+          },
+          "patient_sex": {
+            "$ref": "#/components/schemas/SexField"
+          },
+          "report_date": {
+            "$ref": "#/components/schemas/DateField"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/LabResult"
+            },
+            "maxItems": 80,
+            "title": "Results",
+            "type": "array"
+          },
+          "status": {
+            "default": "done",
+            "enum": ["done", "needs_review", "failed"],
+            "title": "Status",
+            "type": "string"
+          },
+          "unknown_count": {
+            "default": 0,
+            "title": "Unknown Count",
+            "type": "integer"
+          },
+          "used_general_range": {
+            "default": false,
+            "title": "Used General Range",
+            "type": "boolean"
+          }
+        },
+        "required": ["is_lab_report", "image_quality", "report_date", "patient_age", "patient_sex"],
+        "title": "LabReportExtraction",
+        "type": "object"
+      },
+      "LabResult": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "lab_flag": {
+            "$ref": "#/components/schemas/FlagField"
+          },
+          "lab_ref_high": {
+            "$ref": "#/components/schemas/FloatField"
+          },
+          "lab_ref_low": {
+            "$ref": "#/components/schemas/FloatField"
+          },
+          "lab_ref_text": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "needs_confirmation": {
+            "default": false,
+            "title": "Needs Confirmation",
+            "type": "boolean"
+          },
+          "range_basis": {
+            "default": "none",
+            "enum": ["printed", "flag", "fallback", "none"],
+            "title": "Range Basis",
+            "type": "string"
+          },
+          "range_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Text"
+          },
+          "raw_test_name": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "status": {
+            "default": "unknown",
+            "enum": [
+              "normal",
+              "high",
+              "low",
+              "borderline",
+              "critical_high",
+              "critical_low",
+              "qualitative_abnormal",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "test_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Code"
+          },
+          "trend": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Trend"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "unit_canonical": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Canonical"
+          },
+          "value_canonical": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Canonical"
+          },
+          "value_comparator": {
+            "default": "=",
+            "enum": ["<", ">", "="],
+            "title": "Value Comparator",
+            "type": "string"
+          },
+          "value_num": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Num"
+          },
+          "value_raw": {
+            "$ref": "#/components/schemas/TextField"
+          }
+        },
+        "required": [
+          "raw_test_name",
+          "value_raw",
+          "unit",
+          "lab_ref_low",
+          "lab_ref_high",
+          "lab_ref_text",
+          "lab_flag"
+        ],
+        "title": "LabResult",
+        "type": "object"
+      },
       "Language": {
         "enum": ["hi", "en"],
         "title": "Language",
@@ -1122,6 +1445,35 @@
         "title": "PrescriptionExtraction",
         "type": "object"
       },
+      "PreviousLabResult": {
+        "additionalProperties": false,
+        "description": "M12: one result of an earlier lab report, in the test's CANONICAL unit. Nothing else about the\nearlier report is sent (no name, lab or document id).",
+        "properties": {
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          },
+          "test_code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Test Code",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 32,
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": ["test_code", "value", "unit", "report_date"],
+        "title": "PreviousLabResult",
+        "type": "object"
+      },
       "ProcessRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1181,12 +1533,27 @@
           "extraction": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PrescriptionExtraction"
+                "discriminator": {
+                  "mapping": {
+                    "lab_report": "#/components/schemas/LabReportExtraction",
+                    "prescription": "#/components/schemas/PrescriptionExtraction"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PrescriptionExtraction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/LabReportExtraction"
+                  }
+                ]
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Extraction"
           },
           "intent": {
             "$ref": "#/components/schemas/Intent"
@@ -1309,6 +1676,14 @@
             "maxItems": 50,
             "title": "Active Medications",
             "type": "array"
+          },
+          "previous_lab_results": {
+            "items": {
+              "$ref": "#/components/schemas/PreviousLabResult"
+            },
+            "maxItems": 600,
+            "title": "Previous Lab Results",
+            "type": "array"
           }
         },
         "title": "RequestContext",
@@ -1342,6 +1717,32 @@
         },
         "required": ["ref", "salt_key"],
         "title": "ResolvedMedicine",
+        "type": "object"
+      },
+      "SexField": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "enum": ["m", "f"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "SexField",
         "type": "object"
       },
       "StoredWarning": {
@@ -1504,6 +1905,45 @@
         },
         "required": ["node", "latency_ms", "status"],
         "title": "TraceEntry",
+        "type": "object"
+      },
+      "Trend": {
+        "additionalProperties": false,
+        "description": "Change since the user's previous report (canonical units). No judgement: only the direction and,\nwhen the printed/fallback range makes it unambiguous, whether the value moved into / out of range.",
+        "properties": {
+          "direction": {
+            "enum": ["up", "down", "same"],
+            "title": "Direction",
+            "type": "string"
+          },
+          "previous_date": {
+            "format": "date",
+            "title": "Previous Date",
+            "type": "string"
+          },
+          "previous_value": {
+            "title": "Previous Value",
+            "type": "number"
+          },
+          "range_change": {
+            "anyOf": [
+              {
+                "enum": ["into_range", "out_of_range"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Change"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": ["direction", "previous_value", "previous_date", "unit"],
+        "title": "Trend",
         "type": "object"
       },
       "UncheckedMedicine": {
@@ -1804,6 +2244,59 @@
         },
         "summary": "Interaction Details",
         "tags": ["interactions"]
+      }
+    },
+    "/v1/lab-render": {
+      "post": {
+        "operationId": "lab_render_v1_lab_render_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabRenderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing or wrong X-Service-Token"
+          },
+          "422": {
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Lab Render",
+        "tags": ["lab"]
       }
     },
     "/v1/process": {

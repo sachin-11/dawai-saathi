@@ -16,8 +16,10 @@ from app.graph.traced import STATUS_KEY, traced_node
 from app.interactions.render import render_block, render_query_reply
 from app.llm.types import LLMResult
 from app.pipeline.base import PipelineContext
-from app.schemas.process import Intent, Reply
+from app.schemas.process import Intent, Language, Reply, ReplyButton
 from app.tools.generic_render import render_generic_reply
+from app.tools.lab_normalize import LabIndex
+from app.tools.lab_render import BUTTON_TITLES, Mode, render_lab_reply
 from app.tools.rx_compose import (
     RX_COMPOSE_PROMPT_ID,
     RX_TEMPLATE_VERSION,
@@ -27,6 +29,41 @@ from app.tools.rx_compose import (
     render_reply_text,
     request_llm_lines,
 )
+
+LAB_REPLY_VERSION = "lab_reply_v1"
+DOCUMENT_ID_PLACEHOLDER = "{document_id}"
+
+
+def lab_buttons(language: Language) -> list[ReplyButton]:
+    """The gateway swaps the placeholder for the real document id after saving."""
+    titles = BUTTON_TITLES[language]
+    return [
+        ReplyButton(id=f"lab:all:{DOCUMENT_ID_PLACEHOLDER}", title=titles["all"]),
+        ReplyButton(id=f"lab:wrong:{DOCUMENT_ID_PLACEHOLDER}", title=titles["wrong"]),
+    ]
+
+
+def build_lab_reply(
+    state: GraphState, ctx: PipelineContext, index: LabIndex | None, mode: Mode = "full"
+) -> dict[str, Any]:
+    """The lab reply: a template over the structured data (no model words at all)."""
+    language = language_of(state)
+    ctx.usage.add_prompt_version(LAB_REPLY_VERSION)
+    if state.lab_question_text is not None:
+        reply = Reply(language=language, text=state.lab_question_text)
+        return {"reply": reply, "reply_source": "template"}
+    extraction = state.lab_extraction
+    assert extraction is not None  # noqa: S101 - routing guarantees it
+    text = render_lab_reply(
+        extraction, index, language, minimum=ctx.settings.extraction_min_confidence, mode=mode
+    )
+    reply = Reply(language=language, text=text, buttons=lab_buttons(language))
+    return {"reply": reply, "reply_source": "template"}
+
+
+async def lab_reply(state: GraphState, ctx: PipelineContext, mode: Mode = "full") -> dict[str, Any]:
+    index = await ctx.labs.index() if ctx.labs is not None else None
+    return build_lab_reply(state, ctx, index, mode)
 
 
 def template_reply(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
@@ -65,12 +102,16 @@ def interaction_query_reply(state: GraphState, ctx: PipelineContext) -> dict[str
 
 
 def _timed_out(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
+    if state.intent is Intent.lab_report:
+        return {**build_lab_reply(state, ctx, None, "minimal"), "compose_problems": ["timeout"]}
     ctx.usage.add_prompt_version(RX_TEMPLATE_VERSION)
     return {**template_reply(state, ctx), "compose_problems": ["timeout"]}
 
 
 @traced_node("composer", timeout="composer", on_timeout=_timed_out)
 async def composer(state: GraphState, ctx: PipelineContext) -> dict[str, Any]:
+    if state.intent is Intent.lab_report:
+        return await lab_reply(state, ctx)
     if state.intent in (Intent.generic_query, Intent.interaction_query):
         return template_reply(state, ctx)
 

@@ -1,0 +1,77 @@
+{
+  "id": "lab_022",
+  "layout": "multipage",
+  "pages": 2,
+  "date": "2026-01-12",
+  "age": 67,
+  "sex": null,
+  "lab": "City Care Pathology",
+  "results": [
+    {
+      "name": "Urine Glucose",
+      "value_raw": "Nil",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URGLU",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Urine Protein",
+      "value_raw": "Positive",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URPROT",
+      "status": "qualitative_abnormal",
+      "critical": false
+    },
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Total Leucocyte Count",
+      "value_raw": "7200",
+      "unit": "/cumm",
+      "ref_low": 4000,
+      "ref_high": 11000,
+      "ref_text": "4000 - 11000",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "TLC",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Platelet Count",
+      "value_raw": "2.5",
+      "unit": "lakhs/cumm",
+      "ref_low": 1.5,
+      "ref_high": 4.5,
+      "ref_text": "1.5 - 4.5",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "PLT",
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Karthik Subramanian", "PID-128938", "SMP85759975", "9830788381"]
+}

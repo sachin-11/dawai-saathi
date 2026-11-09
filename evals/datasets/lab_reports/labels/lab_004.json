@@ -1,0 +1,90 @@
+{
+  "id": "lab_004",
+  "layout": "simple",
+  "pages": 1,
+  "date": "2026-11-20",
+  "age": 34,
+  "sex": "f",
+  "lab": "Prime Path Labs",
+  "results": [
+    {
+      "name": "Urine Protein",
+      "value_raw": "Positive",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URPROT",
+      "status": "qualitative_abnormal",
+      "critical": false
+    },
+    {
+      "name": "SGPT (ALT)",
+      "value_raw": "38",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 45,
+      "ref_text": "0 - 45",
+      "flag": null,
+      "section": "Liver Function Test",
+      "test_code": "SGPT",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Fasting Blood Sugar",
+      "value_raw": "5.2",
+      "unit": "mmol/L",
+      "ref_low": 3.9,
+      "ref_high": 5.5,
+      "ref_text": "3.9 - 5.5",
+      "flag": null,
+      "section": "Blood Sugar",
+      "test_code": "FBS",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Potassium",
+      "value_raw": "4.2",
+      "unit": "mmol/L",
+      "ref_low": 3.5,
+      "ref_high": 5.1,
+      "ref_text": "3.5 - 5.1",
+      "flag": null,
+      "section": "Electrolytes",
+      "test_code": "K",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Uric Acid",
+      "value_raw": "8.1",
+      "unit": "mg/dL",
+      "ref_low": 3.4,
+      "ref_high": 7.0,
+      "ref_text": "3.4 - 7.0",
+      "flag": "H",
+      "section": "Kidney Function Test",
+      "test_code": "URIC",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "TSH",
+      "value_raw": "6.2",
+      "unit": "µIU/mL",
+      "ref_low": 0.4,
+      "ref_high": 4.2,
+      "ref_text": "0.4 - 4.2",
+      "flag": "H",
+      "section": "Thyroid Profile",
+      "test_code": "TSH",
+      "status": "high",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Asha Verma", "PID-983758", "SMP49334545", "9816168692"]
+}

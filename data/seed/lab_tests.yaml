@@ -1,0 +1,776 @@
+# Lab test reference data (M12). SOURCE OF TRUTH for the `lab_tests` table (loaded by
+# data/scripts/seed_lab_tests.py) and for the in-memory repository used by tests / evals.
+#
+# !! NOT CLINICALLY REVIEWED. Ranges and explanations were written from general medical knowledge and
+# !! the public references named in each `src` code (see SOURCES below). A doctor / pathologist must
+# !! review this file, app/safety/critical_values.yaml and data/review/lab_tests_hi_review.csv before launch.
+# !! The reply ALWAYS prefers the range printed on the user's own report; these are only fallbacks.
+#
+# Source codes (licence notes in data/SOURCES.md; none verified):
+#   S1 WHO haemoglobin thresholds for anaemia (WHO/NMH/NHD/MNM/11.1)
+#   S2 NCEP ATP III lipid categories (NIH/NHLBI, public domain)
+#   S3 Lipid Association of India consensus (2020)
+#   S4 ADA Standards of Care in Diabetes (glucose / HbA1c categories)
+#   S5 NIH MedlinePlus lab-test pages (NLM) - typical adult ranges
+#   S6 NCBI Bookshelf, Clinical Methods (Walker, Hall, Hurst)
+#   S7 KDIGO CKD guideline (eGFR categories)
+#   S8 ATA 2017 / Indian Thyroid Society (loose TSH / thyroid hormone intervals; assay-specific)
+#   S9 Endocrine Society / Indian consensus (vitamin D); B12, folate, iron studies from S5
+#
+# Format per test:
+#   name, section, unit (CANONICAL unit: all comparison against these ranges happens in it),
+#   conv: {printed-unit-normalised: factor | {f: factor, o: offset}}  canonical = printed * f + o
+#   r: [[sex, age_min, age_max, low, high], ...]   sex any|m|f ; null = open end ; fallback ranges only
+#   src: source code(s) for the numbers; ex: explanation (neutral, what the test measures)
+#   qual: for qualitative tests, the words that mean "normal"
+#   q: optional extra questions for the doctor (English); generic ones are added by the loader
+#
+# Units are written in "normalised" spelling: lower case, no spaces, micro sign -> u (see lab_normalize).
+
+generic_questions_en:
+  - 'What do these results mean for me, given my history?'
+  - 'Do I need to repeat any of these tests, and when?'
+  - 'Should I change anything before the next check-up, or is it fine to wait?'
+generic_questions_hi:
+  - 'मेरी हिस्ट्री को देखते हुए इन नतीजों का मेरे लिए क्या मतलब है?'
+  - 'क्या इनमें से कोई टेस्ट दोबारा कराना है, और कब?'
+  - 'क्या अगले चेक-अप से पहले कुछ बदलना है, या इंतज़ार कर सकता हूँ?'
+generic_hi_line: 'इस जाँच का मतलब अपने डॉक्टर से समझें।'
+
+tests:
+  # ------------------------------------------------------------------ CBC
+  - code: HB
+    name: Haemoglobin
+    section: CBC
+    unit: g/dl
+    aliases:
+      [hb, hgb, haemoglobin, hemoglobin, haemoglobin hb, hemoglobin hb, hb g/dl, khoon ki matra]
+    conv: { g/l: 0.1 }
+    r: [[m, 18, null, 13.0, 17.5], [f, 18, null, 12.0, 15.5], [any, 18, null, 12.0, 17.5]]
+    src: S1 S5
+    ex: 'Haemoglobin is the protein in red blood cells that carries oxygen around the body.'
+    q: ['Is there a reason to look into why my haemoglobin value is where it is?']
+  - code: TLC
+    name: Total leucocyte count (WBC)
+    section: CBC
+    unit: 10^3/ul
+    aliases:
+      [
+        tlc,
+        wbc,
+        wbc count,
+        total wbc count,
+        total leucocyte count,
+        total leukocyte count,
+        total white blood cell count,
+        white blood cells,
+        leucocytes,
+      ]
+    conv:
+      {
+        /cumm: 0.001,
+        /ul: 0.001,
+        /mm3: 0.001,
+        cells/cumm: 0.001,
+        10^9/l: 1,
+        thou/cumm: 1,
+        thousand/cumm: 1,
+        k/ul: 1,
+        x10^3/ul: 1,
+      }
+    r: [[any, 18, null, 4.0, 11.0]]
+    src: S5
+    ex: 'White blood cells are the cells that help the body fight infection; this counts how many there are.'
+  - code: PLT
+    name: Platelet count
+    section: CBC
+    unit: 10^3/ul
+    aliases: [plt, platelets, platelet count, platelet, plt count, thrombocytes]
+    conv:
+      {
+        lakhs/cumm: 100,
+        lakh/cumm: 100,
+        lac/cumm: 100,
+        /cumm: 0.001,
+        /ul: 0.001,
+        /mm3: 0.001,
+        10^9/l: 1,
+        thou/cumm: 1,
+        thousand/cumm: 1,
+        k/ul: 1,
+        x10^3/ul: 1,
+      }
+    r: [[any, 18, null, 150, 450]]
+    src: S5
+    ex: 'Platelets are small blood cells that help the blood to clot.'
+  - code: RBC
+    name: Red blood cell count
+    section: CBC
+    unit: 10^6/ul
+    aliases: [rbc, rbc count, red blood cell count, red cell count, total rbc count, erythrocytes]
+    conv: { million/cumm: 1, mill/cumm: 1, 10^12/l: 1, m/ul: 1, x10^6/ul: 1 }
+    r: [[m, 18, null, 4.5, 5.9], [f, 18, null, 4.1, 5.1], [any, 18, null, 4.1, 5.9]]
+    src: S5
+    ex: 'This counts the red blood cells, which carry oxygen.'
+  - code: HCT
+    name: Haematocrit (PCV)
+    section: CBC
+    unit: '%'
+    aliases: [hct, pcv, packed cell volume, haematocrit, hematocrit]
+    conv: {}
+    r: [[m, 18, null, 40.0, 52.0], [f, 18, null, 36.0, 46.0], [any, 18, null, 36.0, 52.0]]
+    src: S5
+    ex: 'Haematocrit is the share of your blood made up of red blood cells.'
+  - code: MCV
+    name: Mean corpuscular volume (MCV)
+    section: CBC
+    unit: fl
+    aliases: [mcv, mean corpuscular volume, mean cell volume]
+    conv: {}
+    r: [[any, 18, null, 80.0, 100.0]]
+    src: S5
+    ex: 'MCV is the average size of the red blood cells.'
+  - code: MCH
+    name: Mean corpuscular haemoglobin (MCH)
+    section: CBC
+    unit: pg
+    aliases: [mch, mean corpuscular haemoglobin, mean corpuscular hemoglobin]
+    conv: {}
+    r: [[any, 18, null, 27.0, 33.0]]
+    src: S5
+    ex: 'MCH is the average amount of haemoglobin in one red blood cell.'
+  - code: MCHC
+    name: Mean corpuscular haemoglobin concentration (MCHC)
+    section: CBC
+    unit: g/dl
+    aliases:
+      [mchc, mean corpuscular haemoglobin concentration, mean corpuscular hemoglobin concentration]
+    conv: { g/l: 0.1 }
+    r: [[any, 18, null, 32.0, 36.0]]
+    src: S5
+    ex: 'MCHC is the average concentration of haemoglobin inside red blood cells.'
+  - code: RDW
+    name: Red cell distribution width (RDW)
+    section: CBC
+    unit: '%'
+    aliases: [rdw, rdw cv, rdw-cv, red cell distribution width]
+    conv: {}
+    r: [[any, 18, null, 11.5, 14.5]]
+    src: S5
+    ex: 'RDW shows how much the red blood cells differ in size.'
+  - code: NEUT
+    name: Neutrophils
+    section: CBC
+    unit: '%'
+    aliases: [neutrophils, neutrophil, polymorphs, neutrophils percent, polymorph]
+    conv: {}
+    r: [[any, 18, null, 40.0, 75.0]]
+    src: S5
+    ex: 'Neutrophils are a type of white blood cell that mainly fights bacterial infection; this is their share of all white cells.'
+  - code: LYMPH
+    name: Lymphocytes
+    section: CBC
+    unit: '%'
+    aliases: [lymphocytes, lymphocyte, lymphocytes percent]
+    conv: {}
+    r: [[any, 18, null, 20.0, 45.0]]
+    src: S5
+    ex: 'Lymphocytes are a type of white blood cell; this is their share of all white cells.'
+  - code: EOS
+    name: Eosinophils
+    section: CBC
+    unit: '%'
+    aliases: [eosinophils, eosinophil, eosinophils percent]
+    conv: {}
+    r: [[any, 18, null, 1.0, 6.0]]
+    src: S5
+    ex: 'Eosinophils are a type of white blood cell; this is their share of all white cells.'
+  - code: ESR
+    name: Erythrocyte sedimentation rate (ESR)
+    section: CBC
+    unit: mm/hr
+    aliases: [esr, erythrocyte sedimentation rate, esr 1st hour, esr westergren, sed rate]
+    conv: { mm/1sthour: 1, mm/h: 1, mm/hour: 1 }
+    r: [[m, 18, null, 0.0, 15.0], [f, 18, null, 0.0, 20.0], [any, 18, null, 0.0, 20.0]]
+    src: S5
+    ex: 'ESR is a general, non-specific marker; it can rise with inflammation of many kinds.'
+  # ------------------------------------------------------------------ blood sugar
+  - code: FBS
+    name: Fasting blood sugar
+    section: Blood sugar
+    unit: mg/dl
+    aliases:
+      [
+        fbs,
+        fasting blood sugar,
+        fasting glucose,
+        glucose fasting,
+        blood sugar fasting,
+        sugar fasting,
+        fasting plasma glucose,
+        fpg,
+        fasting blood glucose,
+        glucose f,
+      ]
+    conv: { mmol/l: 18.016 }
+    r: [[any, 18, null, 70.0, 99.0]]
+    src: S4
+    ex: 'Fasting blood sugar is the sugar level in the blood after at least 8 hours without food.'
+    q: ['How often should I check my blood sugar?']
+  - code: PPBS
+    name: Post-meal blood sugar
+    section: Blood sugar
+    unit: mg/dl
+    aliases:
+      [
+        ppbs,
+        pp blood sugar,
+        post prandial blood sugar,
+        postprandial glucose,
+        glucose pp,
+        blood sugar pp,
+        sugar pp,
+        2 hr pp,
+        glucose post prandial,
+        ppbs 2 hrs,
+        post meal sugar,
+        glucose 2 hr post meal,
+      ]
+    conv: { mmol/l: 18.016 }
+    r: [[any, 18, null, 70.0, 139.0]]
+    src: S4
+    ex: 'This is the blood sugar level about 2 hours after a meal.'
+  - code: RBS
+    name: Random blood sugar
+    section: Blood sugar
+    unit: mg/dl
+    aliases:
+      [rbs, random blood sugar, random glucose, glucose random, blood sugar random, sugar random]
+    conv: { mmol/l: 18.016 }
+    r: [[any, 18, null, 70.0, 139.0]]
+    src: S4 S5
+    ex: 'Random blood sugar is the sugar level at any time of day, without fasting.'
+  - code: HBA1C
+    name: HbA1c (glycated haemoglobin)
+    section: Blood sugar
+    unit: '%'
+    aliases:
+      [
+        hba1c,
+        hb a1c,
+        hba1c glycated haemoglobin,
+        glycated haemoglobin,
+        glycosylated haemoglobin,
+        glycated hemoglobin,
+        glycosylated hemoglobin,
+        a1c,
+        glyco hb,
+      ]
+    conv: { mmol/mol: { f: 0.0915, o: 2.15 } }
+    r: [[any, 18, null, null, 5.6]]
+    src: S4
+    ex: 'HbA1c shows the average blood sugar level over roughly the last 3 months.'
+    q: ['How often should I repeat the HbA1c test?']
+  # ------------------------------------------------------------------ lipid
+  - code: CHOL
+    name: Total cholesterol
+    section: Lipid profile
+    unit: mg/dl
+    aliases:
+      [total cholesterol, cholesterol total, cholesterol, serum cholesterol, t cholesterol, tc]
+    conv: { mmol/l: 38.67 }
+    r: [[any, 18, null, null, 199.0]]
+    src: S2
+    ex: 'Total cholesterol is the overall amount of cholesterol, a type of fat, in the blood.'
+  - code: LDL
+    name: LDL cholesterol
+    section: Lipid profile
+    unit: mg/dl
+    aliases:
+      [
+        ldl,
+        ldl cholesterol,
+        ldl-c,
+        ldl c,
+        cholesterol ldl,
+        low density lipoprotein,
+        ldl direct,
+        ldl cholesterol direct,
+        ldl calculated,
+      ]
+    conv: { mmol/l: 38.67 }
+    r: [[any, 18, null, null, 99.0]]
+    src: S2 S3
+    ex: "LDL is often called the 'bad' cholesterol; it is the part of cholesterol that can build up in blood vessels."
+  - code: HDL
+    name: HDL cholesterol
+    section: Lipid profile
+    unit: mg/dl
+    aliases: [hdl, hdl cholesterol, hdl-c, hdl c, cholesterol hdl, high density lipoprotein]
+    conv: { mmol/l: 38.67 }
+    r: [[m, 18, null, 40.0, null], [f, 18, null, 50.0, null], [any, 18, null, 40.0, null]]
+    src: S2
+    ex: "HDL is often called the 'good' cholesterol; it helps carry cholesterol away from the blood vessels."
+  - code: TG
+    name: Triglycerides
+    section: Lipid profile
+    unit: mg/dl
+    aliases: [triglycerides, triglyceride, tg, serum triglycerides, trigs]
+    conv: { mmol/l: 88.57 }
+    r: [[any, 18, null, null, 149.0]]
+    src: S2
+    ex: 'Triglycerides are a type of fat in the blood; levels change a lot with recent meals.'
+  - code: VLDL
+    name: VLDL cholesterol
+    section: Lipid profile
+    unit: mg/dl
+    aliases: [vldl, vldl cholesterol, vldl-c, very low density lipoprotein]
+    conv: { mmol/l: 38.67 }
+    r: [[any, 18, null, null, 30.0]]
+    src: S5
+    ex: 'VLDL is a type of cholesterol particle that carries triglycerides; it is usually calculated from triglycerides.'
+  - code: NONHDL
+    name: Non-HDL cholesterol
+    section: Lipid profile
+    unit: mg/dl
+    aliases: [non hdl cholesterol, non-hdl cholesterol, nonhdl, non hdl]
+    conv: { mmol/l: 38.67 }
+    r: [[any, 18, null, null, 129.0]]
+    src: S2 S3
+    ex: 'Non-HDL cholesterol is total cholesterol minus HDL; it covers all the cholesterol types that can build up in blood vessels.'
+  # ------------------------------------------------------------------ LFT
+  - code: BILT
+    name: Total bilirubin
+    section: Liver function (LFT)
+    unit: mg/dl
+    aliases:
+      [
+        total bilirubin,
+        bilirubin total,
+        s bilirubin total,
+        serum bilirubin total,
+        bilirubin t,
+        t bilirubin,
+        bilirubin,
+      ]
+    conv: { umol/l: 0.0585 }
+    r: [[any, 18, null, 0.1, 1.2]]
+    src: S5
+    ex: 'Bilirubin is a yellow substance made when old red blood cells break down; the liver clears it.'
+  - code: BILD
+    name: Direct bilirubin
+    section: Liver function (LFT)
+    unit: mg/dl
+    aliases:
+      [direct bilirubin, bilirubin direct, conjugated bilirubin, bilirubin conjugated, d bilirubin]
+    conv: { umol/l: 0.0585 }
+    r: [[any, 18, null, 0.0, 0.3]]
+    src: S5
+    ex: 'Direct bilirubin is the part of bilirubin that the liver has already processed.'
+  - code: SGOT
+    name: SGOT (AST)
+    section: Liver function (LFT)
+    unit: u/l
+    aliases:
+      [
+        sgot,
+        ast,
+        sgot ast,
+        aspartate aminotransferase,
+        aspartate transaminase,
+        sgot (ast),
+        ast sgot,
+      ]
+    conv: { iu/l: 1 }
+    r: [[any, 18, null, 5.0, 40.0]]
+    src: S5
+    ex: 'SGOT (AST) is an enzyme found in the liver and other organs; it is measured to see how the liver is doing.'
+  - code: SGPT
+    name: SGPT (ALT)
+    section: Liver function (LFT)
+    unit: u/l
+    aliases:
+      [sgpt, alt, sgpt alt, alanine aminotransferase, alanine transaminase, sgpt (alt), alt sgpt]
+    conv: { iu/l: 1 }
+    r: [[any, 18, null, 7.0, 56.0]]
+    src: S5
+    ex: 'SGPT (ALT) is an enzyme found mostly in the liver; it is measured to see how the liver is doing.'
+  - code: ALP
+    name: Alkaline phosphatase (ALP)
+    section: Liver function (LFT)
+    unit: u/l
+    aliases:
+      [alp, alkaline phosphatase, alk phos, alkaline phosphatase alp, serum alkaline phosphatase]
+    conv: { iu/l: 1 }
+    r: [[any, 18, null, 44.0, 147.0]]
+    src: S5
+    ex: 'ALP is an enzyme found in the liver and bones.'
+  - code: GGT
+    name: Gamma GT (GGT)
+    section: Liver function (LFT)
+    unit: u/l
+    aliases:
+      [ggt, gamma gt, gamma glutamyl transferase, gamma glutamyl transpeptidase, ggtp, gamma-gt]
+    conv: { iu/l: 1 }
+    r: [[m, 18, null, 8.0, 61.0], [f, 18, null, 5.0, 36.0], [any, 18, null, 5.0, 61.0]]
+    src: S5
+    ex: 'GGT is an enzyme found in the liver and bile ducts.'
+  - code: TPROT
+    name: Total protein
+    section: Liver function (LFT)
+    unit: g/dl
+    aliases: [total protein, protein total, serum total protein, t protein]
+    conv: { g/l: 0.1 }
+    r: [[any, 18, null, 6.0, 8.3]]
+    src: S5
+    ex: 'Total protein measures the proteins in the blood, mainly albumin and globulin.'
+  - code: ALB
+    name: Albumin
+    section: Liver function (LFT)
+    unit: g/dl
+    aliases: [albumin, serum albumin, s albumin, albumin serum]
+    conv: { g/l: 0.1 }
+    r: [[any, 18, null, 3.5, 5.0]]
+    src: S5
+    ex: 'Albumin is the main protein in blood, made by the liver.'
+  - code: GLOB
+    name: Globulin
+    section: Liver function (LFT)
+    unit: g/dl
+    aliases: [globulin, serum globulin, s globulin]
+    conv: { g/l: 0.1 }
+    r: [[any, 18, null, 2.0, 3.5]]
+    src: S5
+    ex: 'Globulins are a group of proteins in the blood, including those that help fight infection.'
+  # ------------------------------------------------------------------ KFT
+  - code: CREAT
+    name: Creatinine
+    section: Kidney function (KFT)
+    unit: mg/dl
+    aliases: [creatinine, serum creatinine, s creatinine, creatinine serum, creat]
+    conv: { umol/l: 0.0113 }
+    r: [[m, 18, null, 0.74, 1.35], [f, 18, null, 0.59, 1.04], [any, 18, null, 0.59, 1.35]]
+    src: S5
+    ex: 'Creatinine is a waste product from muscles; the kidneys remove it from the blood.'
+  - code: UREA
+    name: Blood urea
+    section: Kidney function (KFT)
+    unit: mg/dl
+    aliases: [urea, blood urea, serum urea, s urea, urea serum]
+    conv: { mmol/l: 6.006 }
+    r: [[any, 18, null, 15.0, 45.0]]
+    src: S5
+    ex: 'Urea is a waste product of protein breakdown; the kidneys remove it from the blood.'
+  - code: BUN
+    name: Blood urea nitrogen (BUN)
+    section: Kidney function (KFT)
+    unit: mg/dl
+    aliases: [bun, blood urea nitrogen, urea nitrogen]
+    conv: { mmol/l: 2.801 }
+    r: [[any, 18, null, 7.0, 20.0]]
+    src: S5
+    ex: 'BUN measures the nitrogen from urea in the blood; it is a kidney-related waste product.'
+  - code: URIC
+    name: Uric acid
+    section: Kidney function (KFT)
+    unit: mg/dl
+    aliases: [uric acid, serum uric acid, s uric acid, uric acid serum]
+    conv: { umol/l: 0.0168 }
+    r: [[m, 18, null, 3.4, 7.0], [f, 18, null, 2.4, 6.0], [any, 18, null, 2.4, 7.0]]
+    src: S5
+    ex: 'Uric acid is a waste product made when the body breaks down certain foods and cells.'
+  - code: EGFR
+    name: eGFR
+    section: Kidney function (KFT)
+    unit: ml/min/1.73m2
+    aliases: [egfr, estimated gfr, estimated glomerular filtration rate, gfr]
+    conv: { ml/min: 1 }
+    r: [[any, 18, null, 60.0, null]]
+    src: S7
+    ex: 'eGFR is an estimate of how well the kidneys filter the blood, calculated from creatinine, age and sex.'
+  # ------------------------------------------------------------------ electrolytes
+  - code: NA
+    name: Sodium
+    section: Electrolytes
+    unit: mmol/l
+    aliases: [sodium, serum sodium, na, na+, s sodium, sodium serum]
+    conv: { meq/l: 1 }
+    r: [[any, 18, null, 135.0, 145.0]]
+    src: S5
+    ex: 'Sodium is a salt in the blood that helps control body water and nerve and muscle function.'
+  - code: K
+    name: Potassium
+    section: Electrolytes
+    unit: mmol/l
+    aliases: [potassium, serum potassium, k, k+, s potassium, potassium serum]
+    conv: { meq/l: 1 }
+    r: [[any, 18, null, 3.5, 5.1]]
+    src: S5
+    ex: 'Potassium is a mineral in the blood that is important for the heart and muscles.'
+  - code: CL
+    name: Chloride
+    section: Electrolytes
+    unit: mmol/l
+    aliases: [chloride, serum chloride, cl, cl-, s chloride, chloride serum]
+    conv: { meq/l: 1 }
+    r: [[any, 18, null, 98.0, 107.0]]
+    src: S5
+    ex: "Chloride is a salt in the blood that helps keep the body's fluid and acid balance."
+  - code: CA
+    name: Calcium
+    section: Electrolytes
+    unit: mg/dl
+    aliases: [calcium, serum calcium, s calcium, total calcium, calcium total, calcium serum]
+    conv: { mmol/l: 4.008 }
+    r: [[any, 18, null, 8.5, 10.5]]
+    src: S5
+    ex: 'Calcium is a mineral needed for bones, muscles and nerves.'
+  - code: PHOS
+    name: Phosphorus
+    section: Electrolytes
+    unit: mg/dl
+    aliases:
+      [phosphorus, phosphate, serum phosphorus, inorganic phosphorus, s phosphorus, phosphorous]
+    conv: { mmol/l: 3.097 }
+    r: [[any, 18, null, 2.5, 4.5]]
+    src: S5
+    ex: 'Phosphorus is a mineral that works with calcium for strong bones.'
+  - code: MG
+    name: Magnesium
+    section: Electrolytes
+    unit: mg/dl
+    aliases: [magnesium, serum magnesium, s magnesium, mg serum]
+    conv: { mmol/l: 2.431, meq/l: 1.215 }
+    r: [[any, 18, null, 1.7, 2.2]]
+    src: S5
+    ex: 'Magnesium is a mineral needed for muscles, nerves and the heart rhythm.'
+  # ------------------------------------------------------------------ thyroid
+  - code: TSH
+    name: TSH (thyroid stimulating hormone)
+    section: Thyroid
+    unit: miu/l
+    aliases:
+      [
+        tsh,
+        thyroid stimulating hormone,
+        tsh ultrasensitive,
+        ultrasensitive tsh,
+        tsh 3rd generation,
+        s tsh,
+        tsh serum,
+      ]
+    conv: { uiu/ml: 1, miu/ml: 1000, mu/l: 1 }
+    r: [[any, 18, null, 0.4, 4.0]]
+    src: S8
+    ex: 'TSH is a hormone from the brain that tells the thyroid gland how much thyroid hormone to make.'
+    q: ['How often should my TSH be checked?']
+  - code: T3
+    name: Total T3
+    section: Thyroid
+    unit: ng/dl
+    aliases: [t3, total t3, triiodothyronine, t3 total, tt3]
+    conv: { nmol/l: 65.1, ng/ml: 100 }
+    r: [[any, 18, null, 80.0, 200.0]]
+    src: S8
+    ex: 'T3 is one of the two main thyroid hormones.'
+  - code: T4
+    name: Total T4
+    section: Thyroid
+    unit: ug/dl
+    aliases: [t4, total t4, thyroxine, t4 total, tt4]
+    conv: { nmol/l: 0.0777, mcg/dl: 1 }
+    r: [[any, 18, null, 5.1, 14.1]]
+    src: S8
+    ex: 'T4 is one of the two main thyroid hormones.'
+  - code: FT3
+    name: Free T3
+    section: Thyroid
+    unit: pg/ml
+    aliases: [ft3, free t3, free triiodothyronine, t3 free]
+    conv: { pmol/l: 0.651 }
+    r: [[any, 18, null, 2.3, 4.2]]
+    src: S8
+    ex: 'Free T3 is the part of T3 that is not bound to proteins and is available to the body.'
+  - code: FT4
+    name: Free T4
+    section: Thyroid
+    unit: ng/dl
+    aliases: [ft4, free t4, free thyroxine, t4 free]
+    conv: { pmol/l: 0.0777 }
+    r: [[any, 18, null, 0.8, 1.8]]
+    src: S8
+    ex: 'Free T4 is the part of T4 that is not bound to proteins and is available to the body.'
+  # ------------------------------------------------------------------ vitamins & iron
+  - code: VITD
+    name: Vitamin D (25-OH)
+    section: Vitamins and iron
+    unit: ng/ml
+    aliases:
+      [
+        vitamin d,
+        25 oh vitamin d,
+        25-oh vitamin d,
+        vitamin d 25 hydroxy,
+        25 hydroxy vitamin d,
+        vit d,
+        vit d3,
+        25(oh) vitamin d,
+        vitamin d3,
+        25 hydroxy cholecalciferol,
+        vitamin d total,
+      ]
+    conv: { nmol/l: 0.4, ug/l: 1 }
+    r: [[any, 18, null, 30.0, 100.0]]
+    src: S9
+    ex: 'This measures the amount of vitamin D in the blood, which the body needs for bones and muscles.'
+  - code: B12
+    name: Vitamin B12
+    section: Vitamins and iron
+    unit: pg/ml
+    aliases: [vitamin b12, b12, vit b12, cyanocobalamin, serum b12, vitamin b 12]
+    conv: { pmol/l: 1.355, ng/l: 1 }
+    r: [[any, 18, null, 200.0, 900.0]]
+    src: S5 S9
+    ex: 'Vitamin B12 is needed for healthy nerves and for making red blood cells.'
+  - code: FOLATE
+    name: Folate
+    section: Vitamins and iron
+    unit: ng/ml
+    aliases: [folate, folic acid, serum folate, vitamin b9]
+    conv: { nmol/l: 0.441 }
+    r: [[any, 18, null, 3.0, 17.0]]
+    src: S5
+    ex: 'Folate is a B vitamin needed to make red blood cells and new cells in general.'
+  - code: IRON
+    name: Serum iron
+    section: Vitamins and iron
+    unit: ug/dl
+    aliases: [iron, serum iron, s iron, iron serum]
+    conv: { umol/l: 5.585, mcg/dl: 1 }
+    r: [[any, 18, null, 60.0, 170.0]]
+    src: S5
+    ex: 'This measures the amount of iron circulating in the blood.'
+  - code: TIBC
+    name: Total iron binding capacity (TIBC)
+    section: Vitamins and iron
+    unit: ug/dl
+    aliases: [tibc, total iron binding capacity]
+    conv: { umol/l: 5.585, mcg/dl: 1 }
+    r: [[any, 18, null, 250.0, 450.0]]
+    src: S5
+    ex: 'TIBC shows how much iron the blood could carry.'
+  - code: TSAT
+    name: Transferrin saturation
+    section: Vitamins and iron
+    unit: '%'
+    aliases: [transferrin saturation, iron saturation, tsat]
+    conv: {}
+    r: [[any, 18, null, 20.0, 50.0]]
+    src: S5
+    ex: 'Transferrin saturation is the share of the iron-carrying protein that is actually carrying iron.'
+  - code: FERR
+    name: Ferritin
+    section: Vitamins and iron
+    unit: ng/ml
+    aliases: [ferritin, serum ferritin, s ferritin]
+    conv: { ug/l: 1, mcg/l: 1 }
+    r: [[m, 18, null, 24.0, 336.0], [f, 18, null, 11.0, 307.0], [any, 18, null, 11.0, 336.0]]
+    src: S5
+    ex: 'Ferritin shows how much iron the body has stored.'
+  # ------------------------------------------------------------------ inflammation / clotting
+  - code: CRP
+    name: C-reactive protein (CRP)
+    section: Inflammation
+    unit: mg/l
+    aliases: [crp, c reactive protein, c-reactive protein, crp quantitative, crp serum]
+    conv: { mg/dl: 10 }
+    r: [[any, 18, null, null, 9.9]]
+    src: S5
+    ex: 'CRP is a protein that rises in the blood with inflammation of many kinds; it does not point to one cause.'
+  - code: INR
+    name: INR
+    section: Clotting
+    unit: ratio
+    aliases: [inr, international normalised ratio, international normalized ratio, pt inr]
+    conv: {}
+    r: [[any, 18, null, 0.8, 1.2]]
+    src: S5
+    ex: 'INR shows how long the blood takes to clot, compared with a standard.'
+  - code: PT
+    name: Prothrombin time (PT)
+    section: Clotting
+    unit: sec
+    aliases: [pt, prothrombin time, pt test, p t]
+    conv: { s: 1, seconds: 1, secs: 1 }
+    r: [[any, 18, null, 11.0, 13.5]]
+    src: S5
+    ex: 'Prothrombin time shows how many seconds the blood takes to clot.'
+  # ------------------------------------------------------------------ urine routine
+  - code: URPROT
+    name: Urine protein
+    section: Urine routine
+    unit: ''
+    aliases:
+      [urine protein, urine albumin, protein urine, albumin urine, protein (urine), urinary protein]
+    conv: {}
+    r: []
+    qual: [negative, nil, absent, not detected, normal]
+    src: S5
+    ex: 'This checks whether protein is leaking into the urine.'
+  - code: URGLU
+    name: Urine glucose
+    section: Urine routine
+    unit: ''
+    aliases:
+      [urine glucose, urine sugar, glucose urine, sugar urine, glucose (urine), urinary glucose]
+    conv: {}
+    r: []
+    qual: [negative, nil, absent, not detected, normal]
+    src: S5
+    ex: 'This checks whether sugar is present in the urine.'
+  - code: URKET
+    name: Urine ketones
+    section: Urine routine
+    unit: ''
+    aliases: [urine ketones, ketones urine, ketone bodies, urine ketone, ketones]
+    conv: {}
+    r: []
+    qual: [negative, nil, absent, not detected, normal]
+    src: S5
+    ex: 'Ketones are substances made when the body burns fat for energy; this checks whether they are in the urine.'
+  - code: URPUS
+    name: Urine pus cells
+    section: Urine routine
+    unit: /hpf
+    aliases: [pus cells, urine pus cells, pus cells urine, wbc urine, leucocytes urine, urine wbc]
+    conv: { cells/hpf: 1 }
+    r: [[any, 18, null, 0.0, 5.0]]
+    src: S5
+    ex: 'Pus cells are white blood cells seen in the urine under a microscope.'
+  - code: URRBC
+    name: Urine red blood cells
+    section: Urine routine
+    unit: /hpf
+    aliases: [urine rbc, rbc urine, red blood cells urine, urine red blood cells, rbcs urine]
+    conv: { /hpf: 1, cells/hpf: 1 }
+    r: [[any, 18, null, 0.0, 2.0]]
+    src: S5
+    ex: 'This counts red blood cells seen in the urine under a microscope.'
+  - code: URSG
+    name: Urine specific gravity
+    section: Urine routine
+    unit: ''
+    aliases: [specific gravity, urine specific gravity, sp gravity, sp. gravity]
+    conv: {}
+    r: [[any, 18, null, 1.005, 1.030]]
+    src: S5
+    ex: 'Specific gravity shows how concentrated the urine is.'
+  - code: URPH
+    name: Urine pH
+    section: Urine routine
+    unit: ''
+    aliases: [urine ph, ph urine, ph (urine), urinary ph]
+    conv: {}
+    r: [[any, 18, null, 4.5, 8.0]]
+    src: S5
+    ex: 'Urine pH shows how acidic or alkaline the urine is.'

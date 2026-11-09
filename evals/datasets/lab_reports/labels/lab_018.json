@@ -1,0 +1,103 @@
+{
+  "id": "lab_018",
+  "layout": "multipage",
+  "pages": 2,
+  "date": "2026-04-22",
+  "age": 67,
+  "sex": null,
+  "lab": "City Care Pathology",
+  "results": [
+    {
+      "name": "Special Marker XYZ",
+      "value_raw": "12",
+      "unit": "U/L",
+      "ref_low": 0,
+      "ref_high": 10,
+      "ref_text": "0 - 10",
+      "flag": "H",
+      "section": "Other",
+      "test_code": null,
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Urine Protein",
+      "value_raw": "Positive",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URPROT",
+      "status": "qualitative_abnormal",
+      "critical": false
+    },
+    {
+      "name": "Sodium",
+      "value_raw": "139",
+      "unit": "mmol/L",
+      "ref_low": 135,
+      "ref_high": 145,
+      "ref_text": "135 - 145",
+      "flag": null,
+      "section": "Electrolytes",
+      "test_code": "NA",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Serum Creatinine",
+      "value_raw": "420",
+      "unit": "µmol/L",
+      "ref_low": 53,
+      "ref_high": 115,
+      "ref_text": "53 - 115",
+      "flag": "H",
+      "section": "Kidney Function Test",
+      "test_code": "CREAT",
+      "status": "critical_high",
+      "critical": true
+    },
+    {
+      "name": "Procalcitonin",
+      "value_raw": "0.3",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": 0.5,
+      "ref_text": "< 0.5",
+      "flag": null,
+      "section": "Other",
+      "test_code": null,
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Haemoglobin",
+      "value_raw": "13.6",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "N",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Triglycerides",
+      "value_raw": "120",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 150,
+      "ref_text": "< 150",
+      "flag": null,
+      "section": "Lipid Profile",
+      "test_code": "TG",
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Fatima Sheikh", "PID-284837", "SMP96837168", "9891755330"]
+}

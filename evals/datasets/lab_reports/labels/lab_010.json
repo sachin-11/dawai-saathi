@@ -1,0 +1,77 @@
+{
+  "id": "lab_010",
+  "layout": "multipage",
+  "pages": 2,
+  "date": "2026-11-25",
+  "age": null,
+  "sex": "m",
+  "lab": "Prime Path Labs",
+  "results": [
+    {
+      "name": "Urine Protein",
+      "value_raw": "Positive",
+      "unit": null,
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Nil",
+      "flag": null,
+      "section": "Urine Routine",
+      "test_code": "URPROT",
+      "status": "qualitative_abnormal",
+      "critical": false
+    },
+    {
+      "name": "Haemoglobin",
+      "value_raw": "11.2",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "L",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "HDL Cholesterol",
+      "value_raw": "34",
+      "unit": "mg/dL",
+      "ref_low": 40,
+      "ref_high": null,
+      "ref_text": "> 40",
+      "flag": "L",
+      "section": "Lipid Profile",
+      "test_code": "HDL",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "Platelet Count",
+      "value_raw": "2.5",
+      "unit": "lakhs/cumm",
+      "ref_low": 1.5,
+      "ref_high": 4.5,
+      "ref_text": "1.5 - 4.5",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "PLT",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Vitamin B12",
+      "value_raw": "150",
+      "unit": "pg/mL",
+      "ref_low": 200,
+      "ref_high": 900,
+      "ref_text": "200 - 900",
+      "flag": "L",
+      "section": "Vitamins",
+      "test_code": "B12",
+      "status": "low",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Asha Verma", "PID-942407", "SMP61460977", "9825219217"]
+}

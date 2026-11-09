@@ -1,0 +1,103 @@
+{
+  "id": "lab_000",
+  "layout": "simple",
+  "pages": 1,
+  "date": "2026-02-03",
+  "age": 34,
+  "sex": "m",
+  "lab": "Sanjeevani Diagnostics",
+  "results": [
+    {
+      "name": "Total Leucocyte Count",
+      "value_raw": "7200",
+      "unit": "/cumm",
+      "ref_low": 4000,
+      "ref_high": 11000,
+      "ref_text": "4000 - 11000",
+      "flag": null,
+      "section": "CBC",
+      "test_code": "TLC",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "Haemoglobin",
+      "value_raw": "6.1",
+      "unit": "g/dL",
+      "ref_low": 12.0,
+      "ref_high": 15.5,
+      "ref_text": "12.0 - 15.5",
+      "flag": "L",
+      "section": "CBC",
+      "test_code": "HB",
+      "status": "critical_low",
+      "critical": true
+    },
+    {
+      "name": "Uric Acid",
+      "value_raw": "8.1",
+      "unit": "mg/dL",
+      "ref_low": 3.4,
+      "ref_high": 7.0,
+      "ref_text": "3.4 - 7.0",
+      "flag": "H",
+      "section": "Kidney Function Test",
+      "test_code": "URIC",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Fasting Blood Sugar",
+      "value_raw": "5.2",
+      "unit": "mmol/L",
+      "ref_low": 3.9,
+      "ref_high": 5.5,
+      "ref_text": "3.9 - 5.5",
+      "flag": null,
+      "section": "Blood Sugar",
+      "test_code": "FBS",
+      "status": "normal",
+      "critical": false
+    },
+    {
+      "name": "LDL Cholesterol",
+      "value_raw": "168",
+      "unit": "mg/dL",
+      "ref_low": null,
+      "ref_high": 100,
+      "ref_text": "< 100",
+      "flag": "H",
+      "section": "Lipid Profile",
+      "test_code": "LDL",
+      "status": "high",
+      "critical": false
+    },
+    {
+      "name": "Vitamin D (25-OH)",
+      "value_raw": "14",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": null,
+      "ref_text": "Deficient < 20, Insufficient 20 - 29, Sufficient 30 - 100",
+      "flag": "L",
+      "section": "Vitamins",
+      "test_code": "VITD",
+      "status": "low",
+      "critical": false
+    },
+    {
+      "name": "Procalcitonin",
+      "value_raw": "0.3",
+      "unit": "ng/mL",
+      "ref_low": null,
+      "ref_high": 0.5,
+      "ref_text": "< 0.5",
+      "flag": null,
+      "section": "Other",
+      "test_code": null,
+      "status": "normal",
+      "critical": false
+    }
+  ],
+  "phi_strings": ["Neha Kapoor", "PID-392742", "SMP72672241", "9814209376"]
+}

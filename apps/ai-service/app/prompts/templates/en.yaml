@@ -1,5 +1,5 @@
 # Static reply texts (English). Keep in sync with hi.yaml (same keys, same version).
-version: reply_templates_v5
+version: reply_templates_v6
 texts:
   help: |-
     I'm Dawai Saathi 💊
@@ -72,3 +72,13 @@ texts:
     Which medicines do you want to check? Send their names, for example: "Dolo aur Combiflam saath le sakte hain?"
   interaction.unavailable: |-
     I cannot check for interactions right now. Please try again in a little while, and tell your doctor or pharmacist about all your medicines.
+  lab.unreadable: |-
+    I could not read this report clearly, so I will not guess. Please send a clear photo of every page, or show the report to your doctor.
+
+    Tip: good light, the paper flat on a table, the whole page in the photo.
+  lab.no_results: |-
+    I could not find any test results on this file. Please send a clear photo of the page with the results.
+  lab.unavailable: |-
+    I cannot look up the lab test information right now, so I will not guess. Please send the report again in a little while, and show it to your doctor.
+  lab.question_none: |-
+    Please tell me which test you want to know about, for example “What is HbA1c?”, or send a clear photo of the report.

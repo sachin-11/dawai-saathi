@@ -28,8 +28,12 @@ from app.schemas.process import (
     MAX_BUTTONS,
     MAX_REPLY_CHARS,
     Intent,
+    Language,
 )
 from app.tools.generic_render import verify_generic_text
+from app.tools.lab_compare import range_label, select_fallback
+from app.tools.lab_render import explanation_of, pretty_unit
+from app.tools.lab_verify import blocklist_hits, lab_failures, numbers_in
 from app.tools.rx_compose import (
     LOW_CONFIDENCE_MARKERS,
     build_views,
@@ -88,6 +92,38 @@ async def generic_failures(
     return failures
 
 
+async def _lab_failures(
+    state: GraphState, ctx: PipelineContext, text: str, language: Language
+) -> list[str]:
+    """Lab report: grounding + diagnosis blocklist + completeness. Lab question: blocklist + numbers."""
+    index = await ctx.labs.index() if ctx.labs is not None else None
+    if state.lab_question_text is not None:
+        problems: list[str] = []
+        if blocklist_hits(text):
+            problems.append("lab_diagnosis_wording")
+        test = (
+            index.by_code.get(state.lab_question_code)
+            if index and state.lab_question_code
+            else None
+        )
+        if test is None and state.lab_question_code is not None:
+            problems.append("lab_unknown_test")
+        allowed = numbers_in(state.lab_question_value or "")
+        if test is not None:
+            allowed |= numbers_in(test.name) | numbers_in(pretty_unit(test.unit))
+            allowed |= numbers_in(explanation_of(test, language) or "")
+            variant, _ = select_fallback(test, None, None)
+            if variant is not None:
+                allowed |= numbers_in(range_label(variant.low, variant.high))
+            if numbers_in(text) - allowed - numbers_in(DISCLAIMERS[language]):
+                problems.append("lab_number_not_in_data")
+        return problems
+    extraction = state.lab_extraction
+    if extraction is None:
+        return ["no_extraction"]
+    return lab_failures(text, extraction, index, language)
+
+
 async def collect_failures(state: GraphState, ctx: PipelineContext) -> list[str]:
     reply = state.reply
     if reply is None:
@@ -104,6 +140,9 @@ async def collect_failures(state: GraphState, ctx: PipelineContext) -> list[str]
         failures.append("button_title_too_long")
     if DISCLAIMERS[language] not in reply.text:
         failures.append("disclaimer_missing")
+
+    if state.intent is Intent.lab_report:
+        return list(dict.fromkeys(failures + await _lab_failures(state, ctx, reply.text, language)))
 
     if state.intent is Intent.generic_query:
         failures += [

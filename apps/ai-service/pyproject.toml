@@ -70,11 +70,15 @@ known-first-party = ["app"]
 
 [tool.ruff.lint.per-file-ignores]
 # asserts and dummy test tokens are fine in tests
-"tests/**" = ["S101", "S105", "S106", "S608", "E501", "ANN"]
+"tests/**" = ["S101", "S105", "S106", "S608", "E501", "ANN", "RUF001"]
 # Indian prescriptions use en/em dashes in patterns like "1–0–1"; the lookalikes are intended.
 "app/tools/rx_validate.py" = ["RUF001"]
 "app/catalog/repository.py" = ["S608"]  # f-strings only splice module constants, values are bound
 "app/catalog/translit.py" = ["RUF001"]  # Devanagari signs look like ASCII punctuation
+# Lab ranges are printed with en dashes ("12–15.5"), values with "×", and our own lines start with "ℹ".
+"app/tools/lab_compare.py" = ["RUF001"]
+"app/tools/lab_normalize.py" = ["RUF001"]
+"app/tools/lab_render.py" = ["RUF001"]
 
 [tool.ruff.format]
 quote-style = "double"

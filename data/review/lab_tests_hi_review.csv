@@ -1,0 +1,66 @@
+code,name,english_explanation,hindi_current,explanation_hi (fill in),source
+HB,Haemoglobin,Haemoglobin is the protein in red blood cells that carries oxygen around the body.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S1 S5
+TLC,Total leucocyte count (WBC),White blood cells are the cells that help the body fight infection; this counts how many there are.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+PLT,Platelet count,Platelets are small blood cells that help the blood to clot.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+RBC,Red blood cell count,"This counts the red blood cells, which carry oxygen.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+HCT,Haematocrit (PCV),Haematocrit is the share of your blood made up of red blood cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+MCV,Mean corpuscular volume (MCV),MCV is the average size of the red blood cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+MCH,Mean corpuscular haemoglobin (MCH),MCH is the average amount of haemoglobin in one red blood cell.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+MCHC,Mean corpuscular haemoglobin concentration (MCHC),MCHC is the average concentration of haemoglobin inside red blood cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+RDW,Red cell distribution width (RDW),RDW shows how much the red blood cells differ in size.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+NEUT,Neutrophils,Neutrophils are a type of white blood cell that mainly fights bacterial infection; this is their share of all white cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+LYMPH,Lymphocytes,Lymphocytes are a type of white blood cell; this is their share of all white cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+EOS,Eosinophils,Eosinophils are a type of white blood cell; this is their share of all white cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+ESR,Erythrocyte sedimentation rate (ESR),"ESR is a general, non-specific marker; it can rise with inflammation of many kinds.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+FBS,Fasting blood sugar,Fasting blood sugar is the sugar level in the blood after at least 8 hours without food.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S4
+PPBS,Post-meal blood sugar,This is the blood sugar level about 2 hours after a meal.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S4
+RBS,Random blood sugar,"Random blood sugar is the sugar level at any time of day, without fasting.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S4 S5
+HBA1C,HbA1c (glycated haemoglobin),HbA1c shows the average blood sugar level over roughly the last 3 months.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S4
+CHOL,Total cholesterol,"Total cholesterol is the overall amount of cholesterol, a type of fat, in the blood.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S2
+LDL,LDL cholesterol,LDL is often called the 'bad' cholesterol; it is the part of cholesterol that can build up in blood vessels.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S2 S3
+HDL,HDL cholesterol,HDL is often called the 'good' cholesterol; it helps carry cholesterol away from the blood vessels.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S2
+TG,Triglycerides,Triglycerides are a type of fat in the blood; levels change a lot with recent meals.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S2
+VLDL,VLDL cholesterol,VLDL is a type of cholesterol particle that carries triglycerides; it is usually calculated from triglycerides.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+NONHDL,Non-HDL cholesterol,Non-HDL cholesterol is total cholesterol minus HDL; it covers all the cholesterol types that can build up in blood vessels.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S2 S3
+BILT,Total bilirubin,Bilirubin is a yellow substance made when old red blood cells break down; the liver clears it.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+BILD,Direct bilirubin,Direct bilirubin is the part of bilirubin that the liver has already processed.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+SGOT,SGOT (AST),SGOT (AST) is an enzyme found in the liver and other organs; it is measured to see how the liver is doing.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+SGPT,SGPT (ALT),SGPT (ALT) is an enzyme found mostly in the liver; it is measured to see how the liver is doing.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+ALP,Alkaline phosphatase (ALP),ALP is an enzyme found in the liver and bones.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+GGT,Gamma GT (GGT),GGT is an enzyme found in the liver and bile ducts.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+TPROT,Total protein,"Total protein measures the proteins in the blood, mainly albumin and globulin.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+ALB,Albumin,"Albumin is the main protein in blood, made by the liver.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+GLOB,Globulin,"Globulins are a group of proteins in the blood, including those that help fight infection.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+CREAT,Creatinine,Creatinine is a waste product from muscles; the kidneys remove it from the blood.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+UREA,Blood urea,Urea is a waste product of protein breakdown; the kidneys remove it from the blood.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+BUN,Blood urea nitrogen (BUN),BUN measures the nitrogen from urea in the blood; it is a kidney-related waste product.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URIC,Uric acid,Uric acid is a waste product made when the body breaks down certain foods and cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+EGFR,eGFR,"eGFR is an estimate of how well the kidneys filter the blood, calculated from creatinine, age and sex.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S7
+NA,Sodium,Sodium is a salt in the blood that helps control body water and nerve and muscle function.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+K,Potassium,Potassium is a mineral in the blood that is important for the heart and muscles.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+CL,Chloride,Chloride is a salt in the blood that helps keep the body's fluid and acid balance.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+CA,Calcium,"Calcium is a mineral needed for bones, muscles and nerves.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+PHOS,Phosphorus,Phosphorus is a mineral that works with calcium for strong bones.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+MG,Magnesium,"Magnesium is a mineral needed for muscles, nerves and the heart rhythm.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+TSH,TSH (thyroid stimulating hormone),TSH is a hormone from the brain that tells the thyroid gland how much thyroid hormone to make.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S8
+T3,Total T3,T3 is one of the two main thyroid hormones.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S8
+T4,Total T4,T4 is one of the two main thyroid hormones.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S8
+FT3,Free T3,Free T3 is the part of T3 that is not bound to proteins and is available to the body.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S8
+FT4,Free T4,Free T4 is the part of T4 that is not bound to proteins and is available to the body.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S8
+VITD,Vitamin D (25-OH),"This measures the amount of vitamin D in the blood, which the body needs for bones and muscles.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S9
+B12,Vitamin B12,Vitamin B12 is needed for healthy nerves and for making red blood cells.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5 S9
+FOLATE,Folate,Folate is a B vitamin needed to make red blood cells and new cells in general.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+IRON,Serum iron,This measures the amount of iron circulating in the blood.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+TIBC,Total iron binding capacity (TIBC),TIBC shows how much iron the blood could carry.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+TSAT,Transferrin saturation,Transferrin saturation is the share of the iron-carrying protein that is actually carrying iron.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+FERR,Ferritin,Ferritin shows how much iron the body has stored.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+CRP,C-reactive protein (CRP),CRP is a protein that rises in the blood with inflammation of many kinds; it does not point to one cause.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+INR,INR,"INR shows how long the blood takes to clot, compared with a standard.",इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+PT,Prothrombin time (PT),Prothrombin time shows how many seconds the blood takes to clot.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URPROT,Urine protein,This checks whether protein is leaking into the urine.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URGLU,Urine glucose,This checks whether sugar is present in the urine.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URKET,Urine ketones,Ketones are substances made when the body burns fat for energy; this checks whether they are in the urine.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URPUS,Urine pus cells,Pus cells are white blood cells seen in the urine under a microscope.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URRBC,Urine red blood cells,This counts red blood cells seen in the urine under a microscope.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URSG,Urine specific gravity,Specific gravity shows how concentrated the urine is.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5
+URPH,Urine pH,Urine pH shows how acidic or alkaline the urine is.,इस जाँच का मतलब अपने डॉक्टर से समझें।,,S5

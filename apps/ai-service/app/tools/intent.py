@@ -20,6 +20,7 @@ from app.schemas.process import Intent
 INTENT_PROMPT_ID = "intent_text_v2"
 GENERIC_EXTRACT_PROMPT_ID = "generic_query_extract_v1"
 INTERACTION_EXTRACT_PROMPT_ID = "interaction_query_extract_v1"
+LAB_QUESTION_PROMPT_ID = "lab_question_extract_v1"
 MAX_QUERY_MEDICINES = 4
 # Below this the classification is treated as "other": a guess must not trigger a specific answer.
 MIN_INTENT_CONFIDENCE = 0.5
@@ -184,3 +185,47 @@ async def extract_interaction_names(
         if name and name.casefold() not in {n.casefold() for n in names}:
             names.append(name)
     return names[:MAX_QUERY_MEDICINES]
+
+
+class LabQuestionExtract(BaseModel):
+    """Structured output of `lab_question_extract_v1`: the test (and number) copied out of the message."""
+
+    test_name: str | None = Field(default=None, max_length=100)
+    value: str | None = Field(default=None, max_length=30)
+    unit: str | None = Field(default=None, max_length=30)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+async def extract_lab_question(
+    redacted_text: str,
+    *,
+    router: LLMRouter,
+    prompts: PromptRegistry,
+    usage: RequestUsage,
+    deadline: Deadline,
+) -> LabQuestionExtract | None:
+    """The test name (and the value, if typed) copied out of "TSH 6.2 matlab kya?". None when the
+    model is unsure: the caller then asks which test is meant."""
+    prompt = prompts.load(LAB_QUESTION_PROMPT_ID)
+    result: LLMResult = await router.generate(
+        prompt.model_role,
+        [prompt.to_message(), Message("user", f"<message>\n{redacted_text}\n</message>")],
+        name="lab_question_extract",
+        temperature=prompt.temperature,
+        max_tokens=100,
+        response_model=LabQuestionExtract,
+        prompt_version=prompt.version,
+        deadline=deadline,
+    )
+    usage.add(result, prompt.version)
+    parsed = result.parsed
+    if not isinstance(parsed, LabQuestionExtract) or parsed.confidence < MIN_INTENT_CONFIDENCE:
+        return None
+    name = clean_name(parsed.test_name)
+    value = clean_name(parsed.value)
+    unit = clean_name(parsed.unit)
+    if not name:
+        return None
+    return LabQuestionExtract(
+        test_name=name, value=value[:20] if value else None, unit=unit, confidence=parsed.confidence
+    )

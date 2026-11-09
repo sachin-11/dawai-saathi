@@ -34,7 +34,7 @@ def output_from_state(state: GraphState) -> PipelineOutput:
         emergency_category=emergency.category if emergency and is_emergency else None,
         reply=state.reply,
         warnings=list(state.warnings),
-        extraction=state.rx_extraction,
+        extraction=state.lab_extraction or state.rx_extraction,
         interactions=state.interaction_report,
         debug_trace=trace_entries(state),
     )

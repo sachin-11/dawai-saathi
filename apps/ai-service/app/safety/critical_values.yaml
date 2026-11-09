@@ -1,0 +1,28 @@
+# Critical (panic-range) values for the lab report explainer (M12, CLAUDE.md §7.3).
+#
+# !! MUST BE REVIEWED BY A DOCTOR / PATHOLOGIST BEFORE LAUNCH (launch blocker, like no_substitute.yaml).
+# !! There is no free, authoritative, citable list: these are deliberately CONSERVATIVE project thresholds
+# !! (tuned so a dangerous value is never missed; a needless "contact your doctor today" is acceptable),
+# !! consistent in spirit with the critical-value practice of hospital laboratories. They are NOT diagnoses.
+#
+# Values are in the CANONICAL unit of data/seed/lab_tests.yaml. A value strictly below `low` or strictly
+# above `high` is critical. A critical value overrides every other status and puts the "contact your
+# doctor today" line first in the reply. The unit conversion happens before this check.
+version: critical_values_v1
+doctor_review_pending: true
+source: "conservative project threshold; no external citation (see header)"
+values:
+  HB:    {low: 7.0,   high: 20.0}    # g/dL
+  TLC:   {low: 2.0,   high: 30.0}    # 10^3/uL
+  PLT:   {low: 20.0,  high: 1000.0}  # 10^3/uL
+  HCT:   {low: 15.0,  high: 60.0}    # %
+  FBS:   {low: 40.0,  high: 500.0}   # mg/dL
+  PPBS:  {low: 40.0,  high: 500.0}
+  RBS:   {low: 40.0,  high: 500.0}
+  TG:    {high: 1000.0}              # mg/dL
+  CREAT: {high: 4.0}                 # mg/dL
+  NA:    {low: 120.0, high: 160.0}   # mmol/L
+  K:     {low: 2.5,   high: 6.5}     # mmol/L
+  CA:    {low: 6.5,   high: 13.0}    # mg/dL
+  BILT:  {high: 15.0}                # mg/dL
+  INR:   {high: 5.0}                 # ratio
