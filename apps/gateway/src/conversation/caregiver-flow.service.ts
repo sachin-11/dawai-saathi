@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { cleanLabel, CaregiversService } from '../caregivers/caregivers.service';
 import { CryptoService } from '../common/crypto/crypto.service';
 import { PendingStore } from '../common/pending/pending.store';
+import { LIMIT_NOTICE, RateLimitService } from '../limits/rate-limit.service';
 import type { UserState } from '../users/users.service';
 import type { ReplySession } from './replies.service';
 
@@ -14,7 +15,8 @@ export type CaregiverOutcome =
   | 'cg_invited'
   | 'cg_expired'
   | 'cg_removed'
-  | 'cg_none';
+  | 'cg_none'
+  | 'cg_limited';
 
 const INPUT_KIND = 'cg_label';
 
@@ -30,6 +32,7 @@ export class CaregiverFlowService {
     private readonly caregivers: CaregiversService,
     private readonly pending: PendingStore,
     private readonly crypto: CryptoService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   async startAdd(user: UserState, session: ReplySession): Promise<CaregiverOutcome> {
@@ -75,6 +78,14 @@ export class CaregiverFlowService {
       // Keep waiting: the user can try again.
       await session.text('caregiver.label_invalid');
       return 'cg_label_rejected';
+    }
+    // M15: at most 3 invitations a day (spam / harassment guard). The label is kept for a retry.
+    const limit = await this.rateLimit.checkCaregiverInvite(user.id);
+    if (!limit.allowed) {
+      await this.pending.clear('cg_phone', user.id);
+      await this.pending.clear('input', user.id);
+      await session.text(LIMIT_NOTICE.caregiver_invites);
+      return 'cg_limited';
     }
     const stored = await this.pending.getValue('cg_phone', user.id);
     if (!stored) {

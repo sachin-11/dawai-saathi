@@ -44,6 +44,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/health/startup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Startup
+     * @description Startup probe (M15): 503 until the spaCy / Presidio models are loaded, so an orchestrator does
+     *     not kill a container that is still warming up.
+     */
+    get: operations['startup_health_startup_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/generic-details': {
     parameters: {
       query?: never;
@@ -824,6 +845,12 @@ export interface components {
        */
       db: 'ok' | 'fail';
       /**
+       * Llm Circuits
+       * @default closed
+       * @enum {string}
+       */
+      llm_circuits: 'closed' | 'partial' | 'open';
+      /**
        * Llm Config
        * @enum {string}
        */
@@ -862,6 +889,12 @@ export interface components {
     };
     /** RequestOptions */
     RequestOptions: {
+      /**
+       * Budget State
+       * @default normal
+       * @enum {string}
+       */
+      budget_state: 'normal' | 'economy' | 'essential' | 'exhausted';
       /**
        * Include Trace
        * @default false
@@ -1084,6 +1117,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ReadinessResponse'];
+        };
+      };
+    };
+  };
+  startup_health_startup_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LivenessResponse'];
         };
       };
     };

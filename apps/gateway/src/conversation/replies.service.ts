@@ -11,6 +11,8 @@ export interface ReplyContext {
   /** `messages.id` of the inbound message being answered: part of the idempotency key. */
   messageId: string;
   requestId: string;
+  /** ISO time the user's message was received (M15: for `reply_latency_ms`). */
+  receivedAt?: string;
 }
 
 export interface ButtonSpec {
@@ -32,6 +34,7 @@ type Params = Readonly<Record<string, string | number>>;
  */
 export class ReplySession {
   private nextIndex = 0;
+  private intent: string | undefined;
 
   constructor(
     private readonly outbound: OutboundService,
@@ -46,6 +49,17 @@ export class ReplySession {
 
   get requestId(): string {
     return this.ctx.requestId;
+  }
+
+  /** M15: the AI intent of this conversation turn; AI replies sent after this record their latency. */
+  markIntent(intent: string): void {
+    this.intent = intent;
+  }
+
+  private latency(): { latency: { receivedAt: string; intent: string } } | Record<string, never> {
+    return this.ctx.receivedAt && this.intent
+      ? { latency: { receivedAt: this.ctx.receivedAt, intent: this.intent } }
+      : {};
   }
 
   /** `messages.id` of the inbound message being answered. */
@@ -77,7 +91,7 @@ export class ReplySession {
 
   /** A reply whose text comes from the AI service (already in the user's language). */
   rawText(body: string): Promise<void> {
-    return this.sendText(body);
+    return this.sendText(body, undefined, undefined, this.latency());
   }
 
   /** M13: a spoken reply (the audio is already uploaded to WhatsApp; only its media id is queued). */
@@ -92,7 +106,7 @@ export class ReplySession {
 
   /** The AI service's emergency reply: plain text, highest outbound priority, never buttons. */
   rawEmergencyText(body: string): Promise<void> {
-    return this.sendText(body, EMERGENCY_PRIORITY);
+    return this.sendText(body, EMERGENCY_PRIORITY, undefined, this.latency());
   }
 
   /** A reply with buttons from the AI service (the contract limits them to 3, title <= 20). */
@@ -102,6 +116,7 @@ export class ReplySession {
       sourceMessageId: this.ctx.messageId,
       replyIndex: this.nextIndex++,
       requestId: this.ctx.requestId,
+      ...this.latency(),
     });
   }
 
@@ -158,13 +173,19 @@ export class ReplySession {
     return this.sendText(lines.join('\n'));
   }
 
-  private sendText(body: string, priority?: number, replyIndex?: number): Promise<void> {
+  private sendText(
+    body: string,
+    priority?: number,
+    replyIndex?: number,
+    extra: object = {},
+  ): Promise<void> {
     return this.outbound.enqueue(this.ctx.userId, {
       content: { kind: 'text', body },
       sourceMessageId: this.ctx.messageId,
       replyIndex: replyIndex ?? this.nextIndex++,
       requestId: this.ctx.requestId,
       ...(priority !== undefined ? { priority } : {}),
+      ...extra,
     });
   }
 }

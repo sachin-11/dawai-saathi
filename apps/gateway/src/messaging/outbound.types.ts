@@ -49,6 +49,14 @@ export interface OutboundRequest {
   recipient?: { caregiverId: string };
   /** BullMQ priority (1 = highest). Emergency replies use 1 so they never wait behind other sends. */
   priority?: number;
+  /** M15: set on the answer to a user's message so the worker can record `reply_latency_ms`. */
+  latency?: ReplyLatency;
+}
+
+/** Timestamp and intent label only: no user data. */
+export interface ReplyLatency {
+  receivedAt: string;
+  intent: string;
 }
 
 /**
@@ -69,4 +77,7 @@ export interface OutboundJobData {
    * failure (e.g. the DB insert), already-sent parts are NOT sent again.
    */
   sentWaIds?: string[];
+  latency?: ReplyLatency;
+  /** M15: W3C traceparent of the span that created the job. */
+  _tp?: string;
 }

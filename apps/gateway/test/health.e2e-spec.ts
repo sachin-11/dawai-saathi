@@ -52,9 +52,21 @@ describe('Health (e2e)', () => {
     const res = await request(app.getHttpServer()).get('/health/ready').expect(503);
     expect(res.body).toEqual({
       status: 'degraded',
-      checks: { db: 'fail', redis: 'fail', s3: 'fail' },
+      checks: { db: 'fail', redis: 'fail', s3: 'fail', queues: 'fail' },
+      info: { ai: 'fail' }, // informational only: never gates readiness
     });
     expect(JSON.stringify(res.body)).not.toContain('pass');
+  });
+
+  it('GET /health/startup → 200 once the app has booted', async () => {
+    const res = await request(app.getHttpServer()).get('/health/startup').expect(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
+  it('GET /metrics is open without a token in test, and exposes the registry', async () => {
+    const res = await request(app.getHttpServer()).get('/metrics').expect(200);
+    expect(res.text).toContain('wa_inbound_total');
+    expect(res.text).toContain('queue_depth');
   });
 
   it('assigns a request id when none is sent', async () => {

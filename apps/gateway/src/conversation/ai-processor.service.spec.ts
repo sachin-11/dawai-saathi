@@ -17,6 +17,8 @@ import {
   AiProcessor,
   PRESIGNED_URL_TTL_SECONDS,
 } from './ai-processor.service';
+import { BudgetService } from '../limits/budget.service';
+import { RateLimitService } from '../limits/rate-limit.service';
 import type { InteractionFlowService } from './interaction-flow.service';
 import type { ReplySession } from './replies.service';
 
@@ -60,6 +62,8 @@ const aiReply = (overrides: Partial<ProcessResponse['reply']> = {}): ProcessResp
 });
 
 function setup(): {
+  budget: Record<'userOverCap' | 'snapshot' | 'record', jest.Mock>;
+  rateLimit: { costCapNotice: jest.Mock };
   processor: AiProcessor;
   ai: { process: jest.Mock };
   messages: { findInboundForReply: jest.Mock };
@@ -74,7 +78,13 @@ function setup(): {
   labReports: { save: jest.Mock; previousResults: jest.Mock };
   interactionFlow: { offerDetails: jest.Mock };
   session: Record<
-    'text' | 'textAt' | 'rawText' | 'rawButtons' | 'rawButtonsWithPrompt' | 'rawEmergencyText',
+    | 'text'
+    | 'textAt'
+    | 'rawText'
+    | 'rawButtons'
+    | 'rawButtonsWithPrompt'
+    | 'rawEmergencyText'
+    | 'markIntent',
     jest.Mock
   >;
 } {
@@ -112,6 +122,7 @@ function setup(): {
     rawButtons: track('session.rawButtons'),
     rawButtonsWithPrompt: track('session.rawButtonsWithPrompt'),
     rawEmergencyText: track('session.rawEmergencyText'),
+    markIntent: jest.fn(),
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const prescriptions = {
@@ -126,6 +137,12 @@ function setup(): {
     save: track('labReports.save', { documentId: 'lab-doc-1', status: 'done', created: true }),
     previousResults: jest.fn().mockResolvedValue([]),
   };
+  const budget = {
+    userOverCap: jest.fn().mockResolvedValue(false),
+    snapshot: jest.fn().mockResolvedValue({ state: 'normal', spentUsd: 0, ratio: 0 }),
+    record: jest.fn().mockResolvedValue(undefined),
+  };
+  const rateLimit = { costCapNotice: jest.fn().mockResolvedValue(true) };
   const processor = new AiProcessor(
     ai as unknown as AiClient,
     messages as unknown as MessagesService,
@@ -137,10 +154,14 @@ function setup(): {
     prescriptions as unknown as PrescriptionService,
     labReports as unknown as LabReportService,
     interactionFlow as unknown as InteractionFlowService,
+    budget as unknown as BudgetService,
+    rateLimit as unknown as RateLimitService,
     logger as unknown as PinoLogger,
     { TTS_ENABLED: false },
   );
   return {
+    budget,
+    rateLimit,
     processor,
     ai,
     messages,
@@ -162,6 +183,51 @@ const asSession = (s: ReturnType<typeof setup>): ReplySession =>
 const sentRequest = (s: ReturnType<typeof setup>): ProcessRequest =>
   s.ai.process.mock.calls[0]?.[0] as ProcessRequest;
 
+describe('AiProcessor: cost guard (M15)', () => {
+  it('sends the current budget state to the AI service', async () => {
+    const s = setup();
+    s.budget.snapshot.mockResolvedValue({ state: 'economy', spentUsd: 7, ratio: 0.7 });
+    await s.processor.handle(user, job(), asSession(s));
+    expect(sentRequest(s).options).toEqual({
+      include_trace: false,
+      want_spoken: false,
+      budget_state: 'economy',
+    });
+  });
+
+  it('records the cost of the answer and tags the reply latency with its intent', async () => {
+    const s = setup();
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.budget.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user.id,
+        intent: 'help',
+        costUsd: expect.any(Number) as unknown,
+      }),
+    );
+    expect(s.session.markIntent).toHaveBeenCalledWith('help');
+  });
+
+  it('a user over their daily cost cap gets one notice and costs nothing: no ack, no download, no AI call', async () => {
+    const s = setup();
+    s.budget.userOverCap.mockResolvedValue(true);
+    const outcome = await s.processor.handle(user, job({ type: 'image' }), asSession(s));
+    expect(outcome).toBe('user_cost_capped');
+    expect(s.session.text).toHaveBeenCalledWith('rate_limit.cost_user');
+    expect(s.ai.process).not.toHaveBeenCalled();
+    expect(s.media.storeInboundMedia).not.toHaveBeenCalled();
+    expect(s.whatsapp.markAsRead).not.toHaveBeenCalled();
+  });
+
+  it('stays silent on the second message of a capped user', async () => {
+    const s = setup();
+    s.budget.userOverCap.mockResolvedValue(true);
+    s.rateLimit.costCapNotice.mockResolvedValue(false);
+    await s.processor.handle(user, job(), asSession(s));
+    expect(s.session.text).not.toHaveBeenCalled();
+  });
+});
+
 describe('AiProcessor: text', () => {
   it('sends the REDACTED text from the database to the AI service with the right contract', async () => {
     const s = setup();
@@ -173,6 +239,7 @@ describe('AiProcessor: text', () => {
       user: { language: 'hi', age: null, sex: null },
       input: { type: 'text', text: 'kya kar sakte ho?' },
       context: { active_medications: [{ salt: 'paracetamol', strength: '500 mg' }] },
+      options: { include_trace: false, want_spoken: false, budget_state: 'normal' },
     });
   });
 

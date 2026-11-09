@@ -48,4 +48,40 @@ describe('conversation scenarios (gateway + AI service, fake models)', () => {
     },
     240_000,
   );
+
+  // M15: the structured logs of BOTH services, over every scenario that just ran, hold no phone number,
+  // Aadhaar-like number, e-mail or the words a user typed or said (CLAUDE.md §2.6, §10).
+  it('logs contain no phone numbers, Aadhaar-like numbers, e-mails or raw message text', () => {
+    const all = [...harness.logLines, ...harness.ai.logLines];
+    expect(all.length).toBeGreaterThan(50); // the logs really were captured
+    const problems: string[] = [];
+    for (const line of all) {
+      for (const phone of harness.phones) {
+        if (line.includes(phone) || line.includes(phone.slice(-10))) {
+          problems.push('a scenario phone number');
+        }
+      }
+      // not inside an identifier: the last group of a UUID can be 12 digits by chance
+      if (/(?<![\w-])[2-9]\d{3}\s?\d{4}\s?\d{4}(?![\w-])/.test(line)) {
+        problems.push('an Aadhaar-like number');
+      }
+      if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(line)) problems.push('an e-mail address');
+    }
+    const typed = scenarios
+      .flatMap((scenario) => scenario.steps)
+      .map((step) =>
+        step.send?.type === 'text'
+          ? step.send.text
+          : step.send?.type === 'audio'
+            ? step.send.says
+            : '',
+      )
+      .map((text) => text.trim().toLowerCase())
+      .filter((text) => text.length >= 12);
+    const haystack = all.join(String.fromCharCode(10)).toLowerCase();
+    for (const text of typed) {
+      if (haystack.includes(text)) problems.push(`the user's words "${text.slice(0, 20)}..."`);
+    }
+    expect([...new Set(problems)]).toEqual([]);
+  });
 });

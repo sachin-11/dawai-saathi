@@ -57,9 +57,21 @@ up: ## Start local infra (postgres, redis, minio) and wait until healthy
 	docker compose up --no-deps --exit-code-from minio-init minio-init
 	@$(WITH_ENV) echo "infra is up: postgres :$${POSTGRES_PORT:-5432}, redis :$${REDIS_PORT:-6379}, minio console http://localhost:$${MINIO_CONSOLE_PORT:-9001}"
 
-up-obs: up ## Same as `up` plus Langfuse (profile "observability", UI on :3002; first boot takes 1-2 min)
-	docker compose --profile observability up -d langfuse-web langfuse-worker
+up-obs: up ## `up` plus Langfuse (:3002), Grafana (:3003), Prometheus (:9090), Tempo, Loki, Alertmanager, OTel Collector
+	@mkdir -p logs
+	docker compose --profile observability up -d langfuse-web langfuse-worker otel-collector tempo loki prometheus alertmanager alert-sink grafana
 	@echo "langfuse UI: http://localhost:3002 (create a local account on first visit)"
+	@echo "grafana:     http://localhost:3003 (folder Dawai Saathi); alerts: docker logs -f dawai-alert-sink"
+	@echo "point the apps at it: OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 METRICS_TOKEN=local-dev-metrics-token"
+
+up-obs-dashboards: ## Regenerate the Grafana dashboard JSON from infra/observability/grafana/build_dashboards.py
+	python infra/observability/grafana/build_dashboards.py
+
+check-obs: ## Static checks of alert rules and dashboards (metric names exist, runbooks exist)
+	cd $(AI_DIR) && uv run python ../../infra/observability/check.py
+
+load-smoke: ## k6 smoke: 20 msg/s for 2 min against the fake-provider stack (see docs/modules/M15.md)
+	k6 run infra/loadtest/smoke.js
 
 down: ## Stop local infra (volumes are kept)
 	docker compose --profile observability down

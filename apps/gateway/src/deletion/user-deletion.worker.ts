@@ -1,10 +1,11 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { type Job, Worker } from 'bullmq';
+import type { Job, Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
 import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
+import { WorkerFactory } from '../telemetry/worker-factory.service';
 import {
   USER_DELETION_ATTEMPTS,
   USER_DELETION_QUEUE,
@@ -20,6 +21,7 @@ export class UserDeletionWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redis: RedisService,
     private readonly deletion: UserDeletionService,
+    private readonly workers: WorkerFactory,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
   ) {
@@ -30,7 +32,7 @@ export class UserDeletionWorker implements OnModuleInit, OnModuleDestroy {
     if (!this.env.WORKERS_ENABLED) {
       return;
     }
-    this.worker = new Worker<UserDeletionJobData>(
+    this.worker = this.workers.create<UserDeletionJobData>(
       USER_DELETION_QUEUE,
       async (job) => {
         await this.deletion.execute(job);
@@ -53,10 +55,6 @@ export class UserDeletionWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    try {
-      await this.worker?.close();
-    } catch {
-      // Redis may already be gone during shutdown.
-    }
+    await this.workers.close(this.worker);
   }
 }

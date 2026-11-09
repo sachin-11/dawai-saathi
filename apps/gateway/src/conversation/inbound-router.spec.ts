@@ -5,6 +5,7 @@ import type { EchoBotService } from '../dev/echo-bot.service';
 import type { InboundJobData } from '../queues/queue.constants';
 import type { OnboardingStep, UserState, UsersService } from '../users/users.service';
 import type { AiProcessor } from './ai-processor.service';
+import type { RateLimitService } from '../limits/rate-limit.service';
 import type { CommandHandlersService } from './command-handlers.service';
 import type { DeletionFlowService } from './deletion-flow.service';
 import { DELETION_MARKER_TTL_MS, InboundRouter, type RouteOutcome } from './inbound-router';
@@ -46,6 +47,7 @@ function setup(
   options: { echoEnabled?: boolean } = {},
 ): {
   router: InboundRouter;
+  rateLimit: Record<'checkMessage' | 'noticeForBlock', jest.Mock>;
   session: Record<'text' | 'textParts' | 'buttons' | 'emergency' | 'useLanguage', jest.Mock>;
   onboarding: { handle: jest.Mock };
   commands: Record<
@@ -117,6 +119,10 @@ function setup(
   const pendingInput = { handle: jest.fn().mockResolvedValue(null) };
   const acks = { handleText: jest.fn().mockResolvedValue(null) };
   const logger = { setContext: jest.fn(), info: jest.fn() };
+  const rateLimit = {
+    checkMessage: jest.fn().mockResolvedValue({ allowed: true }),
+    noticeForBlock: jest.fn().mockResolvedValue(true),
+  };
   const router = new InboundRouter(
     { getState: jest.fn().mockResolvedValue(state) } as unknown as UsersService,
     { session: jest.fn().mockReturnValue(session) } as unknown as RepliesService,
@@ -132,9 +138,11 @@ function setup(
     acks as unknown as ReminderAckService,
     echoBot as unknown as EchoBotService,
     ai as unknown as AiProcessor,
+    rateLimit as unknown as RateLimitService,
     logger as unknown as PinoLogger,
   );
   return {
+    rateLimit,
     labActions,
     router,
     session,
@@ -155,6 +163,88 @@ function setup(
 const STEPS: OnboardingStep[] = ['language', 'consent', 'done'];
 
 describe('InboundRouter', () => {
+  describe('M15: blocks and rate limits', () => {
+    const limited = {
+      allowed: false,
+      scope: 'msg_min',
+      notify: true,
+      retryAfterMs: 1000,
+      blocked: false,
+    };
+
+    it('an emergency is answered even when the user is rate limited AND blocked', async () => {
+      const s = setup(user({ blockedUntil: new Date(NOW.getTime() + 3600_000) }));
+      s.rateLimit.checkMessage.mockResolvedValue(limited);
+      await expect(s.router.route(job({ signals: { emergency: 'general' } }), NOW)).resolves.toBe(
+        'emergency',
+      );
+      expect(s.session.emergency).toHaveBeenCalled();
+      expect(s.rateLimit.checkMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([['delete'], ['help']] as const)(
+      '%s still works for a limited user',
+      async (command) => {
+        const s = setup(user());
+        s.rateLimit.checkMessage.mockResolvedValue(limited);
+        const outcome = await s.router.route(job({ signals: { command } }), NOW);
+        expect(outcome).toBe(command === 'delete' ? 'delete_request' : 'help');
+        expect(s.rateLimit.checkMessage).not.toHaveBeenCalled();
+      },
+    );
+
+    it('sends the friendly notice for the first limited message and stays silent after that', async () => {
+      const s = setup(user());
+      s.rateLimit.checkMessage.mockResolvedValueOnce(limited);
+      s.rateLimit.checkMessage.mockResolvedValueOnce({ ...limited, notify: false });
+      await expect(s.router.route(job(), NOW)).resolves.toBe('rate_limited');
+      await expect(s.router.route(job({ messageId: 'msg-2' }), NOW)).resolves.toBe('rate_limited');
+      expect(s.session.text).toHaveBeenCalledTimes(1);
+      expect(s.session.text).toHaveBeenCalledWith('rate_limit.minute');
+      expect(s.ai.handle).not.toHaveBeenCalled();
+    });
+
+    it('counts files and voice notes against their own limits, retries by message id', async () => {
+      const s = setup(user());
+      await s.router.route(job({ type: 'image', messageId: 'm-img' }), NOW);
+      await s.router.route(job({ type: 'audio', messageId: 'm-aud' }), NOW);
+      await s.router.route(job({ type: 'text', messageId: 'm-txt' }), NOW);
+      expect((s.rateLimit.checkMessage.mock.calls as unknown[][]).map((c) => [c[1], c[3]])).toEqual(
+        [
+          ['document', 'm-img'],
+          ['voice', 'm-aud'],
+          ['text', 'm-txt'],
+        ],
+      );
+    });
+
+    it('tells a blocked user once, then ignores them', async () => {
+      const s = setup(user({ blockedUntil: new Date(NOW.getTime() + 3600_000) }));
+      s.rateLimit.noticeForBlock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      await expect(s.router.route(job(), NOW)).resolves.toBe('blocked');
+      await expect(s.router.route(job({ messageId: 'msg-2' }), NOW)).resolves.toBe('blocked');
+      expect(s.session.text).toHaveBeenCalledTimes(1);
+      expect(s.session.text).toHaveBeenCalledWith('blocked.notice');
+      expect(s.ai.handle).not.toHaveBeenCalled();
+      expect(s.onboarding.handle).not.toHaveBeenCalled();
+    });
+
+    it('lets the user back in once the block has expired', async () => {
+      const s = setup(user({ blockedUntil: new Date(NOW.getTime() - 1000) }));
+      await expect(s.router.route(job(), NOW)).resolves.toBe('ai_reply');
+    });
+
+    it('announces an automatic block right after the limit notice', async () => {
+      const s = setup(user());
+      s.rateLimit.checkMessage.mockResolvedValue({ ...limited, blocked: true });
+      await s.router.route(job(), NOW);
+      expect((s.session.text.mock.calls as unknown[][]).map((c) => c[0])).toEqual([
+        'rate_limit.minute',
+        'blocked.notice',
+      ]);
+    });
+  });
+
   describe('unknown / erased users', () => {
     it('ignores a message for a user that no longer exists', async () => {
       const s = setup(null);

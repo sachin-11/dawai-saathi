@@ -178,6 +178,11 @@ model User {
   consecutiveMisses Int            @default(0) @map("consecutive_misses")
   /// M13: VOICE ON / VOICE OFF. Spoken replies are an addition to the text reply (TTS_ENABLED too).
   voiceReplies      Boolean        @default(false) @map("voice_replies")
+  /// M15: set by the abuse guard (or the operator CLI); until then every message but emergencies,
+  /// DELETE and HELP gets one notice and is otherwise ignored.
+  blockedUntil      DateTime?      @map("blocked_until") @db.Timestamptz(6)
+  /// M15: a short machine token (`rate_limit`, `media_spam`, `operator`), never free text.
+  blockReason       String?        @map("block_reason")
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Set when the user confirms DELETE, while the erasure job runs: the conversation router ignores
   /// such users. This is only an in-flight marker; the job then HARD-deletes the row (§6).

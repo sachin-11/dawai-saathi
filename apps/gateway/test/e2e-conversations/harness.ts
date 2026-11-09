@@ -8,6 +8,7 @@
  */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { Writable } from 'node:stream';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +21,7 @@ import type { App } from 'supertest/types';
 
 import { CryptoService } from '../../src/common/crypto/crypto.service';
 import { hashPhone } from '../../src/common/crypto/crypto.util';
+import { LOG_STREAM } from '../../src/common/logger/log-stream';
 import { PrismaService } from '../../src/common/prisma/prisma.service';
 import { StorageService } from '../../src/common/storage/storage.service';
 import { ReminderDispatchService } from '../../src/reminders/reminder-dispatch.service';
@@ -118,6 +120,8 @@ async function ensureE2eDatabase(): Promise<void> {
 
 export class AiServiceProcess {
   private child: ChildProcess | null = null;
+  /** Everything the AI service printed (stdout + stderr), for the log-leak check. */
+  readonly logLines: string[] = [];
   readonly port = Number(process.env['E2E_AI_PORT'] ?? 8765);
 
   get url(): string {
@@ -137,15 +141,19 @@ export class AiServiceProcess {
         env: {
           ...process.env,
           NODE_ENV: 'test',
-          LOG_LEVEL: 'warn',
+          LOG_LEVEL: 'info',
           SERVICE_TOKEN: INTEGRATION_ENV['SERVICE_TOKEN'] ?? '',
           LLM_MODE: 'fake',
           DATABASE_URL: databaseUrl,
+          AI_DATABASE_URL: databaseUrl, // a developer's .env may point this at the dev database
           ALLOWED_MEDIA_HOSTS: s3.host,
         },
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
+    for (const stream of [this.child.stdout, this.child.stderr]) {
+      stream?.on('data', (chunk: Buffer) => this.logLines.push(chunk.toString()));
+    }
     const deadline = Date.now() + 120_000;
     for (;;) {
       try {
@@ -201,6 +209,10 @@ export class ConversationHarness {
   app!: INestApplication<App>;
   prisma!: PrismaService;
   private readonly sends: GraphBody[] = [];
+  /** Every line the gateway logged during the run (M15: scanned for PHI by the spec). */
+  readonly logLines: string[] = [];
+  /** Fictional phone numbers the scenarios used. */
+  readonly phones = new Set<string>();
   private storage!: StorageService;
 
   async start(): Promise<void> {
@@ -212,7 +224,7 @@ export class ConversationHarness {
       ...INTEGRATION_ENV,
       DATABASE_URL: e2eDatabaseUrl(),
       AI_SERVICE_URL: this.ai.url,
-      LOG_LEVEL: 'warn',
+      LOG_LEVEL: 'info',
       WORKERS_ENABLED: 'true',
       DEV_ECHO_BOT: 'false',
     });
@@ -227,7 +239,15 @@ export class ConversationHarness {
         this.sends.push(payload);
         return [200, { messages: [{ id: `wamid.OUT${this.sends.length}` }] }];
       });
-    this.app = (await createApp()) as INestApplication<App>;
+    const logStream = new Writable({
+      write: (chunk: Buffer, _encoding, callback): void => {
+        this.logLines.push(chunk.toString());
+        callback();
+      },
+    });
+    this.app = (await createApp((builder) =>
+      builder.overrideProvider(LOG_STREAM).useValue(logStream),
+    )) as INestApplication<App>;
     this.prisma = this.app.get(PrismaService);
     this.storage = this.app.get(StorageService);
   }
@@ -290,7 +310,9 @@ class ScenarioRun {
   constructor(
     private readonly h: ConversationHarness,
     private readonly scenario: Scenario,
-  ) {}
+  ) {
+    h.phones.add(this.userPhone).add(this.caregiverPhone);
+  }
 
   label(step: Step): string {
     if (step.send) {

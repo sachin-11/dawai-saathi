@@ -1,5 +1,11 @@
 import { redactText } from '../common/redaction/redact';
-import type { InboundMedia, InboundMessage, ParsedWebhook, StatusUpdate } from './inbound-message';
+import type {
+  AccountEvent,
+  InboundMedia,
+  InboundMessage,
+  ParsedWebhook,
+  StatusUpdate,
+} from './inbound-message';
 import {
   changeSchema,
   entrySchema,
@@ -81,13 +87,50 @@ export function normaliseMessage(raw: WhatsAppMessage): InboundMessage {
   return { ...base, type: 'unsupported' };
 }
 
+const EVENT_TOKEN = /^[A-Z0-9_]{1,40}$/;
+const TEMPLATE_NAME = /^[a-z0-9_]{1,64}$/;
+
+function toToken(candidate: unknown): string | undefined {
+  if (typeof candidate !== 'string') return undefined;
+  const upper = candidate.toUpperCase().replaceAll(' ', '_');
+  return EVENT_TOKEN.test(upper) ? upper : undefined;
+}
+
+/** Number health / template status events (M15). Everything is reduced to short machine tokens. */
+export function parseAccountEvent(field: string, value: unknown): AccountEvent | undefined {
+  const kind =
+    field === 'phone_number_quality_update'
+      ? 'quality'
+      : field === 'account_update' || field === 'account_alerts'
+        ? 'account'
+        : field === 'message_template_status_update' || field === 'message_template_quality_update'
+          ? 'template'
+          : undefined;
+  if (!kind || typeof value !== 'object' || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const limit = toToken(raw['current_limit']);
+  const name = raw['message_template_name'];
+  return {
+    kind,
+    event: toToken(raw['event']) ?? toToken(raw['new_quality_score']) ?? 'OTHER',
+    ...(limit ? { limit } : {}),
+    ...(typeof name === 'string' && TEMPLATE_NAME.test(name) ? { templateName: name } : {}),
+  };
+}
+
 /**
  * Turn a webhook body into normalised messages and status updates.
  * Pure function: no I/O, never throws on bad input (counts it in `invalidCount` instead), so the
  * controller can always answer 200 to a correctly signed request.
  */
 export function parseWebhook(body: unknown, expectedPhoneNumberId: string): ParsedWebhook {
-  const result: ParsedWebhook = { messages: [], statuses: [], foreignCount: 0, invalidCount: 0 };
+  const result: ParsedWebhook = {
+    messages: [],
+    accountEvents: [],
+    statuses: [],
+    foreignCount: 0,
+    invalidCount: 0,
+  };
 
   const envelope = envelopeSchema.safeParse(body);
   if (!envelope.success) {
@@ -109,7 +152,9 @@ export function parseWebhook(body: unknown, expectedPhoneNumberId: string): Pars
         continue;
       }
       if (change.data.field !== 'messages') {
-        continue; // other subscription fields (account_update, ...) are not our business
+        const accountEvent = parseAccountEvent(change.data.field, change.data.value);
+        if (accountEvent) result.accountEvents.push(accountEvent);
+        continue; // other subscription fields are not our business
       }
 
       const value = valueSchema.safeParse(change.data.value);

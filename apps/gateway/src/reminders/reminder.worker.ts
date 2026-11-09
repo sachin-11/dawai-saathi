@@ -1,11 +1,12 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { type Job, Worker } from 'bullmq';
+import type { Job, Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
 import { CaregiversService } from '../caregivers/caregivers.service';
 import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
+import { WorkerFactory } from '../telemetry/worker-factory.service';
 import { ReminderDispatchService } from './reminder-dispatch.service';
 import { ReminderPlannerService } from './reminder-planner.service';
 import {
@@ -29,6 +30,7 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redis: RedisService,
     private readonly queue: ReminderQueue,
+    private readonly workers: WorkerFactory,
     private readonly dispatch: ReminderDispatchService,
     private readonly planner: ReminderPlannerService,
     private readonly caregivers: CaregiversService,
@@ -43,10 +45,14 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.info('reminder worker disabled (WORKERS_ENABLED=false)');
       return;
     }
-    this.worker = new Worker<ReminderJobData>(REMINDERS_QUEUE, (job) => this.process(job), {
-      connection: this.redis.createConnection({ maxRetriesPerRequest: null }),
-      concurrency: 5,
-    });
+    this.worker = this.workers.create<ReminderJobData>(
+      REMINDERS_QUEUE,
+      (job) => this.process(job),
+      {
+        connection: this.redis.createConnection({ maxRetriesPerRequest: null }),
+        concurrency: 5,
+      },
+    );
     this.worker.on('error', (error: NodeJS.ErrnoException) => {
       this.logger.warn(`reminder worker error: ${error.code ?? error.name}`);
     });
@@ -115,10 +121,6 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    try {
-      await this.worker?.close();
-    } catch {
-      // Redis may already be gone during shutdown.
-    }
+    await this.workers.close(this.worker);
   }
 }

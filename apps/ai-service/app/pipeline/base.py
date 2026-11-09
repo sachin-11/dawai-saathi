@@ -78,6 +78,8 @@ class PipelineContext:
     labs: LabService | None = None
     # M13: None when no speech provider is configured; a voice note then gets the "please type" reply.
     stt: STTRouter | None = None
+    # M15: the budget state of this request, for metric labels only (nodes read it from the request).
+    budget_label: str = "normal"
 
 
 @dataclass(frozen=True, slots=True)

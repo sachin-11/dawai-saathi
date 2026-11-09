@@ -12,6 +12,8 @@ pharmacist"; a miss would put someone else's words into a medical reply.
 
 import re
 
+from app.observability.metrics import METRICS
+
 # English + Hinglish phrases that address the assistant or issue an order. None of them appears in a
 # medicine name, a strength or a dose.
 _INSTRUCTION = re.compile(
@@ -45,7 +47,12 @@ def looks_like_instruction(
     if not stripped:
         return False
     if len(stripped) > max_len or len(stripped.split()) > max_words:
+        METRICS.injection_dropped("length")
         return True
     if _INSTRUCTION.search(stripped):
+        METRICS.injection_dropped("instruction")  # a hit on the red-flag phrase list
         return True
-    return not allow_punctuation and bool(_CONTROL.search(stripped))
+    if not allow_punctuation and _CONTROL.search(stripped):
+        METRICS.injection_dropped("control")
+        return True
+    return False

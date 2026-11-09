@@ -6,12 +6,13 @@ import {
   Header,
   HttpCode,
   Inject,
+  Optional,
   Post,
   Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
@@ -19,23 +20,22 @@ import { safeEqual } from '../common/crypto/safe-equal';
 import { getRequestId } from '../common/logger/request-id';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
+import { MetricsService } from '../telemetry/metrics.service';
 import { WebhookService } from './webhook.service';
 import { WhatsAppSignatureGuard } from './whatsapp-signature.guard';
 
 /** Meta expects a fast answer: warn if we get anywhere near its timeout. */
 export const SLOW_WEBHOOK_MS = 800;
 
-/** Generous: protects against abuse, not against Meta's bursts. */
-export const WEBHOOK_RATE_LIMIT = { default: { limit: 300, ttl: 60_000 } };
-
 @Controller('webhook/whatsapp')
+// Per-IP limit: WEBHOOK_RATE_LIMIT_PER_MIN (M15 raised the default from 300 to 6000: see the env schema).
 @UseGuards(ThrottlerGuard)
-@Throttle(WEBHOOK_RATE_LIMIT)
 export class WebhookController {
   constructor(
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly webhook: WebhookService,
     private readonly logger: PinoLogger,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger.setContext(WebhookController.name);
   }
@@ -73,10 +73,12 @@ export class WebhookController {
   ): Promise<{ status: 'received' }> {
     const startedAt = performance.now();
     const requestId = getRequestId(res);
+    let status = '2xx';
     try {
       const summary = await this.webhook.handle(body, requestId);
       this.logger.info(summary, 'webhook processed');
     } catch (error) {
+      status = '5xx';
       // Log the error type only: messages from drivers can contain connection details.
       this.logger.error(
         { error: error instanceof Error ? error.name : 'unknown' },
@@ -85,6 +87,8 @@ export class WebhookController {
       throw error;
     } finally {
       const elapsedMs = Math.round(performance.now() - startedAt);
+      this.metrics?.webhookLatency.observe(elapsedMs);
+      this.metrics?.webhookResponses.inc({ status });
       if (elapsedMs > SLOW_WEBHOOK_MS) {
         this.logger.warn({ elapsed_ms: elapsedMs }, 'slow webhook handler (Meta times out at ~5s)');
       }

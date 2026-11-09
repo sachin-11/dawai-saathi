@@ -1,11 +1,14 @@
 import { setTimeout as sleepMs } from 'node:timers/promises';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { SpanKind } from '@opentelemetry/api';
 import { PinoLogger } from 'nestjs-pino';
 
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
 import { computeBackoffMs, fetchErrorCode } from '../messaging/whatsapp.retry';
+import { MetricsService } from '../telemetry/metrics.service';
+import { inSpan, traceHeaders } from '../telemetry/trace-context';
 import { AiServiceError } from './ai-client.errors';
 import type {
   GenericDetailsRequest,
@@ -101,6 +104,7 @@ export class AiClient {
   constructor(
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger.setContext(AiClient.name);
   }
@@ -151,7 +155,31 @@ export class AiClient {
     return this.post('/v1/synthesize', 'ai.synthesize', request, isSynthesizeResponse);
   }
 
-  private async post<Res>(
+  private post<Res>(
+    path: string,
+    operation: string,
+    request: { request_id: string },
+    isValid: (value: unknown) => value is Res,
+  ): Promise<Res> {
+    // One client span per call (retries included); its traceparent goes to the AI service.
+    return inSpan(
+      { name: operation, kind: SpanKind.CLIENT, attributes: { operation } },
+      async () => {
+        try {
+          const result = await this.send(path, operation, request, isValid);
+          this.metrics?.aiCalls.inc({ status: 'ok' });
+          return result;
+        } catch (error) {
+          this.metrics?.aiCalls.inc({
+            status: error instanceof AiServiceError ? error.kind : 'error',
+          });
+          throw error;
+        }
+      },
+    );
+  }
+
+  private async send<Res>(
     path: string,
     operation: string,
     request: { request_id: string },
@@ -172,6 +200,7 @@ export class AiClient {
             'Content-Type': 'application/json',
             'X-Service-Token': this.env.SERVICE_TOKEN,
             'X-Request-Id': toRequestId(request.request_id),
+            ...traceHeaders(),
           },
           body,
           signal,

@@ -1,5 +1,5 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { type Job, UnrecoverableError, Worker } from 'bullmq';
+import { type Job, UnrecoverableError, type Worker } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
 import { CryptoError } from '../common/crypto/crypto.util';
@@ -7,6 +7,8 @@ import { InvalidPhoneError } from '../common/crypto/phone';
 import { RedisService } from '../common/redis/redis.service';
 import { APP_CONFIG } from '../config/config.constants';
 import type { Env } from '../config/env.schema';
+import { MetricsService } from '../telemetry/metrics.service';
+import { WorkerFactory } from '../telemetry/worker-factory.service';
 import { OUTBOUND_QUEUE } from './outbound.queue';
 import type { OutboundJobData } from './outbound.types';
 import { OutboundService } from './outbound.service';
@@ -55,6 +57,8 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redis: RedisService,
     private readonly outbound: OutboundService,
+    private readonly workers: WorkerFactory,
+    private readonly metrics: MetricsService,
     @Inject(APP_CONFIG) private readonly env: Env,
     private readonly logger: PinoLogger,
   ) {
@@ -65,13 +69,29 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
     if (!this.env.WORKERS_ENABLED) {
       return;
     }
-    this.worker = new Worker<OutboundJobData>(
+    this.worker = this.workers.create<OutboundJobData>(
       OUTBOUND_QUEUE,
       async (job) => {
+        const emergency = job.opts.priority === 1;
         try {
-          await this.outbound.deliver(job);
+          const { kind } = await this.outbound.deliver(job);
+          this.metrics.waOutbound.inc({ kind, status: 'sent' });
+          if (emergency) this.metrics.emergencyOutbound.inc({ status: 'sent' });
+          const latency = job.data.latency;
+          if (latency) {
+            const ms = Date.now() - new Date(latency.receivedAt).getTime();
+            if (Number.isFinite(ms) && ms >= 0) {
+              this.metrics.replyLatency.observe({ intent: latency.intent }, ms);
+            }
+          }
         } catch (error) {
-          throw toUnrecoverable(error);
+          const failure = toUnrecoverable(error);
+          if (error instanceof WhatsAppApiError) {
+            this.metrics.waApiErrors.inc({ code: String(error.code ?? 'none') });
+          }
+          this.metrics.waOutbound.inc({ kind: 'unknown', status: 'failed' });
+          if (emergency) this.metrics.emergencyOutbound.inc({ status: 'failed' });
+          throw failure;
         }
       },
       {
@@ -98,10 +118,6 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    try {
-      await this.worker?.close();
-    } catch {
-      // Redis may already be gone during shutdown.
-    }
+    await this.workers.close(this.worker);
   }
 }

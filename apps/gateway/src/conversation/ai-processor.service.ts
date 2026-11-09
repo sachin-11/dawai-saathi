@@ -17,6 +17,8 @@ import { type UserState, UsersService } from '../users/users.service';
 import { InteractionFlowService } from './interaction-flow.service';
 import { BUTTON_ID } from './commands';
 import { CONSENT_VERSION } from './onboarding.service';
+import { type BudgetState, BudgetService } from '../limits/budget.service';
+import { RateLimitService } from '../limits/rate-limit.service';
 import { AI_ERROR_REPLY_INDEX } from './reply-indexes';
 import type { ButtonSpec, ReplySession } from './replies.service';
 
@@ -34,7 +36,12 @@ interface PreparedInput {
 }
 
 export type AiOutcome =
-  'ai_reply' | 'ai_emergency' | 'media_rejected' | 'unsupported' | 'voice_notice';
+  | 'ai_reply'
+  | 'ai_emergency'
+  | 'media_rejected'
+  | 'unsupported'
+  | 'voice_notice'
+  | 'user_cost_capped';
 
 /** M13: the AI service heard a command in a voice note; the router executes it. */
 export interface VoiceCommandOutcome {
@@ -77,6 +84,8 @@ export class AiProcessor {
     private readonly prescriptions: PrescriptionService,
     private readonly labReports: LabReportService,
     private readonly interactionFlow: InteractionFlowService,
+    private readonly budget: BudgetService,
+    private readonly rateLimit: RateLimitService,
     private readonly logger: PinoLogger,
     @Inject(APP_CONFIG) private readonly env: Pick<Env, 'TTS_ENABLED'>,
   ) {
@@ -96,6 +105,12 @@ export class AiProcessor {
       // Consent v1 did not mention speech services: nothing is sent to one until the user agrees.
       await session.buttons('voice.notice', {}, VOICE_NOTICE_BUTTONS);
       return 'voice_notice';
+    }
+
+    // M15: one user cannot drain the daily budget. Checked BEFORE the acknowledgement and any download.
+    if (await this.budget.userOverCap(user.id)) {
+      if (await this.rateLimit.costCapNotice(user.id)) await session.text('rate_limit.cost_user');
+      return 'user_cost_capped';
     }
 
     const isMedia = job.type === 'image' || job.type === 'document' || job.type === 'audio';
@@ -119,8 +134,16 @@ export class AiProcessor {
         await session.text('voice.listening');
       }
 
-      const request = await this.buildRequest(user, job, prepared.input);
+      const budget = await this.budget.snapshot();
+      const request = await this.buildRequest(user, job, prepared.input, budget.state);
       const response = await this.ai.process(request);
+      session.markIntent(response.intent);
+      await this.budget.record({
+        userId: user.id,
+        costUsd: response.meta.cost_usd,
+        model: response.meta.model ?? null,
+        intent: response.intent,
+      });
       if (response.emergency) {
         // Highest queue priority, plain text (never buttons), and nothing else happens for this message.
         await session.rawEmergencyText(response.reply.text);
@@ -201,15 +224,18 @@ export class AiProcessor {
     user: UserState,
     job: InboundJobData,
     input: ProcessRequest['input'],
+    budgetState: BudgetState,
   ): Promise<ProcessRequest> {
     return {
       request_id: toRequestId(job.waMessageId),
       user: { language: user.language, age: null, sex: null },
       input,
       // M13: only users with VOICE ON (and TTS switched on) get a `spoken_text` back.
-      ...(user.voiceReplies && this.env.TTS_ENABLED
-        ? { options: { include_trace: false, want_spoken: true } }
-        : {}),
+      options: {
+        include_trace: false,
+        want_spoken: user.voiceReplies && this.env.TTS_ENABLED,
+        budget_state: budgetState,
+      },
       context: {
         active_medications: await this.users.activeMedicationSalts(user.id),
         // M12: earlier lab results (canonical code / value / unit / date) for the "since last report"

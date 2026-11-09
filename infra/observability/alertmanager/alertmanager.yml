@@ -1,0 +1,18 @@
+# Local Alertmanager (M15): every alert goes to the console sink (docker logs dawai-alert-sink).
+# Production (M17) replaces the receiver with email / Slack / SNS; the routing below stays.
+route:
+  receiver: console
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  routes:
+    - matchers: [priority="high"]
+      receiver: console
+      group_wait: 0s
+      repeat_interval: 15m
+receivers:
+  - name: console
+    webhook_configs:
+      - url: http://alert-sink:9094/
+        send_resolved: true

@@ -128,6 +128,37 @@ export const envSchema = z
       emptyToUndefined,
       z.coerce.number().int().min(1).max(60).optional(),
     ),
+    // --- M15: observability, rate limits, cost guard
+    /** OTLP/HTTP collector base URL (e.g. http://otel-collector:4318). Empty: tracing is off. */
+    OTEL_EXPORTER_OTLP_ENDPOINT: z.preprocess(
+      emptyToUndefined,
+      z.url({ protocol: /^https?$/ }).optional(),
+    ),
+    /** Share of ordinary traces that are kept. Errors and emergencies are always kept. */
+    OTEL_SAMPLE_RATIO: z.coerce.number().min(0).max(1).default(0.2),
+    /** `Authorization: Bearer <token>` for GET /metrics. Required in production. */
+    METRICS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+    /** Workers stop taking jobs on SIGTERM and get this long to finish the ones in flight. */
+    SHUTDOWN_GRACE_S: z.coerce.number().int().min(1).max(600).default(25),
+    /**
+     * Requests per minute per IP on the webhook route (abuse guard, runs before the signature check).
+     * Meta calls from few IPs and a load balancer hides them all behind one, so this must be far above the
+     * real traffic: the k6 smoke test (20 msg/s) was throttled to 25% by the old fixed 300/min.
+     */
+    WEBHOOK_RATE_LIMIT_PER_MIN: z.coerce.number().int().min(10).max(1_000_000).default(6000),
+    RL_MSG_PER_MIN: z.coerce.number().int().min(1).max(1000).default(10),
+    RL_MSG_PER_DAY: z.coerce.number().int().min(1).max(100000).default(200),
+    RL_DOCS_PER_DAY: z.coerce.number().int().min(1).max(10000).default(20),
+    RL_VOICE_PER_DAY: z.coerce.number().int().min(1).max(10000).default(30),
+    RL_CAREGIVER_INVITES_PER_DAY: z.coerce.number().int().min(1).max(100).default(3),
+    /** More than this many limited windows in one local day blocks the user for RL_BLOCK_HOURS. */
+    RL_BLOCK_AFTER_WINDOWS: z.coerce.number().int().min(1).max(1000).default(5),
+    RL_BLOCK_HOURS: z.coerce.number().int().min(1).max(720).default(24),
+    /** Daily LLM budget in USD (Asia/Kolkata day). Unset: the guard is off (always `normal`). */
+    LLM_DAILY_BUDGET_USD: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
+    USER_DAILY_COST_USD: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
+    BUDGET_ECONOMY_PCT: z.coerce.number().min(1).max(100).default(70),
+    BUDGET_ESSENTIAL_PCT: z.coerce.number().min(1).max(100).default(90),
     /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
     S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })
@@ -154,6 +185,29 @@ export const envSchema = z
         message: 'the reminder test offset must not be set in production',
       });
     }
+    if (env.BUDGET_ECONOMY_PCT >= env.BUDGET_ESSENTIAL_PCT) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BUDGET_ESSENTIAL_PCT'],
+        message: 'must be greater than BUDGET_ECONOMY_PCT',
+      });
+    }
+    if (env.NODE_ENV === 'production') {
+      if (env.METRICS_TOKEN === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['METRICS_TOKEN'],
+          message: 'required in production (/metrics must never be public)',
+        });
+      }
+      if (env.LLM_DAILY_BUDGET_USD === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LLM_DAILY_BUDGET_USD'],
+          message: 'required in production (the daily cost guard)',
+        });
+      }
+    }
     if (env.NODE_ENV === 'production') {
       const placeholders = {
         SERVICE_TOKEN: isPlaceholder(env.SERVICE_TOKEN),
@@ -161,6 +215,7 @@ export const envSchema = z
         WA_VERIFY_TOKEN: isPlaceholder(env.WA_VERIFY_TOKEN),
         WA_APP_SECRET: isPlaceholder(env.WA_APP_SECRET),
         WA_ACCESS_TOKEN: isPlaceholder(env.WA_ACCESS_TOKEN),
+        METRICS_TOKEN: env.METRICS_TOKEN !== undefined && isPlaceholder(env.METRICS_TOKEN),
         ENCRYPTION_KEY: env.ENCRYPTION_KEY === DEV_ENCRYPTION_KEY,
       };
       for (const [name, isDefault] of Object.entries(placeholders)) {

@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
+
+import { MetricsService } from '../telemetry/metrics.service';
 
 import { AuditService } from '../audit/audit.service';
 import { CryptoService } from '../common/crypto/crypto.service';
@@ -61,6 +63,7 @@ export class CaregiversService {
     private readonly i18n: I18nService,
     private readonly audit: AuditService,
     private readonly logger: PinoLogger,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger.setContext(CaregiversService.name);
   }
@@ -382,6 +385,7 @@ export class CaregiversService {
         replyIndex: 0,
         recipient: { caregiverId: caregiver.id },
       });
+      this.metrics?.caregiverAlerts.inc();
       await this.audit.log({ actor: 'system', userId, action: 'caregiver_alert_sent' });
       sent += 1;
     }

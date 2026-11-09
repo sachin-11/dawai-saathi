@@ -2,6 +2,7 @@ import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { type JobsOptions, Queue } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
 
+import { withTrace } from '../telemetry/trace-context';
 import { RedisService } from '../common/redis/redis.service';
 import { withTimeout } from '../common/timeout/with-timeout';
 import type { UserLanguage } from '../users/users.service';
@@ -34,7 +35,7 @@ export const USER_DELETION_JOB_OPTIONS: JobsOptions = {
   // Do not leave the encrypted phone number in Redis: remove the job as soon as it succeeds, and
   // keep a failed one for one hour only.
   removeOnComplete: true,
-  removeOnFail: { age: 3600 },
+  removeOnFail: { age: 7 * 24 * 3600 },
 };
 
 /** `:` is not allowed in BullMQ custom ids, so the id is `delete_<userId>`. */
@@ -58,7 +59,7 @@ export class UserDeletionQueue implements OnModuleDestroy {
     const queue = this.getQueue();
     await withTimeout(
       () =>
-        queue.add('delete-user', data, {
+        queue.add('delete-user', withTrace(data), {
           ...USER_DELETION_JOB_OPTIONS,
           jobId: userDeletionJobId(data.userId),
         }),

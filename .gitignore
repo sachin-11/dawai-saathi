@@ -57,3 +57,6 @@ data/seed/drugs.csv
 
 # voice eval audio (synthetic, built locally by make_synthetic_voice.py)
 evals/datasets/voice/audio/
+
+# host-run app logs for the Loki pipeline (M15)
+logs/
