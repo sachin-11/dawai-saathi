@@ -159,6 +159,37 @@ export const envSchema = z
     USER_DAILY_COST_USD: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
     BUDGET_ECONOMY_PCT: z.coerce.number().min(1).max(100).default(70),
     BUDGET_ESSENTIAL_PCT: z.coerce.number().min(1).max(100).default(90),
+    // --- M16: web demo + admin API (both are OFF unless their secret is set)
+    /** `X-Demo-Key` that only the Next.js server knows. Unset: `/demo/*` answers 404. */
+    DEMO_API_KEY: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+    /** Token the AI service accepts ONLY on /v1/process and which lets the demo ask for `debug_trace`. */
+    DEMO_SERVICE_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+    /** Own daily LLM budget of the demo (Asia/Kolkata day). Over it: uploads off, samples from cache. */
+    DEMO_DAILY_BUDGET_USD: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
+    DEMO_RL_PER_HOUR: z.coerce.number().int().min(1).max(1000).default(10),
+    DEMO_RL_PER_DAY: z.coerce.number().int().min(1).max(10000).default(30),
+    DEMO_MAX_UPLOAD_MB: z.coerce.number().min(0.1).max(10).default(5),
+    /** Cloudflare Turnstile secret. Unset: demo uploads are refused outside development/test. */
+    TURNSTILE_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+    /** Test-only: skip the Turnstile call (never in production). */
+    TURNSTILE_SKIP: z.stringbool().default(false),
+    /** Comma separated e-mail allowlist of operators. Unset: `/admin/*` answers 404. */
+    ADMIN_EMAILS: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .transform((value) =>
+          value
+            .split(',')
+            .map((item) => item.trim().toLowerCase())
+            .filter((item) => item.length > 0),
+        )
+        .optional(),
+    ),
+    /** HS256 secret that signs the 5-minute admin JWT (shared with the Next.js server only). */
+    ADMIN_JWT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+    /** Where `sync:admin-data` put the eval reports and prompt list (default: ./admin-data next to dist). */
+    ADMIN_DATA_DIR: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     /** Server-side encryption for stored media. `none` only for a local MinIO without a KMS key. */
     S3_SSE: z.enum(['AES256', 'none']).default('AES256'),
   })
@@ -183,6 +214,45 @@ export const envSchema = z
         code: 'custom',
         path: ['REMINDER_TEST_OFFSET_MIN'],
         message: 'the reminder test offset must not be set in production',
+      });
+    }
+    if (env.DEMO_API_KEY !== undefined && env.DEMO_API_KEY === env.SERVICE_TOKEN) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEMO_API_KEY'],
+        message: 'must differ from SERVICE_TOKEN',
+      });
+    }
+    if (env.DEMO_SERVICE_TOKEN !== undefined && env.DEMO_SERVICE_TOKEN === env.SERVICE_TOKEN) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEMO_SERVICE_TOKEN'],
+        message: 'must differ from SERVICE_TOKEN',
+      });
+    }
+    if (env.DEMO_API_KEY !== undefined && env.DEMO_SERVICE_TOKEN === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEMO_SERVICE_TOKEN'],
+        message: 'required when DEMO_API_KEY is set (the demo needs its own AI token)',
+      });
+    }
+    if (env.NODE_ENV === 'production' && env.TURNSTILE_SKIP) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURNSTILE_SKIP'],
+        message: 'must not be set in production',
+      });
+    }
+    if (
+      env.NODE_ENV === 'production' &&
+      env.DEMO_API_KEY !== undefined &&
+      env.DEMO_DAILY_BUDGET_USD === undefined
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEMO_DAILY_BUDGET_USD'],
+        message: 'required in production when the demo is enabled',
       });
     }
     if (env.BUDGET_ECONOMY_PCT >= env.BUDGET_ESSENTIAL_PCT) {

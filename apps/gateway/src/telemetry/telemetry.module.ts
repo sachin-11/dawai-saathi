@@ -12,6 +12,6 @@ import { WorkerFactory } from './worker-factory.service';
 @Module({
   controllers: [MetricsController],
   providers: [MetricsService, DlqService, DlqAdminService, WorkerFactory, QueueMetricsCollector],
-  exports: [MetricsService, DlqService, WorkerFactory, QueueMetricsCollector],
+  exports: [MetricsService, DlqService, DlqAdminService, WorkerFactory, QueueMetricsCollector],
 })
 export class TelemetryModule {}

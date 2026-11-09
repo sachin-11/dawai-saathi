@@ -1,0 +1,341 @@
+{
+  "common": {
+    "siteName": "Dawai Saathi",
+    "skip": "Skip to content",
+    "switchLabel": "हिन्दी",
+    "switchTo": "Switch to Hindi",
+    "startWhatsapp": "Start on WhatsApp",
+    "openDemo": "See the live demo",
+    "disclaimer": "Dawai Saathi explains what is written on your documents. It is not a doctor and gives no diagnosis or treatment advice. In an emergency call 112 or 108.",
+    "lastUpdated": "Last updated",
+    "mainNav": "Main navigation"
+  },
+  "nav": {
+    "how": "How it works",
+    "features": "Features",
+    "safety": "Safety",
+    "engineers": "For engineers",
+    "faq": "FAQ",
+    "demo": "Live demo",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "hero": {
+    "eyebrow": "A WhatsApp health assistant for Indian families",
+    "title": "Understand your prescription, find cheaper medicines, never miss a dose. On WhatsApp.",
+    "subtitle": "Send a photo of a prescription or lab report, or a voice note, in Hindi or English. No app to install.",
+    "qrAlt": "QR code that opens a WhatsApp chat with Dawai Saathi",
+    "qrCaption": "Scan with your phone, or tap the button, and send \"Hi\".",
+    "trust": [
+      "Not a doctor: it explains, it never diagnoses",
+      "Delete all your data any time with DELETE",
+      "Emergency words go straight to 112 / 108"
+    ]
+  },
+  "problems": {
+    "title": "Four everyday problems, four plain answers",
+    "items": [
+      {
+        "problem": "Nobody can read the handwriting on a prescription.",
+        "solution": "Send a photo. You get each medicine, dose, timing and number of days in simple words."
+      },
+      {
+        "problem": "A lab report shows H and L flags but no explanation, and that causes panic or neglect.",
+        "solution": "Every result is compared with its reference range and explained calmly, with questions to ask your doctor."
+      },
+      {
+        "problem": "Branded medicines are costly, and few people know a cheaper medicine with the same salt exists.",
+        "solution": "Where the salt, strength and form match exactly, you see a generic or Jan Aushadhi option and the approximate saving."
+      },
+      {
+        "problem": "Elderly patients forget doses, and medicines from different doctors can clash.",
+        "solution": "Reminders on WhatsApp, an optional family alert, and a check of all active medicines against each other."
+      }
+    ]
+  },
+  "how": {
+    "title": "How it works",
+    "steps": [
+      {
+        "title": "Send a photo",
+        "text": "A prescription or a lab report. A voice note or a typed question works too."
+      },
+      {
+        "title": "Get a clear explanation",
+        "text": "What is written, in Hindi or English, with anything unclear flagged for your pharmacist."
+      },
+      {
+        "title": "Set reminders",
+        "text": "Tap one button and get a nudge at each dose time. Reply Le li when you have taken it."
+      }
+    ],
+    "phoneTitle": "Prescription read",
+    "phoneBody": "Dolo 650: 1 tablet, morning and night, after food, 5 days."
+  },
+  "features": {
+    "title": "What it does",
+    "items": [
+      {
+        "title": "Prescription reader",
+        "text": "Medicine, strength, dose, timing and duration from a photo."
+      },
+      {
+        "title": "Generic finder",
+        "text": "Same salt, strength and form, cheaper, with the price date."
+      },
+      {
+        "title": "Lab report explainer",
+        "text": "Plain-language results and questions for your doctor. Never a diagnosis."
+      },
+      {
+        "title": "Dose reminders",
+        "text": "WhatsApp reminders with Taken, Snooze and Skip buttons."
+      },
+      {
+        "title": "Family alerts",
+        "text": "A family member you choose hears about repeated missed doses."
+      },
+      {
+        "title": "Interaction checker",
+        "text": "Known clashes between your medicines, with advice to ask a professional."
+      },
+      {
+        "title": "Voice support",
+        "text": "Speak in Hindi or English; get the answer as text, or as voice if you like."
+      },
+      {
+        "title": "Privacy controls",
+        "text": "Consent first, HELP and STOP any time, DELETE wipes everything."
+      }
+    ]
+  },
+  "safety": {
+    "title": "Safety and privacy are built in",
+    "items": [
+      {
+        "title": "Not a doctor",
+        "text": "It explains what is written. It never diagnoses, prescribes or tells you to stop a medicine."
+      },
+      {
+        "title": "Emergencies come first",
+        "text": "Chest pain, breathlessness, self-harm and similar words skip everything and show 112 / 108 (and Tele-MANAS 14416)."
+      },
+      {
+        "title": "Says when it is unsure",
+        "text": "If a line is hard to read, it tells you and asks you to confirm with the pharmacist instead of guessing."
+      },
+      {
+        "title": "Consent and DELETE",
+        "text": "Nothing is processed before you agree. Send DELETE and your data is erased."
+      },
+      {
+        "title": "Data stays in India",
+        "text": "Stored in the AWS Mumbai region. Phone numbers are encrypted. Photos expire automatically."
+      }
+    ]
+  },
+  "engineers": {
+    "title": "For recruiters and engineers",
+    "intro": "A production-style system: NestJS gateway and queues, a FastAPI + LangGraph AI service, Postgres, Redis, safety-first evals in CI.",
+    "archTitle": "The LangGraph pipeline",
+    "archCaption": "Generated from the real graph definition. Every request starts at the emergency guard.",
+    "stackTitle": "Stack",
+    "evalTitle": "Latest eval run",
+    "evalNote": "Run in fake-model mode: it proves the plumbing and the deterministic safety rules, not reading accuracy on real documents.",
+    "evalGates": "hard safety gates passed",
+    "evalCases": "test cases",
+    "evalSuites": "suite runs",
+    "evalUnavailable": "No eval report was available when this page was built.",
+    "github": "Source code on GitHub"
+  },
+  "faq": {
+    "title": "Questions people ask",
+    "items": [
+      {
+        "q": "Is this a doctor?",
+        "a": "No. It explains what is written on your documents. For any decision about your health, ask your doctor or pharmacist."
+      },
+      {
+        "q": "What if I have an emergency?",
+        "a": "Call 112 or 108 or go to the nearest hospital. If you type words like chest pain, the bot answers only with these emergency numbers."
+      },
+      {
+        "q": "Can I trust the generic medicine suggestion?",
+        "a": "It is a suggestion, not an instruction. We show one only when salt, strength and form match exactly. Always ask your doctor or pharmacist before switching."
+      },
+      {
+        "q": "What happens to my photos and messages?",
+        "a": "They are used to answer you and to run your reminders. Photos are deleted after the retention period. Send DELETE to erase everything now."
+      },
+      {
+        "q": "Does it cost anything?",
+        "a": "This is a portfolio project in testing. There is no payment and no medicine ordering."
+      },
+      { "q": "Which languages work?", "a": "Hindi, English and Hinglish, as text or voice notes." },
+      {
+        "q": "What if the photo is blurry?",
+        "a": "It says which lines it could not read and asks you to confirm those with your pharmacist. It never fills the gap with a guess."
+      },
+      {
+        "q": "Can I try it without WhatsApp?",
+        "a": "Yes. The live demo runs the same pipeline on sample documents. Please do not upload a real patient's report."
+      }
+    ]
+  },
+  "footer": {
+    "tagline": "Prescription samjho. Sasti dawai jaano. Dose na bhoolo.",
+    "contact": "Contact",
+    "code": "Source code"
+  },
+  "demo": {
+    "title": "Live demo",
+    "subtitle": "Run the real pipeline on a sample document and see every step: what was read, how sure it was, the cheaper options, the warnings, the WhatsApp reply and the LangGraph trace.",
+    "notice": "Use only sample or anonymised documents. Do not upload a real patient's prescription or report.",
+    "noticeAck": "I understand. I will not upload a real patient document.",
+    "samplesTitle": "Pick a sample",
+    "samplesHint": "Samples are synthetic and answer instantly.",
+    "sampleNames": {
+      "rx_clean": "Clean prescription",
+      "rx_messy": "Messy handwriting",
+      "rx_duplicate_paracetamol": "Duplicate paracetamol",
+      "rx_generic_savings": "Generic savings",
+      "lab_critical": "Lab report with a critical value",
+      "lab_normal": "Lab report, mostly normal",
+      "rx_unreadable": "Unreadable photo",
+      "rx_injection": "Hidden instruction in the image"
+    },
+    "sampleHints": {
+      "rx_clean": "Typical printed prescription with three medicines.",
+      "rx_messy": "Five medicines in a hard-to-read layout.",
+      "rx_duplicate_paracetamol": "Two brands that both contain paracetamol.",
+      "rx_generic_savings": "Branded medicines with cheaper same-salt options.",
+      "lab_critical": "A critically low haemoglobin: should say contact a doctor today.",
+      "lab_normal": "Results within range.",
+      "rx_unreadable": "Dark and blurred. Should refuse to guess.",
+      "rx_injection": "The page contains \"ignore previous instructions\". It must be ignored."
+    },
+    "uploadTitle": "Or upload your own anonymised image",
+    "dropHint": "Drag a photo or PDF here, or choose a file",
+    "chooseFile": "Choose file",
+    "needAck": "Tick the box above to enable uploads.",
+    "uploadsOff": "Uploads are paused for today (the demo budget is used up). The samples still work.",
+    "captchaTitle": "Quick check that you are a person",
+    "language": "Reply language",
+    "languageHi": "हिन्दी",
+    "languageEn": "English",
+    "running": "Reading the document. This takes 10 to 30 seconds.",
+    "ready": "Result ready.",
+    "cached": "Pre-computed answer",
+    "cachedHint": "This sample is answered from a stored run, so it costs nothing and always works.",
+    "live": "Live run",
+    "modelLabel": "Model",
+    "tryAgain": "Try another",
+    "tabs": {
+      "preview": "WhatsApp",
+      "extraction": "Extraction",
+      "generics": "Generics",
+      "warnings": "Warnings",
+      "trace": "Trace",
+      "json": "Raw JSON"
+    },
+    "preview": {
+      "title": "What the user sees on WhatsApp",
+      "time": "10:42",
+      "buttons": "Buttons the user can tap"
+    },
+    "extraction": {
+      "medicinesTitle": "Medicines read from the page",
+      "resultsTitle": "Lab results read from the page",
+      "medicine": "Medicine",
+      "strength": "Strength",
+      "dose": "Dose",
+      "timing": "Timing",
+      "food": "Food",
+      "duration": "Days",
+      "test": "Test",
+      "value": "Value",
+      "status": "Status",
+      "range": "Range used",
+      "unreadable": "Could not read clearly",
+      "lowConfidence": "Low confidence: confirm with the pharmacist",
+      "confidence": "Confidence",
+      "none": "Nothing was extracted from this image.",
+      "rangeBasis": {
+        "printed": "Printed on report",
+        "flag": "Lab flag",
+        "fallback": "General range",
+        "none": "None"
+      },
+      "statuses": {
+        "normal": "Normal",
+        "high": "High",
+        "low": "Low",
+        "borderline": "Borderline",
+        "critical_high": "Critical high",
+        "critical_low": "Critical low",
+        "qualitative_abnormal": "Abnormal",
+        "unknown": "Unclear"
+      },
+      "food_before": "Before food",
+      "food_after": "After food",
+      "food_with": "With food",
+      "food_any": "Any time",
+      "asNeeded": "As needed"
+    },
+    "generics": {
+      "title": "Cheaper options with the same salt",
+      "janAushadhi": "Jan Aushadhi",
+      "perUnit": "per unit",
+      "saving": "Approx. saving",
+      "priceDate": "Prices as of",
+      "none": "No safe generic suggestion for this item.",
+      "noneAny": "No generic alternatives for this document.",
+      "note": "A suggestion, not an instruction. Ask your doctor or pharmacist before switching.",
+      "demoPrices": "Demo data uses fictional prices."
+    },
+    "warnings": {
+      "title": "Warnings",
+      "none": "No warnings for this document.",
+      "types": {
+        "low_confidence": "Low confidence",
+        "interaction": "Interaction",
+        "critical_value": "Critical value"
+      }
+    },
+    "trace": {
+      "title": "LangGraph trace",
+      "none": "No trace was returned for this run.",
+      "node": "Node",
+      "latency": "Latency",
+      "model": "Model",
+      "tokens": "Tokens in / out",
+      "cost": "Cost",
+      "prompt": "Prompt",
+      "totalLatency": "Total time",
+      "totalCost": "Total cost",
+      "verifier": "Verifier",
+      "verifierOk": "Passed: every fact in the reply is in the data",
+      "verifierFallback": "Fell back to the safe template",
+      "verifierSkipped": "Not run for this path",
+      "graphTitle": "Path through the graph",
+      "visited": "Visited",
+      "notVisited": "Not visited",
+      "status": { "ok": "ok", "error": "error", "timeout": "timeout", "fallback": "fallback" }
+    },
+    "json": { "title": "Raw response (no personal data)", "copy": "Copy", "copied": "Copied" },
+    "errors": {
+      "rate_limited": "You have reached the demo limit. Please try again later.",
+      "retryIn": "Try again in about {minutes} min.",
+      "budget_exhausted": "Today's demo budget is used up. Uploads are off, samples still work.",
+      "captcha_failed": "The check did not pass. Please try again.",
+      "captcha_unavailable": "Uploads are temporarily unavailable. Samples still work.",
+      "unsupported_file": "That file type is not supported. Use a JPG, PNG, WebP or PDF.",
+      "file_too_large": "The file is too large (limit 5 MB).",
+      "sample_unavailable": "This sample has no stored answer yet.",
+      "ai_unavailable": "The AI service could not read this right now. Please try again.",
+      "gateway_unavailable": "The demo service is not reachable right now.",
+      "bad_request": "Something was wrong with that request.",
+      "unknown": "Something went wrong. Please try again."
+    }
+  }
+}

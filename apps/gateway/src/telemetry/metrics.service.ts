@@ -16,6 +16,7 @@ export const METRIC_LABEL_ALLOWLIST: ReadonlySet<string> = new Set([
   'scope',
   'state',
   'model',
+  'channel',
   'le',
 ]);
 
@@ -144,6 +145,13 @@ export class MetricsService {
     name: 'user_blocked_total',
     help: 'Users blocked automatically',
     labelNames: ['reason'],
+    registers: [this.registry],
+  });
+  /** M16: web demo + admin API requests; `channel` is always `demo` or `admin`. */
+  readonly webRequests = new Counter({
+    name: 'web_requests_total',
+    help: 'Requests from the web app (demo playground / admin) by outcome',
+    labelNames: ['channel', 'status'],
     registers: [this.registry],
   });
   readonly budgetState = new Gauge({

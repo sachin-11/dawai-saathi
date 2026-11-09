@@ -79,6 +79,15 @@ enum DocumentKind {
   @@map("document_kind")
 }
 
+enum ReviewLabel {
+  correct
+  extraction_wrong
+  unreadable
+  not_a_document
+
+  @@map("review_label")
+}
+
 enum DocumentStatus {
   queued
   processing
@@ -264,6 +273,11 @@ model Document {
   promptVersion     String?        @map("prompt_version")
   model             String?
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// M16: the operator's verdict from the admin review queue. Labels feed future eval datasets (after anonymisation).
+  reviewLabel       ReviewLabel?   @map("review_label")
+  reviewedAt        DateTime?      @map("reviewed_at") @db.Timestamptz(6)
+  /// sha256 of the reviewer's e-mail (the e-mail itself lives only in the audit row).
+  reviewedByHash    String?        @map("reviewed_by_hash")
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   message     Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -272,6 +286,7 @@ model Document {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([status, reviewedAt], map: "documents_review_idx")
   @@map("documents")
 }
 

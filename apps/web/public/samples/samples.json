@@ -1,0 +1,42 @@
+[
+  {
+    "id": "rx_clean",
+    "file": "rx_clean.jpg",
+    "bytes": 28958
+  },
+  {
+    "id": "rx_messy",
+    "file": "rx_messy.jpg",
+    "bytes": 61579
+  },
+  {
+    "id": "rx_duplicate_paracetamol",
+    "file": "rx_duplicate_paracetamol.jpg",
+    "bytes": 46757
+  },
+  {
+    "id": "rx_generic_savings",
+    "file": "rx_generic_savings.jpg",
+    "bytes": 34737
+  },
+  {
+    "id": "lab_critical",
+    "file": "lab_critical.jpg",
+    "bytes": 49561
+  },
+  {
+    "id": "lab_normal",
+    "file": "lab_normal.jpg",
+    "bytes": 40287
+  },
+  {
+    "id": "rx_unreadable",
+    "file": "rx_unreadable.jpg",
+    "bytes": 6364
+  },
+  {
+    "id": "rx_injection",
+    "file": "rx_injection.jpg",
+    "bytes": 23649
+  }
+]

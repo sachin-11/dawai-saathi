@@ -11,3 +11,13 @@ apps/ai-service
 evals/datasets/prescriptions/labels/
 evals/baselines/
 evals/reports/
+
+# Web app (M16): build output, generated files, static assets, demo cache
+apps/web/.next
+apps/web/lib/generated
+apps/web/public
+apps/web/playwright-report
+apps/web/test-results
+apps/web/.lighthouseci
+apps/gateway/demo-cache
+apps/gateway/admin-data

@@ -560,6 +560,45 @@ pnpm --filter @dawai/gateway cli user:unblock --user <uuid>
 
 **Load smoke test** (k6, fake providers, mock Graph API): `node infra/loadtest/mock-graph.js`, seed users (`apps/gateway/scripts/seed-loadtest-users.ts`), `make load-smoke`.
 
+## Web app (M16): landing, live demo, admin
+
+`apps/web` is a Next.js 15 app (App Router, Server Components by default, Tailwind, next-intl). It has three parts:
+
+| Part | Where | What |
+|------|-------|------|
+| Landing | `/` (Hindi), `/en` | What Dawai Saathi does, the `wa.me` button and QR code, safety block, the real LangGraph graph, the latest eval numbers, FAQ |
+| Privacy and terms | `/privacy`, `/terms` (+ `/en/...`) | Plain-language DPDP-style policy written from what the system really does. **A draft: it needs legal review before launch** (banner on the page). `PRIVACY_POLICY_URL` points here |
+| Live demo | `/demo`, `/en/demo` | Pick one of 8 synthetic samples (or upload an anonymised image) and see the WhatsApp reply, the extraction with per-field confidence, generics, warnings and the LangGraph trace (nodes, latency, tokens, cost, prompt versions) |
+| Admin | `/admin` | Operators only (GitHub OAuth + allowlist): KPIs and charts, review queue (patient data masked until "Reveal" with a reason, audited), eval reports, prompt versions, dead letters, budget |
+
+**The browser never talks to the AI service and never holds a token.** Browser → Next.js route handler (`/api/demo`, `/api/admin/*`) → gateway (`/demo/*` with `X-Demo-Key`, `/admin/*` with a 5-minute signed JWT) → AI service (`DEMO_SERVICE_TOKEN`, the only caller that may ask for `debug_trace`).
+
+```bash
+cp apps/web/.env.example apps/web/.env.local     # then edit; server-only values must never start with NEXT_PUBLIC_
+# gateway .env: DEMO_API_KEY, DEMO_SERVICE_TOKEN (also on the AI service), DEMO_DAILY_BUDGET_USD,
+#               ADMIN_EMAILS, ADMIN_JWT_SECRET  (the same DEMO_API_KEY / ADMIN_* values go in apps/web/.env.local)
+make up && make migrate     # new migration: m16_review (documents.review_label)
+make dev                    # gateway :3000, ai-service :8000, web :3001
+make demo-cache             # pre-compute the sample answers (needs the stack up; fake models unless you set real keys)
+```
+
+On this repo's machine port 3001 may be taken by another container; run `pnpm --filter @dawai/web exec next dev -p 3011`.
+
+**Demo safety.** A visible notice and a tick-box before any upload; samples are served from a cache (no model call, always works, even when the budget is spent); uploads are limited per IP (`DEMO_RL_PER_HOUR` / `_PER_DAY`), checked by Cloudflare Turnstile (`TURNSTILE_SECRET_KEY`; without it uploads stay off in production), type-sniffed and re-encoded (EXIF stripped), stored under `demo/` (deleted right after processing, 24-hour lifecycle rule as backstop), never linked to a user and never written to `documents` or `medications`. The demo has its own budget (`DEMO_DAILY_BUDGET_USD`) that cannot eat into real users' budget.
+
+**Admin safety.** No phone number is ever returned. The review list shows metadata and counts only. `Reveal` needs a reason (10+ characters), writes `audit_logs` (`admin_reveal`: operator e-mail, document id, reason) **before** anything is shown, and the picture link lives 60 seconds and never reaches the browser. The gateway re-checks the JWT's signature, expiry, audience and the `ADMIN_EMAILS` allowlist on every call.
+
+| Command | What |
+|---------|------|
+| `make web-test` | Vitest: reply preview, confidence bars, trace timeline, hi/en key parity, secrets never in client code |
+| `make e2e-web` | Playwright on the real stack with fake providers (landing hi/en, demo, admin reveal + audit row, axe) |
+| `make scan-bundle` | Fails if a secret value is found in `.next/static` |
+| `make lighthouse` | Lighthouse (mobile) on the landing page: performance ≥ 90, accessibility / best practices / SEO ≥ 95 |
+| `make demo-samples` | Rebuild `apps/web/public/samples/` from the synthetic eval datasets |
+| `make admin-data` | Copy eval reports and the prompt list for the admin pages |
+
+Details and interview notes: [`docs/modules/M16.md`](docs/modules/M16.md).
+
 ## User commands (on WhatsApp)
 
 `HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `VOICE ON` / `VOICE OFF` · `DELETE` (the same commands also work as voice notes)

@@ -52,7 +52,11 @@ export class BudgetService {
     @Inject(APP_CONFIG)
     private readonly env: Pick<
       Env,
-      'LLM_DAILY_BUDGET_USD' | 'USER_DAILY_COST_USD' | 'BUDGET_ECONOMY_PCT' | 'BUDGET_ESSENTIAL_PCT'
+      | 'LLM_DAILY_BUDGET_USD'
+      | 'USER_DAILY_COST_USD'
+      | 'BUDGET_ECONOMY_PCT'
+      | 'BUDGET_ESSENTIAL_PCT'
+      | 'DEMO_DAILY_BUDGET_USD'
     >,
     private readonly logger: PinoLogger,
   ) {
@@ -73,6 +77,61 @@ export class BudgetService {
     } catch (error) {
       this.logger.warn({ error: (error as Error).name }, 'budget read failed, assuming normal');
       return { state: 'normal', spentUsd: 0, ratio: 0 };
+    }
+  }
+
+  /**
+   * M16: the web demo has its OWN daily budget (`DEMO_DAILY_BUDGET_USD`), kept apart from the users'
+   * budget so a flood on the public demo can never starve real patients. Unset: no cap (dev only;
+   * production requires it when the demo is on). Fail-open on a Redis error is NOT used here: a demo
+   * that cannot read its budget refuses uploads (cached samples still work).
+   */
+  async demoSnapshot(now: number = Date.now()): Promise<{ exhausted: boolean; spentUsd: number }> {
+    const cap = this.env.DEMO_DAILY_BUDGET_USD;
+    try {
+      const raw = await this.redis.client.get(`budget:demo:${budgetDay(now)}`);
+      const spentUsd = Number(raw ?? 0) / MICROS;
+      return { exhausted: cap !== undefined && spentUsd >= cap, spentUsd };
+    } catch (error) {
+      this.logger.warn({ error: (error as Error).name }, 'demo budget read failed, uploads off');
+      return { exhausted: true, spentUsd: 0 };
+    }
+  }
+
+  async recordDemo(costUsd: number, now: number = Date.now()): Promise<void> {
+    if (!(costUsd > 0)) return;
+    const day = budgetDay(now);
+    try {
+      const pipeline = this.redis.client.multi();
+      pipeline.incrby(`budget:demo:${day}`, Math.round(costUsd * MICROS));
+      pipeline.expire(`budget:demo:${day}`, KEY_TTL_S);
+      await pipeline.exec();
+    } catch (error) {
+      this.logger.warn({ error: (error as Error).name }, 'demo budget write failed');
+    }
+  }
+
+  /** M16 (admin): the last `days` local days of spend, oldest first. Users' spend and the web demo's apart. */
+  async costSeries(
+    days: number,
+    now: number = Date.now(),
+  ): Promise<{ day: string; usd: number; demoUsd: number }[]> {
+    const keys = Array.from({ length: days }, (_, i) =>
+      budgetDay(now - (days - 1 - i) * 86_400_000),
+    );
+    try {
+      const [main, demo] = await Promise.all([
+        this.redis.client.mget(...keys.map((day) => `budget:day:${day}`)),
+        this.redis.client.mget(...keys.map((day) => `budget:demo:${day}`)),
+      ]);
+      return keys.map((day, i) => ({
+        day,
+        usd: Number(main[i] ?? 0) / MICROS,
+        demoUsd: Number(demo[i] ?? 0) / MICROS,
+      }));
+    } catch (error) {
+      this.logger.warn({ error: (error as Error).name }, 'cost series read failed');
+      return keys.map((day) => ({ day, usd: 0, demoUsd: 0 }));
     }
   }
 

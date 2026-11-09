@@ -1,0 +1,42 @@
+{
+  "intent": "other",
+  "extraction": null,
+  "warnings": [],
+  "interactions": null,
+  "reply": {
+    "language": "hi",
+    "text": "इस फ़ोटो में लिखावट साफ़ नहीं दिख रही (शायद बहुत तेज़ रोशनी है या लिखावट हल्की है)। कृपया अच्छी रोशनी में पूरा पन्ना लेते हुए दोबारा भेजें।",
+    "buttons": []
+  },
+  "debug_trace": [
+    {
+      "node": "prepare_image",
+      "latency_ms": 376,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "templates",
+      "latency_ms": 0,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    }
+  ],
+  "meta": {
+    "model": null,
+    "prompt_version": "reply_templates_v9",
+    "latency_ms": 415,
+    "cost_usd": 0,
+    "trace_id": "e1375ff90c0d08bfd1d3113d53d2b069",
+    "provider": null,
+    "fallback_used": false
+  }
+}

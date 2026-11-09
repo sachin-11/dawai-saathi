@@ -113,6 +113,16 @@ export class AiClient {
     return this.post('/v1/process', 'ai.process', request, isProcessResponse);
   }
 
+  /**
+   * M16: the web demo. Uses DEMO_SERVICE_TOKEN, which the AI service accepts on /v1/process only and
+   * which is the only caller allowed to receive `debug_trace`.
+   */
+  async processDemo(request: ProcessRequest): Promise<ProcessResponse> {
+    const token = this.env.DEMO_SERVICE_TOKEN;
+    if (!token) throw new AiServiceError('unauthorized', undefined, undefined);
+    return this.post('/v1/process', 'ai.process_demo', request, isProcessResponse, token);
+  }
+
   /** The "Generic medicines" button: render the stored suggestions (no model call on the AI side). */
   async genericDetails(request: GenericDetailsRequest): Promise<GenericDetailsResponse> {
     return this.post(
@@ -160,13 +170,14 @@ export class AiClient {
     operation: string,
     request: { request_id: string },
     isValid: (value: unknown) => value is Res,
+    token?: string,
   ): Promise<Res> {
     // One client span per call (retries included); its traceparent goes to the AI service.
     return inSpan(
       { name: operation, kind: SpanKind.CLIENT, attributes: { operation } },
       async () => {
         try {
-          const result = await this.send(path, operation, request, isValid);
+          const result = await this.send(path, operation, request, isValid, token);
           this.metrics?.aiCalls.inc({ status: 'ok' });
           return result;
         } catch (error) {
@@ -184,6 +195,7 @@ export class AiClient {
     operation: string,
     request: { request_id: string },
     isValid: (value: unknown) => value is Res,
+    token?: string,
   ): Promise<Res> {
     const policy = this.retryPolicy;
     const url = `${this.env.AI_SERVICE_URL.replace(/\/+$/, '')}${path}`;
@@ -198,7 +210,7 @@ export class AiClient {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Service-Token': this.env.SERVICE_TOKEN,
+            'X-Service-Token': token ?? this.env.SERVICE_TOKEN,
             'X-Request-Id': toRequestId(request.request_id),
             ...traceHeaders(),
           },
