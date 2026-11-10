@@ -15,7 +15,10 @@ models:
   claude-sonnet-5-5: { input_per_mtok: 3.00, output_per_mtok: 15.00, placeholder: true }
   claude-haiku-5-5: { input_per_mtok: 1.00, output_per_mtok: 5.00, placeholder: true }
 
-  # OpenAI: add your model ids here, e.g.
+  # OpenAI (list price as I remember it, VERIFY on the pricing page before trusting cost numbers)
+  gpt-4o-mini: { input_per_mtok: 0.15, output_per_mtok: 0.60, placeholder: true }
+
+  # OpenAI: add more model ids here, e.g.
   # your-openai-model-id: { input_per_mtok: 0.00, output_per_mtok: 0.00, placeholder: true }
 
   # The offline fake provider is free.
