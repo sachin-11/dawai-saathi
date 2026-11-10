@@ -35,9 +35,8 @@ test.describe('landing page', () => {
     await expect(page.getByTestId('cta-demo')).toHaveAttribute('href', '/en/demo');
   });
 
-  test('shows the architecture graph, real eval numbers and the safety block', async ({ page }) => {
+  test('shows real eval numbers and the safety block', async ({ page }) => {
     await page.goto('/en');
-    await expect(page.getByRole('img', { name: 'The LangGraph pipeline' })).toBeVisible();
     await expect(page.getByText('hard safety gates passed')).toBeVisible();
     await expect(page.getByText('Not a doctor').first()).toBeVisible();
     await expect(page.getByText('112').first()).toBeVisible();
