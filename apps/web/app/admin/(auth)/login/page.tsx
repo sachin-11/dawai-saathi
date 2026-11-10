@@ -1,3 +1,4 @@
+import { HeartPulse } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 import { LoginForm } from '@/components/admin/login-form';
@@ -15,10 +16,13 @@ export default async function LoginPage({
   const env = serverEnv();
   const { error } = await searchParams;
   return (
-    <main className="mx-auto grid min-h-dvh max-w-md place-items-center px-4">
+    <main id="main" className="mx-auto grid min-h-dvh max-w-md place-items-center px-4 py-8">
       <div className="w-full space-y-6 rounded-2xl border border-border bg-surface p-8 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-extrabold">Dawai Saathi admin</h1>
+        <div className="space-y-3">
+          <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-ink">
+            <HeartPulse className="size-6" aria-hidden />
+          </span>
+          <h1 className="text-2xl font-extrabold tracking-tight">Dawai Saathi admin</h1>
           <p className="text-muted">
             Operators only. Patient data stays hidden until you reveal it with a reason.
           </p>

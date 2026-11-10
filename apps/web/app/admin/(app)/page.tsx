@@ -1,5 +1,16 @@
+import {
+  BellRing,
+  CircleDollarSign,
+  FileText,
+  Gauge,
+  ShieldCheck,
+  Siren,
+  Users,
+  Wallet,
+} from 'lucide-react';
+
 import { CategoryBars, CostPerDayChart, DocsPerDayChart } from '@/components/admin/charts';
-import { ErrorNote, Kpi, PageHeader, RangeLinks } from '@/components/admin/ui';
+import { ErrorNote, Kpi, PageHeader, Panel, RangeLinks } from '@/components/admin/ui';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import type { AdminStats } from '@/lib/admin-types';
@@ -38,7 +49,10 @@ export default async function OverviewPage({
 
   return (
     <>
-      <PageHeader title="Overview">
+      <PageHeader
+        title="Overview"
+        description="Users, documents, reminders and spend at a glance. No patient data is shown here."
+      >
         <RangeLinks current={range} base="/admin" />
       </PageHeader>
       {!result.ok ? <ErrorNote result={result} /> : <Overview stats={result.data} />}
@@ -56,12 +70,14 @@ function Overview({ stats }: { stats: AdminStats }) {
     <>
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi
+          icon={Users}
           label="Users"
           value={stats.users.total}
           hint={`${stats.users.new} new · ${stats.users.active7d} active in 7 days`}
         />
-        <Kpi label={`Documents (${stats.range})`} value={totalDocs} />
+        <Kpi icon={FileText} label={`Documents (${stats.range})`} value={totalDocs} />
         <Kpi
+          icon={Gauge}
           label="Average confidence"
           value={pct(stats.averageConfidence)}
           tone={
@@ -69,55 +85,69 @@ function Overview({ stats }: { stats: AdminStats }) {
           }
         />
         <Kpi
+          icon={ShieldCheck}
           label="Needs review"
           value={stats.needsReview}
           tone={stats.needsReview > 0 ? 'warn' : 'ok'}
           hint="Unreviewed documents"
         />
         <Kpi
+          icon={BellRing}
           label="Reminder ack rate"
           value={pct(stats.reminders.ackRate)}
           hint={`${stats.reminders.taken} taken · ${stats.reminders.missed} missed · ${stats.reminders.skipped} skipped`}
         />
         <Kpi
+          icon={Siren}
           label="Emergencies"
           value={emergencies}
           hint="Category only; never the text"
           tone={emergencies > 0 ? 'warn' : undefined}
         />
         <Kpi
+          icon={CircleDollarSign}
           label="LLM spend today"
           value={`$${stats.budget.spentUsd.toFixed(2)}`}
           hint={`${Math.round(stats.budget.ratio * 100)}% of the daily budget`}
         />
-        <Card className="p-4">
-          <dt className="text-sm text-muted">Budget state</dt>
-          <dd>
-            <Badge tone={budgetTone} className="mt-1 text-base">
-              {stats.budget.state}
-            </Badge>
-          </dd>
-          {stats.budget.demoExhausted && (
-            <p className="mt-1 text-xs text-warn">Web demo budget used up</p>
-          )}
+        <Card className="flex items-start gap-3 p-4">
+          <span
+            className={`grid size-10 shrink-0 place-items-center rounded-xl ${
+              budgetTone === 'ok'
+                ? 'bg-ok-soft text-ok'
+                : budgetTone === 'warn'
+                  ? 'bg-warn-soft text-warn'
+                  : 'bg-danger-soft text-danger'
+            }`}
+          >
+            <Wallet className="size-5" aria-hidden />
+          </span>
+          <div>
+            <dt className="text-sm font-medium text-muted">Budget state</dt>
+            <dd>
+              <Badge tone={budgetTone} className="mt-1 text-base">
+                {stats.budget.state}
+              </Badge>
+              {stats.budget.demoExhausted && (
+                <span className="mt-1 block text-xs text-warn">Web demo budget used up</span>
+              )}
+            </dd>
+          </div>
         </Card>
       </dl>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <h2 className="mb-2 font-bold">Documents per day</h2>
+        <Panel title="Documents per day">
           {docs.length ? (
             <DocsPerDayChart data={docs} />
           ) : (
             <p className="text-muted">No documents in this range.</p>
           )}
-        </Card>
-        <Card>
-          <h2 className="mb-2 font-bold">LLM cost per day</h2>
+        </Panel>
+        <Panel title="LLM cost per day">
           <CostPerDayChart data={stats.costByDay} />
-        </Card>
-        <Card>
-          <h2 className="mb-2 font-bold">Reminder answers</h2>
+        </Panel>
+        <Panel title="Reminder answers">
           <CategoryBars
             label="Reminder answers"
             color="ok"
@@ -127,9 +157,8 @@ function Overview({ stats }: { stats: AdminStats }) {
               { name: 'skipped', value: stats.reminders.skipped },
             ]}
           />
-        </Card>
-        <Card>
-          <h2 className="mb-2 font-bold">Emergencies by category</h2>
+        </Panel>
+        <Panel title="Emergencies by category">
           {stats.emergenciesByCategory.length ? (
             <CategoryBars
               label="Emergencies by category"
@@ -139,7 +168,7 @@ function Overview({ stats }: { stats: AdminStats }) {
           ) : (
             <p className="text-muted">None in this range.</p>
           )}
-        </Card>
+        </Panel>
       </div>
     </>
   );

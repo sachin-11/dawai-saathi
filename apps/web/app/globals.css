@@ -27,7 +27,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #101517;
     --surface: #182023;
     --surface-2: #1f2a2e;
@@ -49,6 +49,36 @@
     --wa-bubble: #202c33;
     --wa-ink: #e9edef;
   }
+}
+
+/* Manual override (admin theme toggle, stored in the `admin-theme` cookie and set server-side). */
+:root[data-theme='dark'] {
+  --bg: #101517;
+  --surface: #182023;
+  --surface-2: #1f2a2e;
+  --ink: #e8f0ef;
+  --muted: #9db0b2;
+  --border: #2b383c;
+  --primary: #36d1be;
+  --primary-ink: #06201c;
+  --primary-soft: #14312e;
+  --accent: #ffa163;
+  --accent-soft: #3b2415;
+  --danger: #ff8a7d;
+  --danger-soft: #3d1b18;
+  --ok: #6fdb98;
+  --ok-soft: #14301f;
+  --warn: #f1c35b;
+  --warn-soft: #382b0c;
+  --wa-bg: #0d1417;
+  --wa-bubble: #202c33;
+  --wa-ink: #e9edef;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 @theme inline {

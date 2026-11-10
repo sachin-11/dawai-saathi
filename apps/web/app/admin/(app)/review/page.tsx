@@ -24,7 +24,10 @@ export default async function ReviewPage({
 
   return (
     <>
-      <PageHeader title="Review queue">
+      <PageHeader
+        title="Review queue"
+        description="Documents the model was unsure about. Patient content stays hidden: open a row and give a reason to see it. Every reveal is written to the audit log."
+      >
         <Link
           href={includeReviewed ? '/admin/review' : '/admin/review?all=1'}
           className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
@@ -32,10 +35,6 @@ export default async function ReviewPage({
           {includeReviewed ? 'Hide reviewed' : 'Show reviewed too'}
         </Link>
       </PageHeader>
-      <p className="max-w-2xl text-muted">
-        Documents the model was unsure about. Patient content is hidden: open a row and give a
-        reason to see it. Every reveal is written to the audit log.
-      </p>
       {!result.ok ? (
         <ErrorNote result={result} />
       ) : (

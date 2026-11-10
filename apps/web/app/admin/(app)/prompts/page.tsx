@@ -11,7 +11,10 @@ export default async function PromptsPage() {
   const result = await adminFetch<{ prompts: PromptInfo[] }>(email, '/prompts');
   return (
     <>
-      <PageHeader title="Prompts" />
+      <PageHeader
+        title="Prompts"
+        description="Versioned prompt files. A prompt is never edited in place."
+      />
       <p className="max-w-2xl text-muted">
         A prompt file is never edited: a change creates the next version and needs a passing eval
         report. The highest version of each family is the current one.

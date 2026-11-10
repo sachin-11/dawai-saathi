@@ -13,7 +13,7 @@ export default async function EvalsPage() {
   if (!result.ok) {
     return (
       <>
-        <PageHeader title="Evals" />
+        <PageHeader title="Evals" description="Latest eval reports and their safety gates." />
         <ErrorNote result={result} />
       </>
     );
@@ -32,7 +32,7 @@ export default async function EvalsPage() {
 
   return (
     <>
-      <PageHeader title="Evals" />
+      <PageHeader title="Evals" description="Latest eval reports and their safety gates." />
       {!latest ? (
         <p className="text-muted">
           No eval reports were synced (run `make admin-data` after `make eval`).
