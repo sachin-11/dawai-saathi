@@ -183,6 +183,46 @@ jobs:
       - name: Risky changes carry an updated eval report
         run: uv run --project apps/ai-service python -m evals.harness.cli check-evidence --base origin/${{ github.base_ref }}
 
+  # M16: the web app. Static checks, unit tests, a production build, the secret scan and Lighthouse (mobile).
+  web:
+    name: web (lint · typecheck · vitest · build · bundle scan · lighthouse)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_WA_NUMBER: '919999999999'
+      NEXT_PUBLIC_SITE_URL: http://localhost:3021
+      DEMO_API_KEY: ci-demo-key-0123456789abcdef
+      ADMIN_JWT_SECRET: ci-admin-jwt-secret-0123456789abcdef
+      NEXTAUTH_SECRET: ci-nextauth-secret-0123456789abcdef0123
+      GATEWAY_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm --filter @dawai/web lint
+      - name: Typecheck
+        run: pnpm --filter @dawai/web typecheck
+      - name: Unit and component tests
+        run: pnpm --filter @dawai/web test
+      - name: Build
+        run: pnpm --filter @dawai/web build
+      - name: No secret value in the client bundle
+        run: pnpm --filter @dawai/web scan:bundle
+      - name: Lighthouse (mobile) on the landing page
+        run: pnpm --filter @dawai/web lighthouse
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: apps/web/.lighthouseci
+          if-no-files-found: ignore
+
   integration:
     name: integration (postgres · redis · minio)
     runs-on: ubuntu-latest
@@ -311,3 +351,92 @@ jobs:
           # an emergency is answered by the keyword rules with 112 / 108 and no model call
           curl -sf -X POST localhost:8120/v1/process -H 'X-Service-Token: ci-token' -H 'content-type: application/json' \
             -d '{"request_id":"ci2","user":{"language":"en"},"input":{"type":"text","text":"my father has chest pain"}}' | grep -q '"emergency":true'
+
+  # M16: Playwright against the real stack with fake providers (AI service, gateway, production web build):
+  # landing hi/en, the demo playground, the admin reveal flow with its audit row, axe checks.
+  web-e2e:
+    name: web e2e (playwright · axe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [gateway, ai-service]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dawai
+          POSTGRES_PASSWORD: dawai
+          POSTGRES_DB: dawai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dawai -d dawai_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      INTEGRATION_DATABASE_URL: postgresql://dawai:dawai@localhost:5432/dawai_test
+      INTEGRATION_REDIS_URL: redis://localhost:6379
+      INTEGRATION_S3_ENDPOINT: http://localhost:9000
+      INTEGRATION_S3_BUCKET: dawai-media-test
+      INTEGRATION_S3_ACCESS_KEY_ID: dawai-minio
+      INTEGRATION_S3_SECRET_ACCESS_KEY: dawai-minio-secret
+      NEXT_PUBLIC_WA_NUMBER: '919999999999'
+      NEXT_PUBLIC_SITE_URL: http://localhost:3011
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/ai-service/uv.lock
+      - name: Install (node)
+        run: pnpm install --frozen-lockfile
+      - name: Install (python)
+        run: uv sync --frozen
+        working-directory: apps/ai-service
+      - name: Start MinIO and create the test bucket
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=dawai-minio -e MINIO_ROOT_PASSWORD=dawai-minio-secret \
+            -e MINIO_KMS_SECRET_KEY=dawai-local-key:ZGF3YWktbG9jYWwtbWluaW8ta21zLWtleS0wMDAwMDA= \
+            cgr.dev/chainguard/minio:latest server /data
+          for i in $(seq 1 30); do
+            docker exec minio mc ready local && break
+            sleep 1
+          done
+          docker exec -e BUCKETS=dawai-media-test -e EXPIRE_DAYS=1 -e EXPIRE_BUCKETS=dawai-media-test \
+            -e MINIO_ENDPOINT=http://localhost:9000 -e MINIO_USER=dawai-minio -e MINIO_PASSWORD=dawai-minio-secret \
+            -i minio /bin/sh < infra/docker/minio/init.sh
+      - name: Create read-only AI role
+        run: sh infra/docker/postgres/init/02-roles.sh
+        env:
+          PGHOST: localhost
+          PGPASSWORD: dawai
+          POSTGRES_USER: dawai
+          POSTGRES_DB: dawai_test
+          AI_RO_PASSWORD: dawai_ai_ro
+      - name: Build the gateway and the web app
+        run: |
+          pnpm --filter @dawai/gateway build
+          pnpm --filter @dawai/web build
+      - name: Install the browser
+        run: pnpm --filter @dawai/web exec playwright install --with-deps chromium
+      - name: Playwright
+        run: pnpm --filter @dawai/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore

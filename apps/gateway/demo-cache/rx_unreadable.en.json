@@ -1,0 +1,42 @@
+{
+  "intent": "other",
+  "extraction": null,
+  "warnings": [],
+  "interactions": null,
+  "reply": {
+    "language": "en",
+    "text": "I cannot see the writing clearly in this photo (it may be too bright or too faded). Please send it again in good light with the whole page in the frame.",
+    "buttons": []
+  },
+  "debug_trace": [
+    {
+      "node": "prepare_image",
+      "latency_ms": 434,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "templates",
+      "latency_ms": 0,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    }
+  ],
+  "meta": {
+    "model": null,
+    "prompt_version": "reply_templates_v9",
+    "latency_ms": 490,
+    "cost_usd": 0,
+    "trace_id": "78280cc6076d28a5b6043dd670d764e1",
+    "provider": null,
+    "fallback_used": false
+  }
+}

@@ -89,6 +89,7 @@ services:
       BUCKETS: ${S3_BUCKET:-dawai-media}
       EXPIRE_DAYS: ${MEDIA_RETENTION_DAYS:-30}
       EXPIRE_BUCKETS: ${S3_BUCKET:-dawai-media}
+      DEMO_EXPIRE_DAYS: '1'
     volumes:
       - ./infra/docker/minio/init.sh:/init.sh:ro
     entrypoint: ['/bin/sh', '/init.sh']

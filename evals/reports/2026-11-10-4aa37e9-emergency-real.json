@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-10",
+  "git_sha": "4aa37e9",
+  "dirty": true,
+  "scope": "emergency, mode real",
+  "passed": true,
+  "runs": [
+    {
+      "suite": "emergency",
+      "mode": "real",
+      "passed": true,
+      "aborted": null,
+      "cases": 152,
+      "dataset_hash": "07c40f56c2a3",
+      "prompt_versions": [
+        "emergency_classify_v1",
+        "emergency_keywords_v1"
+      ],
+      "models": {
+        "classifier": "gpt-4o-mini"
+      },
+      "metrics": {
+        "recall": 1.0,
+        "recall_rules_tier": 1.0,
+        "false_positive_rate_clear": 0.0,
+        "precision": 0.828829,
+        "category_accuracy": 0.978261,
+        "near_miss_flag_rate": 0.95,
+        "missed_positives": 0.0,
+        "clear_negatives_flagged": 0.0,
+        "duration_s": 38.502543,
+        "cost_usd_total": 0.0,
+        "cost_per_case_usd": 0.0
+      },
+      "cost_usd": 0.0,
+      "latency_p50_ms": 0.0,
+      "latency_p95_ms": 0.0,
+      "hard_gates": [
+        {
+          "metric": "recall",
+          "rule": "== 1.0",
+          "value": 1.0,
+          "passed": true
+        }
+      ],
+      "soft": [
+        {
+          "metric": "false_positive_rate_clear",
+          "value": 0.0,
+          "baseline": null,
+          "delta": null,
+          "status": "new"
+        },
+        {
+          "metric": "category_accuracy",
+          "value": 0.9782608695652174,
+          "baseline": null,
+          "delta": null,
+          "status": "new"
+        }
+      ],
+      "failing_examples": []
+    }
+  ]
+}

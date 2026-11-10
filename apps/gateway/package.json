@@ -5,10 +5,13 @@
   "description": "Dawai Saathi gateway — WhatsApp webhook, user state, queues (NestJS)",
   "files": [
     "dist",
-    "prisma"
+    "prisma",
+    "demo-cache",
+    "admin-data"
   ],
   "scripts": {
     "build": "nest build -p tsconfig.build.json",
+    "predev": "node scripts/sync-admin-data.mjs",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test,scripts}/**/*.ts\" && prettier --check \"{src,test,scripts}/**/*.ts\"",
@@ -22,6 +25,8 @@
     "postinstall": "prisma generate",
     "webhook": "ts-node scripts/send-test-webhook.ts",
     "cli": "ts-node scripts/cli.ts",
+    "sync:admin-data": "node scripts/sync-admin-data.mjs",
+    "demo-cache": "ts-node scripts/build-demo-cache.ts",
     "prisma:generate": "prisma generate",
     "contracts:types": "openapi-typescript ../../packages/contracts/openapi/ai-service.json -o src/ai-client/generated/ai-service.ts",
     "test:e2e-conversations": "jest --config test/jest-e2e-conversations.json --runInBand"
@@ -72,6 +77,7 @@
     "prom-client": "^15.1.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "sharp": "0.34.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -82,6 +88,7 @@
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/luxon": "3",
+    "@types/multer": "^2.3.0",
     "@types/node": "20",
     "@types/supertest": "^7.2.1",
     "ajv": "^8",

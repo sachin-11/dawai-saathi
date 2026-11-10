@@ -13,7 +13,7 @@ GATEWAY_DIR := apps/gateway
 WITH_ENV = set -a; [ -f .env ] && . ./.env; set +a;
 
 .PHONY: help install dev lint format typecheck test build docker-build clean contracts safety-data eval eval-data eval-baseline eval-summary eval-list eval-checks test-evals e2e embed graph \
-        up down migrate seed eval
+        up down migrate seed eval \n        web-dev web-build web-test e2e-web demo-samples demo-cache admin-data lighthouse scan-bundle
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -22,7 +22,7 @@ install: ## Install Node (pnpm) and Python (uv) dependencies
 	pnpm install --frozen-lockfile
 	cd $(AI_DIR) && uv sync --frozen
 
-dev: ## Run gateway (:3000) and ai-service (:8000) with hot reload
+dev: ## Run gateway (:3000), ai-service (:8000) and the web app (:3001) with hot reload
 	pnpm dev
 
 lint: ## ESLint + Prettier (TS), ruff lint + format check (Python)
@@ -165,3 +165,34 @@ test-evals: ## Unit tests of the eval harness itself
 	cd $(AI_DIR) && uv run python -m pytest ../../evals/tests -q
 e2e: ## [M14] End-to-end conversation scenarios (gateway + AI service, fake providers, needs `make test-infra-up`)
 	pnpm --filter @dawai/gateway run test:e2e-conversations
+
+
+# ---- web app (M16) ----
+web-dev: ## Only the web app on :3001 (needs the gateway for the demo and admin: `make dev`)
+	pnpm --filter @dawai/web dev
+
+web-build: ## Production build of the web app (also regenerates eval numbers, graph and QR code)
+	pnpm --filter @dawai/web build
+
+web-test: ## Vitest unit/component tests of the web app
+	pnpm --filter @dawai/web test
+
+e2e-web: ## [M16] Playwright (landing, demo, admin, axe) on the real stack with fake providers; needs `make test-infra-up`
+	pnpm --filter @dawai/gateway build
+	pnpm --filter @dawai/web build
+	pnpm --filter @dawai/web test:e2e
+
+demo-samples: ## Copy the 8 synthetic demo documents from evals/datasets into apps/web/public/samples (run `make eval-data` first)
+	cd $(AI_DIR) && uv run python ../../evals/scripts/make_demo_samples.py
+
+demo-cache: ## Pre-compute the demo sample answers (needs gateway + AI service + MinIO up with DEMO_API_KEY set; real keys for real answers)
+	$(WITH_ENV) pnpm --filter @dawai/gateway demo-cache
+
+admin-data: ## Sync eval reports + prompt list into apps/gateway/admin-data (read by the admin pages)
+	pnpm --filter @dawai/gateway sync:admin-data
+
+lighthouse: web-build ## Lighthouse CI on the landing page (mobile): performance >= 90, a11y/best-practices/SEO >= 95
+	pnpm --filter @dawai/web lighthouse
+
+scan-bundle: web-build ## Fail if a secret value from the environment appears in the client bundle
+	pnpm --filter @dawai/web scan:bundle

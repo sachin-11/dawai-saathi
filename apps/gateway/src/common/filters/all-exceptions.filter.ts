@@ -17,6 +17,8 @@ export interface ErrorResponseBody {
     code: string;
     message: string;
     details?: string[];
+    /** Seconds until a rate-limited caller may retry (M16 demo / admin). */
+    retry_after_s?: number;
     request_id: string;
   };
 }
@@ -25,7 +27,12 @@ interface NormalisedError {
   status: number;
   message: string;
   details?: string[];
+  /** A machine code chosen by the throwing code (M16: `rate_limited`, `budget_exhausted`, ...). */
+  code?: string;
+  retryAfterS?: number;
 }
+
+const MACHINE_CODE = /^[a-z][a-z0-9_]{0,40}$/;
 
 /** Fixed messages for 4xx errors raised outside Nest (e.g. by the body parser). */
 const CLIENT_ERROR_MESSAGES: Record<number, string> = {
@@ -63,6 +70,16 @@ function normalise(exception: unknown): NormalisedError {
     return { status, message: body };
   }
 
+  const own = (body as { error?: { code?: unknown; retry_after_s?: unknown } }).error;
+  if (own && typeof own.code === 'string' && MACHINE_CODE.test(own.code)) {
+    return {
+      status,
+      message: exception.message,
+      code: own.code,
+      ...(typeof own.retry_after_s === 'number' ? { retryAfterS: own.retry_after_s } : {}),
+    };
+  }
+
   const raw = (body as { message?: unknown }).message;
   if (Array.isArray(raw)) {
     return { status, message: exception.message, details: raw.map(String) };
@@ -81,7 +98,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const res = host.switchToHttp().getResponse<Response>();
-    const { status, message, details } = normalise(exception);
+    const { status, message, details, code, retryAfterS } = normalise(exception);
     const requestId = getRequestId(res);
 
     if (status >= 500) {
@@ -100,9 +117,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body: ErrorResponseBody = {
       error: {
         status,
-        code: statusCode(status),
+        code: code ?? statusCode(status),
         message,
         ...(details ? { details } : {}),
+        ...(retryAfterS !== undefined ? { retry_after_s: retryAfterS } : {}),
         request_id: requestId,
       },
     };

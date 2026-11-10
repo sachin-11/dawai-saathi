@@ -1,0 +1,402 @@
+{
+  "intent": "prescription",
+  "extraction": {
+    "kind": "prescription",
+    "is_prescription": true,
+    "image_quality": "good",
+    "medicines": [
+      {
+        "raw_text": {
+          "value": "Tab. Dolo 650 1-0-1 x 5 days (after food)",
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Dolo 650",
+          "confidence": 0.95
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.95
+        },
+        "strength": {
+          "value": "650 mg",
+          "confidence": 0.8
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.92
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.95
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.95
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.95
+        },
+        "relation_to_food": {
+          "value": "after",
+          "confidence": 0.9
+        },
+        "duration_days": {
+          "value": 5,
+          "confidence": 0.95
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0
+        },
+        "low_confidence": false,
+        "validation_notes": [],
+        "match": {
+          "drug_id": "b9630f43-3966-402a-8cd7-3ada543dfc9f",
+          "brand_name": "Dolo 650",
+          "salt_key": "paracetamol",
+          "strength_key": "650mg",
+          "form_key": "tablet",
+          "release_type": "ir",
+          "score": 1,
+          "method": "exact",
+          "candidates": [
+            {
+              "drug_id": "b9630f43-3966-402a-8cd7-3ada543dfc9f",
+              "brand_name": "Dolo 650",
+              "score": 1
+            },
+            {
+              "drug_id": "f0f2413a-0fa3-493a-988c-fac4fdbd2d36",
+              "brand_name": "Dolo 650",
+              "score": 1
+            }
+          ],
+          "strength_basis": "prescription",
+          "strength_conflict": false,
+          "form_conflict": false,
+          "ambiguous": false,
+          "note": null
+        },
+        "generic": {
+          "alternatives": [
+            {
+              "drug_id": "13b3c2a9-9bbe-4470-93fa-f09d6211aee2",
+              "brand_name": "Paracetamol Tablets IP 650 mg (Jan Aushadhi)",
+              "is_janaushadhi": true,
+              "price_per_unit": 1.5,
+              "pack_label": "10 tablet",
+              "pack_price": 15,
+              "approx_savings": 15,
+              "savings_basis": "course"
+            }
+          ],
+          "reason_if_none": null,
+          "price_source_date": "2026-01-01",
+          "savings_known": true
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. Pantop 40 1-0-0 AC x 10 days",
+          "confidence": 0.93
+        },
+        "name": {
+          "value": "Pantop 40",
+          "confidence": 0.93
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.93
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0.3
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.9
+        },
+        "frequency_code": {
+          "value": "1-0-0",
+          "confidence": 0.93
+        },
+        "frequency_per_day": {
+          "value": 1,
+          "confidence": 0.93
+        },
+        "timings": {
+          "value": [
+            "morning"
+          ],
+          "confidence": 0.93
+        },
+        "relation_to_food": {
+          "value": "before",
+          "confidence": 0.9
+        },
+        "duration_days": {
+          "value": 10,
+          "confidence": 0.93
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0
+        },
+        "low_confidence": false,
+        "validation_notes": [],
+        "match": {
+          "drug_id": "f6af19de-f353-4ea2-ad65-d7cf3b80784d",
+          "brand_name": "Pantop 40",
+          "salt_key": "pantoprazole",
+          "strength_key": "40mg",
+          "form_key": "tablet",
+          "release_type": "dr",
+          "score": 1,
+          "method": "exact",
+          "candidates": [
+            {
+              "drug_id": "f6af19de-f353-4ea2-ad65-d7cf3b80784d",
+              "brand_name": "Pantop 40",
+              "score": 1
+            },
+            {
+              "drug_id": "695e038e-312c-431e-99f0-9e1e3d45ab18",
+              "brand_name": "Pantop 40",
+              "score": 1
+            }
+          ],
+          "strength_basis": "brand_name",
+          "strength_conflict": false,
+          "form_conflict": false,
+          "ambiguous": false,
+          "note": null
+        },
+        "generic": {
+          "alternatives": [],
+          "reason_if_none": "not_substitutable",
+          "price_source_date": null,
+          "savings_known": false
+        }
+      },
+      {
+        "raw_text": {
+          "value": "Tab. ?????? 1-0-1",
+          "confidence": 0.3
+        },
+        "name": {
+          "value": null,
+          "confidence": 0.2
+        },
+        "form": {
+          "value": "tablet",
+          "confidence": 0.7
+        },
+        "strength": {
+          "value": null,
+          "confidence": 0
+        },
+        "dose": {
+          "value": "1 tablet",
+          "confidence": 0.6
+        },
+        "frequency_code": {
+          "value": "1-0-1",
+          "confidence": 0.8
+        },
+        "frequency_per_day": {
+          "value": 2,
+          "confidence": 0.8
+        },
+        "timings": {
+          "value": [
+            "morning",
+            "night"
+          ],
+          "confidence": 0.8
+        },
+        "relation_to_food": {
+          "value": null,
+          "confidence": 0
+        },
+        "duration_days": {
+          "value": null,
+          "confidence": 0
+        },
+        "as_needed": false,
+        "instructions": {
+          "value": null,
+          "confidence": 0
+        },
+        "low_confidence": true,
+        "validation_notes": [],
+        "match": null,
+        "generic": null
+      }
+    ],
+    "prescription_date": {
+      "value": null,
+      "confidence": 0
+    },
+    "overall_confidence": 0,
+    "notes_for_user": [],
+    "status": "needs_review"
+  },
+  "warnings": [
+    {
+      "type": "low_confidence",
+      "detail": "medicine 3: name, dose not clear"
+    }
+  ],
+  "interactions": {
+    "findings": [],
+    "unchecked": [],
+    "resolved": [
+      {
+        "ref": "rx:0",
+        "salt_key": "paracetamol"
+      },
+      {
+        "ref": "rx:1",
+        "salt_key": "pantoprazole"
+      }
+    ],
+    "checked_count": 2,
+    "database_ok": true
+  },
+  "reply": {
+    "language": "hi",
+    "text": "📋 आपकी पर्ची में 3 दवाइयाँ मिलीं:\n\n1. Dolo 650 — 1 गोली, सुबह और रात, खाने के बाद, 5 दिन\n   💰 उसी साल्ट का सस्ता विकल्प उपलब्ध है।\n2. Pantop 40 — 1 गोली, सुबह, खाने से पहले, 10 दिन\n3. यह दवाई साफ़ नहीं पढ़ी गई। कृपया फ़ार्मासिस्ट से पूछकर पक्का करें।\n\n⚠️ कुछ दवाइयाँ साफ़ नहीं पढ़ी जा सकीं। कृपया उन्हें फ़ार्मासिस्ट से पक्का करें।\n\n📌 हमारे डेटाबेस में इन दवाइयों के बीच कोई जानी-मानी इंटरैक्शन नहीं मिली। इसका मतलब यह नहीं कि कोई खतरा नहीं है, इसलिए अपने डॉक्टर या फ़ार्मासिस्ट को अपनी सभी दवाइयाँ ज़रूर बताएँ।\n\n⚠️ मैं डॉक्टर नहीं हूँ। कृपया कुछ भी करने से पहले अपने डॉक्टर या फ़ार्मासिस्ट से पूछें।",
+    "buttons": [
+      {
+        "id": "rx:reminders:{document_id}",
+        "title": "रिमाइंडर लगाएँ"
+      },
+      {
+        "id": "rx:generic:{document_id}",
+        "title": "जेनेरिक दवाई"
+      },
+      {
+        "id": "rx:wrong:{document_id}",
+        "title": "कुछ गलत है"
+      }
+    ]
+  },
+  "debug_trace": [
+    {
+      "node": "prepare_image",
+      "latency_ms": 451,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "classify",
+      "latency_ms": 187,
+      "status": "ok",
+      "model": "fake-model",
+      "tokens_in": 186,
+      "tokens_out": 6,
+      "cost_usd": null,
+      "prompt_version": "image_classify_v1"
+    },
+    {
+      "node": "vision_extract_rx",
+      "latency_ms": 537,
+      "status": "ok",
+      "model": "fake-model",
+      "tokens_in": 801,
+      "tokens_out": 211,
+      "cost_usd": null,
+      "prompt_version": "rx_extract_v1"
+    },
+    {
+      "node": "validate_rx",
+      "latency_ms": 18,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "normalize_drugs",
+      "latency_ms": 13,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "generic_finder",
+      "latency_ms": 13,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "interaction_check",
+      "latency_ms": 7,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "confidence_gate",
+      "latency_ms": 0,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    },
+    {
+      "node": "composer",
+      "latency_ms": 302,
+      "status": "ok",
+      "model": "fake-model",
+      "tokens_in": 332,
+      "tokens_out": 31,
+      "cost_usd": null,
+      "prompt_version": "rx_compose_v1,rx_reply_v1"
+    },
+    {
+      "node": "verifier",
+      "latency_ms": 12,
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "cost_usd": null,
+      "prompt_version": null
+    }
+  ],
+  "meta": {
+    "model": "fake-model",
+    "prompt_version": "reply_templates_v9,image_classify_v1,rx_extract_v1,rx_compose_v1,rx_reply_v1",
+    "latency_ms": 1610,
+    "cost_usd": 0,
+    "trace_id": "345e121cac376ab95a7e080167d61582",
+    "provider": "fake",
+    "fallback_used": false
+  }
+}

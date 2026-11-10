@@ -56,6 +56,64 @@ describe('validateEnv', () => {
       RL_BLOCK_HOURS: 24,
       BUDGET_ECONOMY_PCT: 70,
       BUDGET_ESSENTIAL_PCT: 90,
+      TURNSTILE_SKIP: false,
+      DEMO_RL_PER_HOUR: 10,
+      DEMO_RL_PER_DAY: 30,
+      DEMO_MAX_UPLOAD_MB: 5,
+    });
+  });
+
+  describe('M16 demo and admin settings', () => {
+    const demo = { DEMO_API_KEY: 'd'.repeat(20), DEMO_SERVICE_TOKEN: 't'.repeat(20) };
+
+    it('are optional: without them the demo and admin routes simply do not exist', () => {
+      const env = validateEnv(valid);
+      expect(env.DEMO_API_KEY).toBeUndefined();
+      expect(env.ADMIN_EMAILS).toBeUndefined();
+    });
+
+    it('parses the admin allowlist case-insensitively', () => {
+      const env = validateEnv({
+        ...valid,
+        ADMIN_EMAILS: ' Ops@Example.com, second@example.com ,',
+        ADMIN_JWT_SECRET: 'j'.repeat(32),
+      });
+      expect(env.ADMIN_EMAILS).toEqual(['ops@example.com', 'second@example.com']);
+    });
+
+    it('needs its own AI token and never reuses the service token', () => {
+      expect(() => validateEnv({ ...valid, DEMO_API_KEY: demo.DEMO_API_KEY })).toThrow(
+        /DEMO_SERVICE_TOKEN/,
+      );
+      expect(() =>
+        validateEnv({ ...valid, ...demo, DEMO_SERVICE_TOKEN: valid.SERVICE_TOKEN.padEnd(20, 'x') }),
+      ).not.toThrow();
+      const same = 'shared-token-0123456789';
+      expect(() =>
+        validateEnv({ ...valid, SERVICE_TOKEN: same, ...demo, DEMO_SERVICE_TOKEN: same }),
+      ).toThrow(/must differ/);
+      expect(() =>
+        validateEnv({ ...valid, SERVICE_TOKEN: same, ...demo, DEMO_API_KEY: same }),
+      ).toThrow(/must differ/);
+    });
+
+    it('production needs a demo budget and refuses the captcha skip', () => {
+      const prod = {
+        ...valid,
+        NODE_ENV: 'production',
+        SERVICE_TOKEN: 'prod-service-token-xyz',
+        WA_VERIFY_TOKEN: 'prod-verify-token-xyz',
+        WA_APP_SECRET: 'prod-app-secret-xyz',
+        WA_ACCESS_TOKEN: 'prod-access-token-xyz',
+        PHONE_HASH_PEPPER: 'prod-pepper-xyz-123',
+        METRICS_TOKEN: 'm'.repeat(20),
+        LLM_DAILY_BUDGET_USD: '10',
+      };
+      expect(() => validateEnv({ ...prod, ...demo })).toThrow(/DEMO_DAILY_BUDGET_USD/);
+      expect(() => validateEnv({ ...prod, ...demo, DEMO_DAILY_BUDGET_USD: '2' })).not.toThrow();
+      expect(() =>
+        validateEnv({ ...prod, ...demo, DEMO_DAILY_BUDGET_USD: '2', TURNSTILE_SKIP: 'true' }),
+      ).toThrow(/TURNSTILE_SKIP/);
     });
   });
 

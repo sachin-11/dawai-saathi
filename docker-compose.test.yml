@@ -74,6 +74,7 @@ services:
       BUCKETS: dawai-media-test
       EXPIRE_DAYS: '1'
       EXPIRE_BUCKETS: dawai-media-test
+      DEMO_EXPIRE_DAYS: '1'
     volumes:
       - ./infra/docker/minio/init.sh:/init.sh:ro
     entrypoint: ['/bin/sh', '/init.sh']

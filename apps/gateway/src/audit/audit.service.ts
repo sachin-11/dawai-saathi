@@ -28,7 +28,11 @@ export type AuditAction =
   | 'user_blocked'
   | 'user_unblocked'
   | 'dlq_retry'
-  | 'dlq_purge';
+  | 'dlq_purge'
+  | 'admin_reveal'
+  | 'admin_review_resolved'
+  | 'admin_dlq_retry'
+  | 'admin_login_denied';
 
 export type AuditValue =
   string | number | boolean | null | AuditValue[] | { [key: string]: AuditValue };
@@ -46,6 +50,7 @@ const SAFE_KEY = /^[a-z][a-z0-9_]{0,40}$/;
 /** Short machine tokens only: "hi", "v1", "consent_given". No spaces, so no sentences, names or free text. */
 const SAFE_STRING = /^[a-z0-9][a-z0-9_.:-]{0,63}$/i;
 const MAX_DEPTH = 3;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Audit metadata may only contain numbers, booleans, null, short machine tokens and nested
@@ -67,6 +72,9 @@ export function assertSafeAuditMetadata(value: unknown, path = 'metadata', depth
     return;
   }
   if (typeof value === 'string') {
+    // A canonical uuid is an opaque id, not PII. (A random uuid whose last 12 characters are all digits
+    // would otherwise look like an Aadhaar-like number to the redactor and block an audit write.)
+    if (UUID.test(value)) return;
     if (!SAFE_STRING.test(value) || redactText(value) !== value) {
       throw new AuditMetadataError(path);
     }
@@ -103,6 +111,33 @@ export interface AuditEntry {
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * M16: operator actions. The operator is not a patient, so the audit trail names them (e-mail) and, for
+   * revealing a document, records the stated reason. Everything else in `metadata` still has to be a
+   * machine token, and the reason is run through the same redaction as stored messages.
+   */
+  async logAdmin(entry: AdminAuditEntry): Promise<void> {
+    const metadata = entry.metadata ?? {};
+    assertSafeAuditMetadata(metadata);
+    if (!ADMIN_EMAIL.test(entry.adminEmail)) throw new AuditMetadataError('admin_email');
+    const reason =
+      entry.reason === undefined
+        ? undefined
+        : redactText(entry.reason.trim()).slice(0, ADMIN_REASON_MAX);
+    await this.prisma.auditLog.create({
+      data: {
+        actor: 'admin',
+        userId: entry.userId ?? null,
+        action: entry.action,
+        metadata: {
+          ...metadata,
+          admin_email: entry.adminEmail.toLowerCase(),
+          ...(reason ? { reason } : {}),
+        },
+      },
+    });
+  }
+
   async log(entry: AuditEntry): Promise<void> {
     const metadata = entry.metadata ?? {};
     assertSafeAuditMetadata(metadata);
@@ -115,6 +150,22 @@ export class AuditService {
       },
     });
   }
+}
+
+/** A well-formed e-mail: the only free-form identity an admin audit row may carry. */
+const ADMIN_EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+export const ADMIN_REASON_MAX = 300;
+
+export interface AdminAuditEntry {
+  action: Extract<AuditAction, `admin_${string}`>;
+  /** The operator (already checked against the allowlist). */
+  adminEmail: string;
+  /** The patient the action concerns (uuid), if any. */
+  userId?: string | null;
+  /** Machine tokens only (document id, label, queue ...): validated like every audit row. */
+  metadata?: AuditMetadata;
+  /** Why the operator looked at PHI. Free text typed by an operator, so identifiers are redacted and it is length-capped. */
+  reason?: string;
 }
 
 @Global()

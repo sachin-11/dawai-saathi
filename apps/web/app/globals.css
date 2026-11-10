@@ -1,0 +1,136 @@
+@import 'tailwindcss';
+
+/* Design tokens. Light = warm cream paper + calm teal; dark follows the system. WCAG AA checked:
+   ink/bg 13:1, muted/bg 5.4:1, white on primary 5.5:1, accent text on bg 5.2:1. */
+:root {
+  --bg: #fbf7f0;
+  --surface: #ffffff;
+  --surface-2: #f3ede1;
+  --ink: #17282b;
+  --muted: #55676b;
+  --border: #d9cfbb;
+  --primary: #0d6a63;
+  --primary-ink: #ffffff;
+  --primary-soft: #e0f3ef;
+  --accent: #b4410c;
+  --accent-soft: #fde8d2;
+  --danger: #b42318;
+  --danger-soft: #fde4e1;
+  --ok: #17703c;
+  --ok-soft: #dcf3e4;
+  --warn: #8a5a00;
+  --warn-soft: #fbefc9;
+  --wa-bg: #e7ddd0;
+  --wa-bubble: #ffffff;
+  --wa-ink: #1b2a2e;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #101517;
+    --surface: #182023;
+    --surface-2: #1f2a2e;
+    --ink: #e8f0ef;
+    --muted: #9db0b2;
+    --border: #2b383c;
+    --primary: #36d1be;
+    --primary-ink: #06201c;
+    --primary-soft: #14312e;
+    --accent: #ffa163;
+    --accent-soft: #3b2415;
+    --danger: #ff8a7d;
+    --danger-soft: #3d1b18;
+    --ok: #6fdb98;
+    --ok-soft: #14301f;
+    --warn: #f1c35b;
+    --warn-soft: #382b0c;
+    --wa-bg: #0d1417;
+    --wa-bubble: #202c33;
+    --wa-ink: #e9edef;
+  }
+}
+
+/* Manual override (admin theme toggle, stored in the `admin-theme` cookie and set server-side). */
+:root[data-theme='dark'] {
+  --bg: #101517;
+  --surface: #182023;
+  --surface-2: #1f2a2e;
+  --ink: #e8f0ef;
+  --muted: #9db0b2;
+  --border: #2b383c;
+  --primary: #36d1be;
+  --primary-ink: #06201c;
+  --primary-soft: #14312e;
+  --accent: #ffa163;
+  --accent-soft: #3b2415;
+  --danger: #ff8a7d;
+  --danger-soft: #3d1b18;
+  --ok: #6fdb98;
+  --ok-soft: #14301f;
+  --warn: #f1c35b;
+  --warn-soft: #382b0c;
+  --wa-bg: #0d1417;
+  --wa-bubble: #202c33;
+  --wa-ink: #e9edef;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-wa-bg: var(--wa-bg);
+  --color-wa-bubble: var(--wa-bubble);
+  --color-wa-ink: var(--wa-ink);
+  --font-sans: var(--font-noto-sans), var(--font-noto-deva), system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+html[lang='hi'] body {
+  line-height: 1.75; /* headroom for Devanagari matras */
+}
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

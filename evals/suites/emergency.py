@@ -135,9 +135,11 @@ def metrics(outcomes: list[Outcome]) -> dict[str, Any]:
         "near_flagged": (sum(o.flagged for o in near), len(near)),
         "category_correct": (
             sum(
-                o.flagged
-                and o.result.category
-                and o.result.category.value == o.row.expected_category
+                bool(
+                    o.flagged
+                    and o.result.category
+                    and o.result.category.value == o.row.expected_category
+                )
                 for o in positives
             ),
             true_pos,

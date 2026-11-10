@@ -60,3 +60,12 @@ evals/datasets/voice/audio/
 
 # host-run app logs for the Loki pipeline (M15)
 logs/
+
+# --- web app (M16) ---
+.next/
+next-env.d.ts
+playwright-report/
+test-results/
+.lighthouseci/
+apps/web/lib/generated/
+admin-data/
