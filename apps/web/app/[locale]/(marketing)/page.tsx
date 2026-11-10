@@ -19,7 +19,6 @@ import {
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
-import { GraphDiagram } from '@/components/graph-diagram';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -251,11 +250,7 @@ export default async function LandingPage() {
       {/* 6. For engineers */}
       <Section id="engineers" title={eng('title')} tone="soft">
         <p className="mb-8 max-w-3xl text-lg text-muted">{eng('intro')}</p>
-        <h3 className="mb-3 text-xl font-semibold">{eng('archTitle')}</h3>
-        <GraphDiagram label={eng('archTitle')} />
-        <p className="mt-2 text-sm text-muted">{eng('archCaption')}</p>
-
-        <div className="mt-10 grid gap-8 md:grid-cols-2">
+        <div className="grid gap-8 md:grid-cols-2">
           <div>
             <h3 className="mb-3 text-xl font-semibold">{eng('stackTitle')}</h3>
             <ul className="flex flex-wrap gap-2">

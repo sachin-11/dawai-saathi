@@ -1,0 +1,7 @@
+# cp backend.hcl.example backend.hcl   (backend.hcl is gitignored)
+# terraform init -backend-config=backend.hcl
+bucket       = "dawai-tfstate-<your-aws-account-id>" # output of infra/terraform/bootstrap
+key          = "dawai/prod/terraform.tfstate"
+region       = "ap-south-1"
+encrypt      = true
+use_lockfile = true

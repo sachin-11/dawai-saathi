@@ -17,7 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.safety.critical_values import CriticalValues, load_critical_values
 
-SEED_FILE = Path(__file__).resolve().parents[4] / "data" / "seed" / "lab_tests.yaml"
+# In the repository checkout this is <repo>/data/seed/lab_tests.yaml. In the service image the package sits at
+# /app/app, which has no fourth parent: fall back to the filesystem root so importing never fails there (only
+# the seed script reads this file, and it runs from a repo-shaped layout, see the `seed` Docker target).
+_PARENTS = Path(__file__).resolve().parents
+SEED_FILE = (
+    (_PARENTS[4] if len(_PARENTS) > 4 else _PARENTS[-1]) / "data" / "seed" / "lab_tests.yaml"
+)
 
 
 @dataclass(frozen=True, slots=True)

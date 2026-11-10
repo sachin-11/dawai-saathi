@@ -1,0 +1,8 @@
+# cp terraform.tfvars.example terraform.tfvars   (gitignored)
+acme_email         = "you@example.com"
+alarm_email        = "you@example.com"
+github_repo        = "your-github-user/dawai-saathi"
+# zone_name          = "dawai.rasuonline.in"
+# instance_type      = "t4g.medium"
+# monthly_budget_usd = 10
+# budget_stop_usd    = 8

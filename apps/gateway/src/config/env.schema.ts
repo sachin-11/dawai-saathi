@@ -279,6 +279,26 @@ export const envSchema = z
       }
     }
     if (env.NODE_ENV === 'production') {
+      // M17: everything a user or Meta can reach must be HTTPS, and the example link must be replaced.
+      if (env.S3_ENDPOINT !== undefined && !env.S3_ENDPOINT.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['S3_ENDPOINT'],
+          message: 'must be https in production (leave it empty on AWS)',
+        });
+      }
+      if (
+        !env.PRIVACY_POLICY_URL.startsWith('https://') ||
+        env.PRIVACY_POLICY_URL.includes('.example')
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PRIVACY_POLICY_URL'],
+          message: 'must be the real https privacy page in production',
+        });
+      }
+    }
+    if (env.NODE_ENV === 'production') {
       const placeholders = {
         SERVICE_TOKEN: isPlaceholder(env.SERVICE_TOKEN),
         PHONE_HASH_PEPPER: isPlaceholder(env.PHONE_HASH_PEPPER),

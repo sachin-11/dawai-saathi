@@ -1,0 +1,10 @@
+[Unit]
+Description=Dawai nightly backup
+
+[Timer]
+# 02:00 IST. Persistent: runs at the next boot when the instance was stopped at that time.
+OnCalendar=*-*-* 20:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

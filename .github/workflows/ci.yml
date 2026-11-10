@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call: # M17: deploy.yml runs the full CI before it builds anything
 
 permissions:
   contents: read
@@ -155,6 +156,50 @@ jobs:
 
       - name: amtool check config
         run: docker run --rm --entrypoint amtool -v "$PWD:/repo:ro" prom/alertmanager:v0.27.0 check-config /repo/infra/observability/alertmanager/alertmanager.yml
+
+  # ---- Infrastructure as code (M17): format, validate, lint, security scan, shell scripts, prod compose.
+  infra:
+    name: infra (terraform · tflint · checkov · shellcheck · compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: infra/terraform
+
+      - name: terraform validate (stack and bootstrap)
+        run: |
+          for dir in infra/terraform infra/terraform/bootstrap; do
+            (cd "$dir" && terraform init -backend=false -input=false && terraform validate)
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.54.0
+      - name: tflint
+        run: tflint --chdir=infra/terraform
+
+      - name: checkov (security scan)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/terraform
+          framework: terraform
+          quiet: true
+          config_file: infra/terraform/.checkov.yaml
+
+      - name: shellcheck
+        run: shellcheck -S warning infra/deploy/*.sh infra/deploy/boot/*.sh scripts/*.sh
+
+      - name: production compose file is valid
+        run: |
+          printf "DOMAIN=d.example.org\nAPI_DOMAIN=api.d.example.org\nACME_EMAIL=a@example.org\nECR_REGISTRY=1.dkr.ecr.ap-south-1.amazonaws.com\nPOSTGRES_PASSWORD=x\nAI_RO_PASSWORD=y\nREDIS_PASSWORD=z\nCOMPOSE_PROFILES=localdb\n" > /tmp/ci.env
+          DAWAI_ENV_FILE=/tmp/ci.env IMAGE_TAG=ci docker compose -p dawai --env-file /tmp/ci.env -f infra/docker/docker-compose.prod.yml config -q
 
   # ---- PR hygiene (M14): prompt versions and eval evidence. Needs the base branch, so full history.
   pr-checks:
@@ -340,7 +385,7 @@ jobs:
       # The production image boots in fake LLM mode and answers /v1/process (no API keys needed).
       - name: AI service image smoke test
         run: |
-          docker build -f infra/docker/ai-service.Dockerfile -t dawai/ai-service:ci .
+          docker build -f infra/docker/ai-service.Dockerfile --target runtime -t dawai/ai-service:ci .
           docker run -d --name ai-ci -p 8120:8000 -e SERVICE_TOKEN=ci-token -e NODE_ENV=development \
             -e LLM_MODE=fake -e DATABASE_URL=postgresql://dawai_ai_ro:dawai_ai_ro@172.17.0.1:5432/dawai_test \
             dawai/ai-service:ci

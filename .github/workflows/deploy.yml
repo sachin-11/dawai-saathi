@@ -1,0 +1,184 @@
+name: deploy
+
+# Push a tag `v*` to deploy (or run it by hand with a SHA).
+#   ci (full test + eval gates) -> build arm64 images -> push to ECR (SHA tag) -> Trivy (fail on CRITICAL)
+#   -> upload the release bundle to S3 -> record DESIRED_SHA -> SSM Run Command: deploy.sh <sha>
+#   deploy.sh rolls back by itself when the health checks fail (infra/deploy/deploy.sh).
+#
+# AWS access is GitHub OIDC (role from infra/terraform/github_oidc.tf): no AWS keys are stored in GitHub.
+# Repository VARIABLES (Settings > Secrets and variables > Actions > Variables), none of them secret:
+#   AWS_DEPLOY_ROLE_ARN   output github_deploy_role_arn
+#   EC2_INSTANCE_ID       output instance_id
+#   BACKUP_BUCKET         output backup_bucket
+#   SITE_DOMAIN           e.g. dawai.rasuonline.in      (API is api.<SITE_DOMAIN>)
+#   NEXT_PUBLIC_WA_NUMBER digits with country code      (+ optional NEXT_PUBLIC_CONTACT_EMAIL,
+#                         NEXT_PUBLIC_GITHUB_URL, NEXT_PUBLIC_TURNSTILE_SITE_KEY)
+#   TARGET_PLATFORM       linux/amd64 (default, x86 instance) or linux/arm64 (Graviton; then set BUILD_RUNNER=ubuntu-24.04-arm for speed)
+#   BUILD_RUNNER          optional runner label, e.g. `ubuntu-24.04-arm` for native arm64 builds
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Full git SHA to deploy (default: the selected ref)'
+        required: false
+      rebuild:
+        description: 'Run CI and build the images (untick to redeploy an already built SHA)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false # never cut a running deploy short
+
+env:
+  AWS_REGION: ap-south-1
+
+jobs:
+  ci:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rebuild }}
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  build:
+    needs: ci
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rebuild }}
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3 # only needed when the target differs from the runner (arm64 on x86)
+      - uses: docker/setup-buildx-action@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Tags are IMMUTABLE in ECR, so an image that already exists for this SHA is reused, not rebuilt.
+      - name: build and push (skips images that exist)
+        env:
+          PLATFORM: ${{ vars.TARGET_PLATFORM || 'linux/amd64' }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          WA_NUMBER: ${{ vars.NEXT_PUBLIC_WA_NUMBER }}
+          CONTACT: ${{ vars.NEXT_PUBLIC_CONTACT_EMAIL }}
+          GITHUB_URL: ${{ vars.NEXT_PUBLIC_GITHUB_URL }}
+          TURNSTILE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+        run: |
+          set -euo pipefail
+          build() { # build <repo> <dockerfile> <target> [extra docker args...]
+            local repo="$1" file="$2" target="$3"; shift 3
+            if aws ecr describe-images --repository-name "dawai/$repo" --image-ids imageTag="$SHA" >/dev/null 2>&1; then
+              echo "dawai/$repo:$SHA already in ECR, skipped"; return
+            fi
+            docker buildx build --platform "$PLATFORM" -f "$file" --target "$target" \
+              --cache-from "type=gha,scope=$repo" --cache-to "type=gha,scope=$repo,mode=max" \
+              --provenance=false -t "$REGISTRY/dawai/$repo:$SHA" --push "$@" .
+          }
+          build gateway infra/docker/gateway.Dockerfile runtime
+          build migrate infra/docker/gateway.Dockerfile migrate
+          build ai-service infra/docker/ai-service.Dockerfile runtime
+          build seed infra/docker/ai-service.Dockerfile seed
+          build web infra/docker/web.Dockerfile runtime \
+            --build-arg "NEXT_PUBLIC_SITE_URL=https://$SITE_DOMAIN" \
+            --build-arg "NEXT_PUBLIC_WA_NUMBER=$WA_NUMBER" \
+            --build-arg "NEXT_PUBLIC_CONTACT_EMAIL=$CONTACT" \
+            --build-arg "NEXT_PUBLIC_GITHUB_URL=$GITHUB_URL" \
+            --build-arg "NEXT_PUBLIC_TURNSTILE_SITE_KEY=$TURNSTILE_KEY"
+
+      # CRITICAL findings with a fix available fail the release (DESIRED_SHA is not set yet, so nothing deploys).
+      - name: Trivy (gateway, ai-service, web)
+        env:
+          TRIVY_PLATFORM: ${{ vars.TARGET_PLATFORM || 'linux/amd64' }}
+          TRIVY_USERNAME: AWS
+        run: |
+          set -euo pipefail
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.58.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
+          export TRIVY_PASSWORD="$(aws ecr get-login-password --region "$AWS_REGION")"
+          for repo in gateway ai-service web; do
+            trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 \
+              "${{ steps.ecr.outputs.registry }}/dawai/$repo:${{ steps.sha.outputs.sha }}"
+          done
+
+  deploy:
+    needs: build
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: upload the release bundle
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+          BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          set -euo pipefail
+          mkdir bundle
+          cp infra/docker/docker-compose.prod.yml infra/docker/Caddyfile infra/docker/otel-collector.prod.yaml bundle/
+          cp infra/deploy/*.sh bundle/
+          cp -r infra/docker/postgres/init bundle/postgres-init
+          chmod +x bundle/*.sh
+          aws s3 sync bundle "s3://$BUCKET/deploy/$SHA/" --only-show-errors
+
+      - name: record the desired release
+        run: aws ssm put-parameter --name /dawai/prod/config/DESIRED_SHA --type String --overwrite --value "${{ steps.sha.outputs.sha }}"
+
+      - name: deploy now (when the instance is running)
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+          INSTANCE: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          state="$(aws ec2 describe-instances --instance-ids "$INSTANCE" --query 'Reservations[0].Instances[0].State.Name' --output text)"
+          if [ "$state" != "running" ]; then
+            echo "::notice::instance is $state. The release $SHA is recorded and is deployed at the next start (make start)."
+            exit 0
+          fi
+          cid="$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
+            --comment "deploy $SHA" --timeout-seconds 1500 \
+            --parameters "commands=[\"/opt/dawai/bin/run-release.sh $SHA\"]" --query Command.CommandId --output text)"
+          aws ssm wait command-executed --command-id "$cid" --instance-id "$INSTANCE" || true
+          aws ssm get-command-invocation --command-id "$cid" --instance-id "$INSTANCE" \
+            --query 'StandardOutputContent' --output text | tail -n 60
+          status="$(aws ssm get-command-invocation --command-id "$cid" --instance-id "$INSTANCE" --query Status --output text)"
+          [ "$status" = "Success" ] || { echo "::error::deploy.sh ended with $status (it rolls back by itself; see docs/runbooks/deploy-rollback.md)"; exit 1; }
+
+      - name: public smoke test
+        run: |
+          state="$(aws ec2 describe-instances --instance-ids "${{ vars.EC2_INSTANCE_ID }}" --query 'Reservations[0].Instances[0].State.Name' --output text)"
+          if [ "$state" = "running" ]; then
+            sleep 30
+            bash scripts/smoke-prod.sh "api.${{ vars.SITE_DOMAIN }}" "${{ vars.SITE_DOMAIN }}"
+          else
+            echo "instance is $state: nothing to smoke-test"
+          fi

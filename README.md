@@ -599,6 +599,34 @@ On this repo's machine port 3001 may be taken by another container; run `pnpm --
 
 Details and interview notes: [`docs/modules/M16.md`](docs/modules/M16.md).
 
+## Deployment (M17): one EC2 instance, demo mode
+
+```
+Internet -> Route 53 (dawai.rasuonline.in, delegated subdomain) -> EC2 t4g.medium (80/443 only, no SSH)
+             Caddy (auto HTTPS) -> api.<zone> -> gateway-api   (webhook, demo and admin APIs)
+                                -> <zone>     -> web           (landing, demo, admin UI)
+             gateway-worker (BullMQ) | ai-service (internal) | redis | postgres (container)
+             images: ECR (git SHA tags)   secrets: SSM Parameter Store   media/backups: S3 (ap-south-1)
+```
+
+Built to stay under about **$10/month**: no RDS, no Elastic IP, no NAT. The instance is **started when you need it** (`make start`),
+stops itself after 3 hours, and a Budget Action stops it at $8 spend. A 24x7 bot needs a bigger plan
+(`docs/modules/M17.md`, "Cost").
+
+| Do | Command |
+|---|---|
+| Create the state bucket, then the stack | `docs/runbooks/go-live.md` (Claude never applies: you say "apply") |
+| Start / stop / delay the stop | `make start` · `make stop` · `make extend MIN=120` |
+| Release | `git tag v0.1.0 && git push origin v0.1.0` (`.github/workflows/deploy.yml`) |
+| Roll back | `make rollback SHA=<full git sha>` (`docs/runbooks/deploy-rollback.md`) |
+| Public smoke test | `make smoke-prod API=api.dawai.rasuonline.in SITE=dawai.rasuonline.in` |
+| Secrets | `make secrets-template`, `scripts/put-secrets.sh` (`docs/production-checklist.md`) |
+| Restore / rebuild | `docs/runbooks/restore.md` |
+| Security summary | `docs/security.md` |
+
+Terraform lives in `infra/terraform/` (flat files, one per concern), the production stack in `infra/docker/docker-compose.prod.yml`
+and `Caddyfile`, the on-instance scripts in `infra/deploy/`. Migrations must be backward compatible (CLAUDE.md §10).
+
 ## User commands (on WhatsApp)
 
 `HELP` · `MEDS` · `CHECK` (or `jaanch karo`) · `REPORTS` (or `reports dikhao`) · `REMINDERS` · `STOP REMINDERS` / `START REMINDERS` · `CAREGIVER +91XXXXXXXXXX` / `CAREGIVER REMOVE` · `LANGUAGE` · `VOICE ON` / `VOICE OFF` · `DELETE` (the same commands also work as voice notes)
