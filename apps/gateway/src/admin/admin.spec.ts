@@ -369,7 +369,11 @@ describe('AdminDataService', () => {
             cases: 3,
             passed,
             hard_gates: [{ metric: 'recall', rule: '== 1.0', value: 1, passed }],
-            soft: [{ status: 'ok' }, { status: 'regressed' }],
+            soft: [
+              { metric: 'f1', value: 0.74, status: 'ok' },
+              { metric: 'recall', value: 'x', status: 'regressed' },
+            ],
+            models: { vision: 'm-vision', broken: 5 },
             cost_usd: 0,
             latency_p95_ms: 0,
           },
@@ -391,6 +395,8 @@ describe('AdminDataService', () => {
       suite: 'emergency',
       softRegressions: 1,
       passed: false,
+      models: { vision: 'm-vision' },
+      softMetrics: [{ metric: 'f1', value: 0.74, status: 'ok' }],
     });
     expect(await service.prompts()).toHaveLength(1);
     const empty = new AdminDataService({ ADMIN_DATA_DIR: join(dir, 'missing') });

@@ -52,6 +52,8 @@ export interface EvalRun {
   softRegressions: number;
   costUsd: number;
   latencyP95Ms: number;
+  models: Record<string, string>;
+  softMetrics: { metric: string; value: number; status: string }[];
 }
 export interface EvalReport {
   file: string;

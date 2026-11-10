@@ -17,6 +17,10 @@ export interface EvalRunSummary {
   softRegressions: number;
   costUsd: number;
   latencyP95Ms: number;
+  /** Model ids per role (vision/cheap/text) of a real run; empty for offline runs. */
+  models: Record<string, string>;
+  /** Soft quality metrics (F1, accuracy, cost per document ...) as reported by the harness. */
+  softMetrics: { metric: string; value: number; status: string }[];
 }
 export interface EvalReportSummary {
   file: string;
@@ -40,7 +44,8 @@ interface RawRun {
   cases?: number;
   passed?: boolean;
   hard_gates?: { metric: string; rule: string; value: number; passed: boolean }[];
-  soft?: { status?: string }[];
+  soft?: { metric?: string; value?: number; status?: string }[];
+  models?: Record<string, unknown>;
   cost_usd?: number;
   latency_p95_ms?: number;
 }
@@ -97,6 +102,16 @@ export class AdminDataService {
             softRegressions: (run.soft ?? []).filter((s) => s.status && s.status !== 'ok').length,
             costUsd: run.cost_usd ?? 0,
             latencyP95Ms: run.latency_p95_ms ?? 0,
+            models: Object.fromEntries(
+              Object.entries(run.models ?? {}).filter(
+                (entry): entry is [string, string] => typeof entry[1] === 'string',
+              ),
+            ),
+            softMetrics: (run.soft ?? []).flatMap((s) =>
+              typeof s.metric === 'string' && typeof s.value === 'number'
+                ? [{ metric: s.metric, value: s.value, status: s.status ?? '' }]
+                : [],
+            ),
           })),
         });
       } catch {
