@@ -107,6 +107,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* The header is sticky: anchor targets must not hide behind it (it wraps to two rows on phones). */
+  scroll-padding-top: 7rem;
 }
 body {
   background: var(--bg);

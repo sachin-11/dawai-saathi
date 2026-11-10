@@ -69,10 +69,12 @@ export default async function LocaleLayout({
   const messages = await getMessages();
   return (
     <html lang={locale} className={`${notoSans.variable} ${notoDeva.variable}`}>
-      <body className="min-h-dvh">
+      <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SiteHeader />
-          <main id="main">{children}</main>
+          <main id="main" className="flex-1">
+            {children}
+          </main>
           <SiteFooter />
         </NextIntlClientProvider>
       </body>

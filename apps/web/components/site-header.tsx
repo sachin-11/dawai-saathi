@@ -21,7 +21,7 @@ export async function SiteHeader() {
     ['faq', '#faq'],
   ] as const;
   return (
-    <header className="border-b border-border bg-bg">
+    <header className="sticky top-0 z-40 border-b border-border bg-bg/95 backdrop-blur supports-[backdrop-filter]:bg-bg/85">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-ink"
