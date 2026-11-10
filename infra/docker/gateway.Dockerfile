@@ -25,6 +25,11 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY apps/gateway apps/gateway
+# M17: the admin pages show eval reports and the prompt list; the image cannot see evals/ at run time,
+# so they are copied into apps/gateway/admin-data now (same script as `make admin-data`).
+COPY evals/reports evals/reports
+COPY apps/ai-service/app/prompts/files apps/ai-service/app/prompts/files
+RUN node apps/gateway/scripts/sync-admin-data.mjs
 # Install ran with --ignore-scripts, so generate the Prisma client explicitly (the build needs its types).
 RUN pnpm --filter @dawai/gateway exec prisma generate \
  && pnpm --filter @dawai/gateway run build \
@@ -32,6 +37,20 @@ RUN pnpm --filter @dawai/gateway exec prisma generate \
 # `deploy` re-links production deps and drops the generated client, so generate it again inside /out
 # (using the Prisma CLI from this stage; the CLI itself is a devDependency and is not shipped).
 RUN cd /out && node /repo/apps/gateway/node_modules/prisma/build/index.js generate
+
+# ---------------------------------------------------------------- migrate (M17, one-shot job)
+# `prisma migrate deploy` needs the Prisma CLI, which is a devDependency and is not in the runtime image.
+# This small target (CLI + schema + migrations only, not the whole build tree) is pushed as dawai/migrate and
+# run by the `migrate` compose service before the new gateway starts.
+FROM node:${NODE_VERSION}-bookworm-slim AS migrate
+ARG PRISMA_VERSION=6.19.3
+RUN apt-get update  && apt-get install -y --no-install-recommends openssl ca-certificates  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+RUN npm install --no-save --no-audit --no-fund --ignore-scripts prisma@${PRISMA_VERSION}  && node node_modules/prisma/build/index.js --version >/dev/null  && npm cache clean --force
+COPY --from=build --chown=node:node /repo/apps/gateway/prisma ./prisma
+ENV NODE_ENV=production
+USER node
+CMD ["node", "node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "prisma/schema.prisma"]
 
 # ---------------------------------------------------------------- runtime
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -47,6 +66,7 @@ RUN apt-get update \
 # dist/, prisma/ (schema + migrations, for `prisma migrate deploy` jobs) + production node_modules
 # (pnpm deploy honours "files").
 COPY --from=build --chown=node:node /out ./
+COPY --from=build --chown=node:node /repo/apps/gateway/admin-data ./admin-data
 
 USER node
 EXPOSE 3000

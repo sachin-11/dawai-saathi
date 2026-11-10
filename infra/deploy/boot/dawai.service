@@ -1,0 +1,16 @@
+[Unit]
+Description=Dawai Saathi stack (docker compose)
+After=docker.service network-online.target dawai-dns.service
+Requires=docker.service
+Wants=network-online.target dawai-dns.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=900
+TimeoutStopSec=300
+ExecStart=/opt/dawai/bin/boot.sh
+ExecStop=/opt/dawai/bin/stop.sh
+
+[Install]
+WantedBy=multi-user.target

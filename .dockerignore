@@ -14,8 +14,12 @@
 .env
 .env.*
 !.env.example
-data
-evals
-docs
+data/*
+!data/scripts
+!data/seed
+evals/*
+!evals/reports
+docs/*
+!docs/architecture
 infra/terraform
 *.md

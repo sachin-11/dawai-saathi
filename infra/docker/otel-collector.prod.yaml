@@ -1,0 +1,25 @@
+# Optional collector (compose profile `obs`). Off by default on the small demo instance: the apps export
+# nothing until OTEL_EXPORTER_OTLP_ENDPOINT is set (http://otel-collector:4318). Logs go to CloudWatch
+# through the Docker awslogs driver, so this file only forwards TRACES (and metrics) to Grafana Cloud.
+# The apps already strip PHI with an allow-list before export (M15); nothing is added here.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+processors:
+  batch: {}
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 150
+exporters:
+  otlphttp/grafana:
+    endpoint: ${env:GRAFANA_OTLP_ENDPOINT}
+    headers:
+      Authorization: ${env:GRAFANA_OTLP_AUTH}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/grafana]

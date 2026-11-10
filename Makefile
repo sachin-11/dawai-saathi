@@ -43,7 +43,7 @@ build: ## Compile the gateway
 
 docker-build: ## Build production images for both apps
 	docker build -f infra/docker/gateway.Dockerfile -t dawai/gateway:local .
-	docker build -f infra/docker/ai-service.Dockerfile -t dawai/ai-service:local .
+	docker build -f infra/docker/ai-service.Dockerfile --target runtime -t dawai/ai-service:local .
 
 clean: ## Remove build artefacts, caches and installed deps
 	rm -rf node_modules apps/*/node_modules packages/*/node_modules \
@@ -196,3 +196,27 @@ lighthouse: web-build ## Lighthouse CI on the landing page (mobile): performance
 
 scan-bundle: web-build ## Fail if a secret value from the environment appears in the client bundle
 	pnpm --filter @dawai/web scan:bundle
+
+# ---- AWS deployment (M17). See docs/runbooks/ ----
+.PHONY: start stop extend rollback deploy-status tf-init tf-plan tf-fmt tf-validate smoke-prod secrets-template
+start: ## Start the EC2 instance (refuses when this month's spend reached the cap, CAP_USD=10)
+	bash scripts/aws-start.sh
+stop: ## Stop the EC2 instance (dumps the database first)
+	bash scripts/aws-stop.sh
+extend: ## Delay the automatic stop: make extend MIN=120
+	bash scripts/aws-ssm.sh extend $(or $(MIN),120)
+rollback: ## Deploy an older release through SSM: make rollback SHA=<full git sha>
+	@test -n "$(SHA)" || (echo "usage: make rollback SHA=<git sha>"; exit 1)
+	bash scripts/aws-ssm.sh deploy $(SHA)
+smoke-prod: ## Public smoke test: make smoke-prod API=api.dawai.rasuonline.in SITE=dawai.rasuonline.in (WA_VERIFY_TOKEN, WA_APP_SECRET in the env enable the webhook checks)
+	bash scripts/smoke-prod.sh $(API) $(SITE)
+tf-init: ## terraform init with the remote state (infra/terraform/backend.hcl)
+	terraform -chdir=infra/terraform init -backend-config=backend.hcl
+tf-plan: ## terraform plan (never applies)
+	terraform -chdir=infra/terraform plan
+tf-fmt: ## terraform fmt -recursive
+	terraform -chdir=infra/terraform fmt -recursive
+tf-validate: ## terraform validate (no backend needed)
+	cd infra/terraform && terraform init -backend=false -input=false >/dev/null && terraform validate
+secrets-template: ## Generate prod.secrets.env (generated secrets filled in), then scripts/put-secrets.sh
+	bash scripts/gen-prod-secrets.sh

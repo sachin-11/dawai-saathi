@@ -1,0 +1,25 @@
+# Checks skipped on purpose for a one-instance, budget-constrained demo stack. Each skip has a reason; the same list is
+# in docs/security.md "Not done". Revisit them when the stack grows (second instance, RDS, real users).
+framework: [terraform]
+quiet: true
+skip-check:
+  - CKV_AWS_88 # the instance needs a public IPv4 (no ALB/NAT: they cost more than the whole budget)
+  - CKV_AWS_130 # same: the public subnet hands out a public IP on purpose
+  - CKV_AWS_260 # port 80 is open for the Let's Encrypt HTTP challenge and the redirect to HTTPS
+  - CKV_AWS_145 # SSE-S3 (AES256) instead of a customer KMS key ($1/month per key)
+  - CKV_AWS_136 # ECR: AES256 instead of KMS (same reason)
+  - CKV_AWS_158 # CloudWatch log groups: default encryption, no KMS key
+  - CKV_AWS_26 # SNS: an alias/aws/sns topic cannot receive CloudWatch alarms; a customer key costs money
+  - CKV2_AWS_34 # SSM parameters made by Terraform are non-secret String config; secrets are SecureString, made by hand
+  - CKV_AWS_144 # no cross-region replication: data must stay in ap-south-1 (DPDP)
+  - CKV_AWS_18 # no S3 access-log bucket
+  - CKV2_AWS_62 # no S3 event notifications needed
+  - CKV_AWS_21 # backups bucket: dumps expire by lifecycle, versioning would only keep deleted ones longer (media is versioned)
+  - CKV_AWS_338 # log retention is 30 days (cost); the checker wants 1 year
+  - CKV_AWS_126 # detailed (1-minute) monitoring costs extra
+  - CKV2_AWS_11 # VPC flow logs cost money
+  - CKV2_AWS_38 # DNSSEC for a delegated demo subdomain
+  - CKV2_AWS_39 # Route 53 query logging
+  - CKV_AWS_111 # budget action role: EC2 stop/start is limited to the one instance; SSM automation needs a wildcard
+  - CKV_AWS_356 # same role: Describe* calls have no resource-level scoping
+  - CKV_AWS_394 # availability zone data source is fine for one subnet

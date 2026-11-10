@@ -108,6 +108,7 @@ describe('validateEnv', () => {
         PHONE_HASH_PEPPER: 'prod-pepper-xyz-123',
         METRICS_TOKEN: 'm'.repeat(20),
         LLM_DAILY_BUDGET_USD: '10',
+        PRIVACY_POLICY_URL: 'https://dawai.rasuonline.in/privacy',
       };
       expect(() => validateEnv({ ...prod, ...demo })).toThrow(/DEMO_DAILY_BUDGET_USD/);
       expect(() => validateEnv({ ...prod, ...demo, DEMO_DAILY_BUDGET_USD: '2' })).not.toThrow();
@@ -127,6 +128,7 @@ describe('validateEnv', () => {
       WA_APP_SECRET: 'a-real-app-secret-123456',
       WA_ACCESS_TOKEN: 'a-real-access-token-123456',
       ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+      PRIVACY_POLICY_URL: 'https://dawai.rasuonline.in/privacy',
     };
     expect(() => validateEnv(prod)).toThrow(/METRICS_TOKEN/);
     expect(() => validateEnv(prod)).toThrow(/LLM_DAILY_BUDGET_USD/);
@@ -137,6 +139,27 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({ ...prod, METRICS_TOKEN: 'local-dev-metrics-token', LLM_DAILY_BUDGET_USD: '5' }),
     ).toThrow(/METRICS_TOKEN: placeholder value/);
+  });
+
+  it('M17: production needs https links and refuses the example privacy URL', () => {
+    const prod = {
+      ...valid,
+      NODE_ENV: 'production',
+      SERVICE_TOKEN: 'a-real-production-token-123456',
+      PHONE_HASH_PEPPER: 'a-real-pepper-value-123456',
+      WA_VERIFY_TOKEN: 'a-real-verify-token-123456',
+      WA_APP_SECRET: 'a-real-app-secret-123456',
+      WA_ACCESS_TOKEN: 'a-real-access-token-123456',
+      METRICS_TOKEN: 'x'.repeat(24),
+      LLM_DAILY_BUDGET_USD: '5',
+    };
+    expect(() => validateEnv(prod)).toThrow(/PRIVACY_POLICY_URL/); // the default is the example link
+    const ok = { ...prod, PRIVACY_POLICY_URL: 'https://dawai.rasuonline.in/privacy' };
+    expect(() => validateEnv(ok)).not.toThrow();
+    expect(() =>
+      validateEnv({ ...ok, PRIVACY_POLICY_URL: 'http://dawai.rasuonline.in/p' }),
+    ).toThrow(/PRIVACY_POLICY_URL/);
+    expect(() => validateEnv({ ...ok, S3_ENDPOINT: 'http://minio:9000' })).toThrow(/S3_ENDPOINT/);
   });
 
   it('economy threshold must stay below the essential threshold', () => {

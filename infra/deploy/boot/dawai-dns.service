@@ -1,0 +1,14 @@
+[Unit]
+Description=Dawai: point DNS at this boot's public IP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10
+ExecStart=/opt/dawai/bin/dns-update.sh
+
+[Install]
+WantedBy=multi-user.target

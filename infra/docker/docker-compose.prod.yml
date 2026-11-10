@@ -1,0 +1,229 @@
+# Production stack on ONE EC2 instance (CLAUDE.md §3, M17). Not for local use: `docker-compose.yml` is.
+#
+#   /opt/dawai/releases/<sha>/  holds this file, Caddyfile and the scripts (uploaded by CI, see deploy.yml)
+#   /opt/dawai/.env             is written by render-env.sh from SSM Parameter Store (chmod 600, root)
+#
+# Images come from ECR and are pinned by git SHA (IMAGE_TAG), never `latest`.
+# Memory limits are sized for a t4g.medium (4 GB) with 2 GB swap; the sum is about 3.4 GB.
+# Postgres runs in a container (profile `localdb`, on by default) to keep the monthly bill low.
+# To move it to RDS: drop `localdb` from COMPOSE_PROFILES and point DATABASE_URL at the RDS endpoint.
+
+name: dawai
+
+x-app: &app
+  restart: unless-stopped
+  security_opt: ['no-new-privileges:true']
+  cap_drop: ['ALL']
+  init: true
+
+services:
+  # ------------------------------------------------------------ edge
+  caddy:
+    <<: *app
+    image: caddy:2.8-alpine
+    cap_add: ['NET_BIND_SERVICE']
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      DOMAIN: ${DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates: losing this volume means re-issuing (Let's Encrypt rate limits)
+      - caddy_config:/config
+    read_only: true
+    tmpfs: ['/tmp']
+    mem_limit: 96m
+    cpus: 0.5
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/caddy, tag: caddy }
+    depends_on:
+      gateway-api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ------------------------------------------------------------ gateway (HTTP only)
+  gateway-api:
+    <<: *app
+    image: ${ECR_REGISTRY}/dawai/gateway:${IMAGE_TAG}
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      WORKERS_ENABLED: 'false' # queues are consumed by gateway-worker only
+    read_only: true
+    tmpfs: ['/tmp']
+    mem_limit: 512m
+    cpus: 1.0
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      ai-service: { condition: service_healthy }
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/gateway-api, tag: gateway-api }
+
+  # ------------------------------------------------------------ gateway workers (same image)
+  gateway-worker:
+    <<: *app
+    image: ${ECR_REGISTRY}/dawai/gateway:${IMAGE_TAG}
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment:
+      NODE_ENV: production
+      PORT: '3000' # internal only: Caddy never routes here, it is just the health/metrics endpoint
+      WORKERS_ENABLED: 'true'
+    read_only: true
+    tmpfs: ['/tmp']
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 40s # SHUTDOWN_GRACE_S (25) + margin: jobs in flight finish before the stop
+    depends_on:
+      gateway-api: { condition: service_healthy }
+    logging:
+      driver: awslogs
+      options:
+        { awslogs-region: 'ap-south-1', awslogs-group: /dawai/gateway-worker, tag: gateway-worker }
+
+  # ------------------------------------------------------------ migrations (one-shot)
+  migrate:
+    image: ${ECR_REGISTRY}/dawai/migrate:${IMAGE_TAG}
+    restart: 'no'
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment: { NODE_ENV: production }
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 512m
+    depends_on:
+      postgres: { condition: service_healthy, required: false }
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/gateway-api, tag: migrate }
+
+  # ------------------------------------------------------------ AI service (internal only)
+  ai-service:
+    <<: *app
+    image: ${ECR_REGISTRY}/dawai/ai-service:${IMAGE_TAG}
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+    expose: ['8000'] # no `ports:`, no Caddy route
+    read_only: true
+    tmpfs: ['/tmp']
+    mem_limit: 1536m
+    cpus: 1.5
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/ai-service, tag: ai-service }
+
+  # ------------------------------------------------------------ web (landing, demo, admin UI)
+  web:
+    <<: *app
+    image: ${ECR_REGISTRY}/dawai/web:${IMAGE_TAG}
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      GATEWAY_URL: http://gateway-api:3000
+      NEXTAUTH_URL: https://${DOMAIN}
+    read_only: true
+    tmpfs: ['/tmp', '/app/apps/web/.next/cache']
+    mem_limit: 384m
+    cpus: 0.75
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/web, tag: web }
+
+  # ------------------------------------------------------------ redis (queues: nothing may be evicted)
+  redis:
+    <<: *app
+    image: redis:7-alpine
+    # Run as the image's redis user from the start (our `sh -c` command bypasses the entrypoint's su-exec).
+    user: '999:1000'
+    command:
+      - sh
+      - -c
+      - >
+        exec redis-server --appendonly yes --appendfsync everysec
+        --maxmemory 128mb --maxmemory-policy noeviction
+        --requirepass "$$REDIS_PASSWORD" --save 900 1 --dir /data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes: ['redis_data:/data']
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/redis, tag: redis }
+
+  # ------------------------------------------------------------ postgres (container, profile `localdb`)
+  postgres:
+    <<: *app
+    profiles: ['localdb']
+    image: postgres:16-alpine
+    cap_add: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID']
+    environment:
+      POSTGRES_USER: dawai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: dawai
+      AI_RO_PASSWORD: ${AI_RO_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    # No `ports:`: only the other containers reach it.
+    command:
+      ['postgres', '-c', 'shared_buffers=128MB', '-c', 'max_connections=60', '-c', 'work_mem=4MB']
+    mem_limit: 384m
+    cpus: 1.0
+    stop_grace_period: 60s
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dawai -d dawai']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    logging:
+      driver: awslogs
+      options: { awslogs-region: 'ap-south-1', awslogs-group: /dawai/postgres, tag: postgres }
+
+  # ------------------------------------------------------------ one-shot tools (profile `tools`)
+  seed:
+    profiles: ['tools']
+    image: ${ECR_REGISTRY}/dawai/seed:${IMAGE_TAG}
+    restart: 'no'
+    env_file: ['${DAWAI_ENV_FILE:-/opt/dawai/.env}']
+    environment: { NODE_ENV: production }
+    command:
+      [
+        'sh',
+        '-c',
+        'python data/scripts/seed_catalog.py --load && python data/scripts/seed_interactions.py && python data/scripts/seed_lab_tests.py',
+      ]
+
+  # ------------------------------------------------------------ optional: OTel collector (profile `obs`)
+  otel-collector:
+    profiles: ['obs']
+    <<: *app
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ['--config=/etc/otelcol/config.yaml']
+    environment:
+      GRAFANA_OTLP_ENDPOINT: ${GRAFANA_OTLP_ENDPOINT:-}
+      GRAFANA_OTLP_AUTH: ${GRAFANA_OTLP_AUTH:-}
+    volumes: ['./otel-collector.prod.yaml:/etc/otelcol/config.yaml:ro']
+    mem_limit: 192m
+    cpus: 0.25
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:
+  postgres_data:

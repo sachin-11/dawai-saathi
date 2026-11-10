@@ -1,0 +1,102 @@
+# Caddy: automatic Let's Encrypt certificates, HTTP -> HTTPS redirect (both are Caddy defaults for named hosts).
+# Hosts come from the environment (DOMAIN, API_DOMAIN, ACME_EMAIL), written by render-env.sh.
+
+{
+	email {$ACME_EMAIL}
+	# The admin API listens on localhost inside the container only (used by the health check).
+	admin 127.0.0.1:2019
+	servers {
+		protocols h1 h2 h3
+		timeouts {
+			read_header 10s
+			idle 120s
+		}
+	}
+}
+
+# ---- headers every response gets (the web app adds its own CSP with a per-request nonce)
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+	}
+}
+
+# ---- JSON access log without secrets.
+# The WhatsApp webhook handshake carries `hub.verify_token` in the QUERY STRING, so query values are
+# replaced; credentials and signatures in headers are deleted. Bodies are never logged by Caddy.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace hub.verify_token REDACTED
+					replace hub.challenge REDACTED
+					replace token REDACTED
+					replace code REDACTED
+					replace state REDACTED
+				}
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				request>headers>X-Hub-Signature-256 delete
+				request>headers>X-Demo-Key delete
+				request>headers>X-Service-Token delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+}
+
+# ---- API / webhook / demo and admin APIs  ->  gateway-api
+{$API_DOMAIN} {
+	import security_headers
+	import access_log
+	encode zstd gzip
+
+	# Operational endpoints are never public.
+	@internal path /metrics /metrics/*
+	respond @internal 404
+
+	request_body {
+		max_size 6MB
+	}
+
+	reverse_proxy gateway-api:3000 {
+		# The app answers Meta within 1 s; the demo upload waits for the AI service (up to ~60 s).
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 90s
+		}
+		# Overwrite, never append: the app trusts the first X-Forwarded-For entry as the client address.
+		header_up X-Forwarded-For {remote_host}
+		health_uri /health/live
+		health_interval 30s
+	}
+}
+
+# ---- landing page, demo playground, admin UI  ->  web
+{$DOMAIN} {
+	import security_headers
+	import access_log
+	encode zstd gzip
+
+	@internal path /metrics /metrics/*
+	respond @internal 404
+
+	request_body {
+		max_size 6MB
+	}
+
+	reverse_proxy web:3001 {
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 90s
+		}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

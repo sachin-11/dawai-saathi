@@ -69,3 +69,16 @@ test-results/
 .lighthouseci/
 apps/web/lib/generated/
 admin-data/
+
+# --- terraform (M17) ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+backend.hcl
+terraform.tfvars
+*.auto.tfvars
+crash.log
+*.secrets.env
+secrets.env

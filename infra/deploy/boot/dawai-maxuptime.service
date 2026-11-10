@@ -1,0 +1,11 @@
+[Unit]
+Description=Dawai: automatic stop after MAX_UPTIME_MIN (cost guard)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/dawai/bin/max-uptime.sh
+
+[Install]
+WantedBy=multi-user.target

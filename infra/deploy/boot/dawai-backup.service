@@ -1,0 +1,7 @@
+[Unit]
+Description=Dawai nightly backup (Postgres + Redis to S3)
+After=dawai.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'c=$(cat /opt/dawai/CURRENT_SHA) && /opt/dawai/releases/$c/backup.sh nightly'

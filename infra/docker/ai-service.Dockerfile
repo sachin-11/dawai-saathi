@@ -50,3 +50,16 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2).status == 200 else 1)"]
 
 CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+
+# NOTE: this stage is LAST, so always build with --target runtime for the service image.
+# ---------------------------------------------------------------- seed (M17, one-shot job)
+# `make seed` as a container: the catalog, interactions and lab tests are loaded into the production
+# database by hand (`scripts/seed-prod.sh`, behind a confirmation flag). Same layout as the repo so the
+# scripts' `ROOT = parents[2]` and `sys.path` logic keep working. Built as target `seed`, not shipped to users.
+FROM runtime AS seed
+# The virtualenv stays in /app/.venv (its scripts hard-code that path); only the source and data are
+# laid out like the repo.
+COPY --from=build --chown=app:app /app/app /repo/apps/ai-service/app
+COPY --chown=app:app data /repo/data
+WORKDIR /repo
+CMD ["python", "data/scripts/seed_interactions.py"]
